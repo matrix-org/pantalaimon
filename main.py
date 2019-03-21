@@ -142,9 +142,46 @@ class ProxyDaemon:
         )
 
     async def sync(self, request):
+        access_token = self.get_access_token(request)
+
+        if not access_token:
+            return web.Response(
+                status=401,
+                text=json.dumps({
+                    "errcode": "M_MISSING_TOKEN",
+                    "error": "Missing access token."
+                })
+            )
+
+        try:
+            client = self.client_sessions[access_token]
+        except KeyError:
+            return web.Response(
+                status=401,
+                text=json.dumps({
+                    "errcode": "M_UNKNOWN_TOKEN",
+                    "error": "Unrecognised access token."
+                })
+            )
+
+        sync_filter = request.query.get("filter", None)
+        timeout = request.query.get("timeout", None)
+
+        try:
+            sync_filter = json.loads(sync_filter)
+        except (JSONDecodeError, TypeError):
+            pass
+
+        response = await client.sync(timeout, sync_filter)
+
+        # TODO replace decrypted messages here, upload keys, fetch the members
+        # of encrypted rooms if needed and do key queries if needed.
+
+        print("Should upload keys: {}".format(client.should_upload_keys))
+
         return web.Response(
-            status=405,
-            text="Not implemented"
+            status=response.transport_response.status,
+            text=await response.transport_response.text()
         )
 
 
