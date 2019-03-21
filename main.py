@@ -133,8 +133,7 @@ class ProxyDaemon:
         if isinstance(response, LoginResponse):
             self.client_sessions[response.access_token] = client
         else:
-            # TODO close the client and its session.
-            pass
+            await client.close()
 
         return web.Response(
             status=response.transport_response.status,
@@ -184,6 +183,19 @@ class ProxyDaemon:
             text=await response.transport_response.text()
         )
 
+    async def shutdown(self, app):
+        """Shut the daemon down closing all the client sessions it has.
+
+        This method is called when we shut the whole app down
+        """
+        for client in self.client_sessions.values():
+            print("CLOSING CLIENT {}".format(client))
+            await client.close()
+
+        if self.default_session:
+            await self.default_session.close()
+            self.default_session = None
+
 
 async def init():
     """Initialize the proxy and the http server."""
@@ -194,6 +206,7 @@ async def init():
         web.get("/_matrix/client/r0/sync", proxy.sync),
     ])
     app.router.add_route('*', "/" + '{proxyPath:.*}', proxy.router)
+    app.on_shutdown.append(proxy.shutdown)
     return proxy, app
 
 
