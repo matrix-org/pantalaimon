@@ -15,6 +15,7 @@ setup(
     install_requires=[
         "attrs",
         "aiohttp",
+        "appdirs",
         "aiohttp-socks",
         "typing;python_version<'3.5'",
         "matrix-nio @ git+https://github.com/poljar/matrix-nio.git@master#egg=matrix-nio-0"
