@@ -18,7 +18,10 @@ setup(
         "appdirs",
         "aiohttp-socks",
         "typing;python_version<'3.5'",
-        "matrix-nio @ git+https://github.com/poljar/matrix-nio.git@master#egg=matrix-nio-0"
+        "matrix-nio @ git+https://github.com/poljar/matrix-nio.git@async#egg=matrix-nio-0"
     ],
+    entry_points={
+        "console_scripts": ["pantalaimon=pantalaimon.daemon:main"],
+    },
     zip_safe=False
 )

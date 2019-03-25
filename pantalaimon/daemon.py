@@ -189,7 +189,6 @@ class ProxyDaemon:
         This method is called when we shut the whole app down
         """
         for client in self.client_sessions.values():
-            print("CLOSING CLIENT {}".format(client))
             await client.close()
 
         if self.default_session:
