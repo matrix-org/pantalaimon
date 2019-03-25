@@ -258,7 +258,8 @@ class ProxyDaemon:
 
 async def init():
     """Initialize the proxy and the http server."""
-    proxy = ProxyDaemon(HOMESERVER, proxy="http://localhost:8080", ssl=False)
+    # proxy = ProxyDaemon(HOMESERVER, proxy="http://localhost:8080", ssl=False)
+    proxy = ProxyDaemon(HOMESERVER)
     app = web.Application()
     app.add_routes([
         web.post("/_matrix/client/r0/login", proxy.login),
