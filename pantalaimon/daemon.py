@@ -7,7 +7,13 @@ import os
 import json
 
 from aiohttp import web, ClientSession
-from nio import AsyncClient, LoginResponse
+from nio import (
+    AsyncClient,
+    LoginResponse,
+    RoomEncryptedEvent,
+    MegolmEvent,
+    EncryptionError
+)
 from appdirs import user_data_dir
 from json import JSONDecodeError
 
@@ -94,7 +100,6 @@ class ProxyDaemon:
             # )
 
         print("Login request")
-        print(body)
 
         identifier = body.get("identifier", None)
 
@@ -171,16 +176,71 @@ class ProxyDaemon:
         except (JSONDecodeError, TypeError):
             pass
 
+        # TODO edit the sync filter to not filter encrypted messages
+        # TODO do the same with an uploaded filter
+
+        # room_filter = sync_filter.get("room", None)
+
+        # if room_filter:
+        #     timeline_filter = room_filter.get("timeline", None)
+        #     if timeline_filter:
+        #         types_filter = timeline_filter.get("types", None)
+
         response = await client.sync(timeout, sync_filter)
 
-        # TODO replace decrypted messages here, upload keys, fetch the members
-        # of encrypted rooms if needed and do key queries if needed.
+        if client.should_upload_keys:
+            await client.keys_upload()
 
-        print("Should upload keys: {}".format(client.should_upload_keys))
+        if client.should_query_keys:
+            await client.keys_query()
+
+        json_response = await response.transport_response.json()
+
+        for room_id, room_dict in json_response["rooms"]["join"].items():
+            if not client.rooms[room_id].encrypted:
+                print("Room {} not encrypted skipping...".format(
+                    client.rooms[room_id].display_name
+                ))
+                continue
+
+            for event in room_dict["timeline"]["events"]:
+                if event["type"] != "m.room.encrypted":
+                    print("Event not encrypted skipping...")
+                    continue
+
+                parsed_event = RoomEncryptedEvent.parse_event(event)
+                parsed_event.room_id = room_id
+
+                if not isinstance(parsed_event, MegolmEvent):
+                    print("Not a megolm event.")
+                    continue
+
+                try:
+                    decrypted_event = client.decrypt_event(parsed_event)
+                    print("Decrypted event: {}".format(decrypted_event))
+                    event["type"] = "m.room.message"
+
+                    # TODO support other event types
+                    event["content"] = {
+                        "msgtype": "m.text",
+                        "body": decrypted_event.body
+                    }
+
+                    if decrypted_event.formatted_body:
+                        event["content"]["formatted_body"] = (
+                            decrypted_event.formatted_body)
+                        event["content"]["format"] = decrypted_event.format
+
+                    event["decrypted"] = True
+                    event["verified"] = decrypted_event.verified
+
+                except EncryptionError as e:
+                    print("ERROR decrypting {}".format(e))
+                    continue
 
         return web.Response(
             status=response.transport_response.status,
-            text=await response.transport_response.text()
+            text=json.dumps(json_response)
         )
 
     async def shutdown(self, app):
