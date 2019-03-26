@@ -282,6 +282,37 @@ class ProxyDaemon:
             text=json.dumps(json_response)
         )
 
+    async def send_message(self, request):
+        access_token = self.get_access_token(request)
+
+        if not access_token:
+            return self._missing_token
+
+        try:
+            client = self.client_sessions[access_token]
+        except KeyError:
+            return self._uknown_token
+
+        msgtype = request.match_info["event_type"]
+        room_id = request.match_info["room_id"]
+        txnid = request.match_info["txnid"]
+
+        try:
+            content = await request.json()
+        except JSONDecodeError:
+            return self._not_json
+
+        try:
+            response = await client.room_send(room_id, msgtype, content, txnid)
+        except GroupEncryptionError:
+            await client.share_group_session(room_id)
+            response = await client.room_send(room_id, msgtype, content, txnid)
+
+        return web.Response(
+            status=response.transport_response.status,
+            text=await response.transport_response.text()
+        )
+
     async def shutdown(self, app):
         """Shut the daemon down closing all the client sessions it has.
 
@@ -303,8 +334,12 @@ async def init():
     app.add_routes([
         web.post("/_matrix/client/r0/login", proxy.login),
         web.get("/_matrix/client/r0/sync", proxy.sync),
+        web.put(
+            r"/_matrix/client/r0/rooms/{room_id}/send/{event_type}/{txnid}",
+            proxy.send_message
+        ),
     ])
-    app.router.add_route('*', "/" + '{proxyPath:.*}', proxy.router)
+    app.router.add_route("*", "/" + "{proxyPath:.*}", proxy.router)
     app.on_shutdown.append(proxy.shutdown)
     return proxy, app
 
