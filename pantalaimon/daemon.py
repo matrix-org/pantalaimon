@@ -219,7 +219,19 @@ class ProxyDaemon:
             await client.keys_upload()
 
         if client.should_query_keys:
-            await client.keys_query()
+            key_query_response = await client.keys_query()
+
+            # Verify new devices automatically for now.
+            if isinstance(key_query_response, KeysQueryResponse):
+                for user_id, device_dict in key_query_response.changed.items():
+                    for device in device_dict.values():
+                        if device.deleted:
+                            continue
+
+                        print("Automatically verifying device {}".format(
+                            device.id
+                        ))
+                        client.verify_device(device)
 
         json_response = await response.transport_response.json()
 
