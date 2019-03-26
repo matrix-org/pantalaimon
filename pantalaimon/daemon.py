@@ -10,9 +10,12 @@ from aiohttp import web, ClientSession
 from nio import (
     AsyncClient,
     LoginResponse,
+    KeysQueryResponse,
+    GroupEncryptionError,
     RoomEncryptedEvent,
     MegolmEvent,
-    EncryptionError
+    EncryptionError,
+    SyncResponse
 )
 from appdirs import user_data_dir
 from json import JSONDecodeError
@@ -145,28 +148,46 @@ class ProxyDaemon:
             text=await response.transport_response.text()
         )
 
-    async def sync(self, request):
-        access_token = self.get_access_token(request)
+    @property
+    def _missing_token(self):
+        return web.Response(
+            status=401,
+            text=json.dumps({
+                "errcode": "M_MISSING_TOKEN",
+                "error": "Missing access token."
+            })
+        )
 
-        if not access_token:
-            return web.Response(
-                status=401,
-                text=json.dumps({
-                    "errcode": "M_MISSING_TOKEN",
-                    "error": "Missing access token."
-                })
-            )
-
-        try:
-            client = self.client_sessions[access_token]
-        except KeyError:
-            return web.Response(
+    @property
+    def _uknown_token(self):
+        return web.Response(
                 status=401,
                 text=json.dumps({
                     "errcode": "M_UNKNOWN_TOKEN",
                     "error": "Unrecognised access token."
                 })
-            )
+        )
+
+    @property
+    def _not_json(self):
+        return web.Response(
+            status=400,
+            text=json.dumps({
+                "errcode": "M_NOT_JSON",
+                "error": "Request did not contain valid JSON."
+            })
+        )
+
+    async def sync(self, request):
+        access_token = self.get_access_token(request)
+
+        if not access_token:
+            return self._missing_token
+
+        try:
+            client = self.client_sessions[access_token]
+        except KeyError:
+            return self._uknown_token
 
         sync_filter = request.query.get("filter", None)
         timeout = request.query.get("timeout", None)
