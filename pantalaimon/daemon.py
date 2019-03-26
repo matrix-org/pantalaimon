@@ -209,6 +209,12 @@ class ProxyDaemon:
 
         response = await client.sync(timeout, sync_filter)
 
+        if not isinstance(response, SyncResponse):
+            return web.Response(
+                status=response.transport_response.status,
+                text=await response.text()
+            )
+
         if client.should_upload_keys:
             await client.keys_upload()
 
