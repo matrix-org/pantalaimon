@@ -89,18 +89,21 @@ class ProxyDaemon:
         try:
             body = await request.json()
         except JSONDecodeError:
-            # TODO what to do here, quaternion retries the login if we raise an
-            # exception here, throws an error if we send out an 400 and hangs
-            # if we forward it to the router() method.
-            print("JSON ERROR IN LOGIN")
-            raise
-            # return web.Response(
-            #     status=400,
-            #     text=json.dumps({
-            #         "errcode": "M_NOT_JSON",
-            #         "error": "Request did not contain valid JSON."
-            #     })
-            # )
+            # After a long debugging session the culprit ended up being aiohttp
+            # and a similar bug to
+            # https://github.com/aio-libs/aiohttp/issues/2277 but in the server
+            # part of aiohttp. The bug is fixed in the latest master of
+            # aiohttp.
+            # Return 500 here for now since quaternion doesn't work otherwise.
+            # After aiohttp 4.0 gets replace this with a 400 M_NOT_JSON
+            # response.
+            return web.Response(
+                status=500,
+                text=json.dumps({
+                    "errcode": "M_NOT_JSON",
+                    "error": "Request did not contain valid JSON."
+                })
+            )
 
         print("Login request")
 
