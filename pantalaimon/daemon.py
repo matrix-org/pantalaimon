@@ -162,7 +162,7 @@ class ProxyDaemon:
         )
 
     @property
-    def _uknown_token(self):
+    def _unknown_token(self):
         return web.Response(
                 status=401,
                 text=json.dumps({
@@ -190,7 +190,7 @@ class ProxyDaemon:
         try:
             client = self.client_sessions[access_token]
         except KeyError:
-            return self._uknown_token
+            return self._unknown_token
 
         sync_filter = request.query.get("filter", None)
         timeout = request.query.get("timeout", None)
@@ -296,7 +296,7 @@ class ProxyDaemon:
         try:
             client = self.client_sessions[access_token]
         except KeyError:
-            return self._uknown_token
+            return self._unknown_token
 
         msgtype = request.match_info["event_type"]
         room_id = request.match_info["room_id"]
