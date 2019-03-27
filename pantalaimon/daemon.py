@@ -198,7 +198,9 @@ class ProxyDaemon:
         try:
             sync_filter = json.loads(sync_filter)
         except (JSONDecodeError, TypeError):
-            pass
+            # If the client is using a numeric filter, remove it since we don't
+            # know yet what the filter contains.
+            sync_filter = None
 
         # TODO edit the sync filter to not filter encrypted messages
         # TODO do the same with an uploaded filter
