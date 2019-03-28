@@ -6,6 +6,10 @@ import aiohttp
 import os
 import json
 
+import click
+from ipaddress import ip_address
+from urllib.parse import urlparse
+
 from aiohttp import web, ClientSession
 from nio import (
     AsyncClient,
@@ -19,8 +23,6 @@ from nio import (
 )
 from appdirs import user_data_dir
 from json import JSONDecodeError
-
-HOMESERVER = "https://localhost:8448"
 
 
 @attr.s
@@ -58,8 +60,6 @@ class ProxyDaemon:
         headers = request.headers
         params = request.query
 
-        print(method, path, data)
-
         session = None
 
         token = self.get_access_token(request)
@@ -75,14 +75,13 @@ class ProxyDaemon:
 
         async with session.request(
             method,
-            HOMESERVER + path,
+            self.homeserver + path,
             data=data,
             params=params,
             headers=headers,
             proxy=self.proxy,
             ssl=False
         ) as resp:
-            print("Returning resp {}".format(resp))
             return(web.Response(text=await resp.text()))
 
     async def login(self, request):
@@ -129,7 +128,7 @@ class ProxyDaemon:
             pass
 
         client = AsyncClient(
-            HOMESERVER,
+            self.homeserver,
             user,
             device_id,
             store_path=store_path,
@@ -331,10 +330,10 @@ class ProxyDaemon:
             self.default_session = None
 
 
-async def init():
+async def init(homeserver, proxy, ssl):
     """Initialize the proxy and the http server."""
-    # proxy = ProxyDaemon(HOMESERVER, proxy="http://localhost:8080", ssl=False)
-    proxy = ProxyDaemon(HOMESERVER)
+    proxy = ProxyDaemon(homeserver, proxy="http://localhost:8080", ssl=ssl)
+
     app = web.Application()
     app.add_routes([
         web.post("/_matrix/client/r0/login", proxy.login),
@@ -349,11 +348,81 @@ async def init():
     return proxy, app
 
 
-def main():
-    loop = asyncio.get_event_loop()
-    proxy, app = loop.run_until_complete(init())
+class URL(click.ParamType):
+    name = 'url'
 
-    web.run_app(app, host="127.0.0.1", port=8081)
+    def convert(self, value, param, ctx):
+        try:
+            value = urlparse(value)
+
+            if value.scheme not in ('http', 'https'):
+                self.fail(f"Invalid URL scheme {value.scheme}. Only HTTP(s) "
+                          "URLs are allowed")
+            value.port
+        except ValueError as e:
+            self.fail(f"Error parsing URL: {e}")
+
+        return value
+
+class ipaddress(click.ParamType):
+    name = "ipaddress"
+
+    def convert(self, value, param, ctx):
+        try:
+            value = ip_address(value)
+        except ValueError as e:
+            self.fail(f"Error parsing ip address: {e}")
+
+        return value
+
+@click.command(
+    help=("pantalaimon is a reverse proxy for matrix homeservers that "
+          "transparently encrypts and decrypts messages for clients that "
+          "connect to pantalaimon.\n\n"
+          "HOMESERVER - the homeserver that the daemon should connect to.")
+)
+@click.option(
+    "--proxy",
+    type=URL(),
+    default=None,
+    help="A proxy that will be used to connect to the homeserver."
+)
+@click.option(
+    "-k",
+    "--ssl-insecure/--no-ssl-insecure",
+    default=False,
+    help="Disable SSL verification for the homeserver connection."
+)
+@click.option(
+    "-l",
+    "--listen-address",
+    type=ipaddress(),
+    default=ip_address("127.0.0.1"),
+    help=("The listening address for incoming client connections "
+          "(default: 127.0.0.1)")
+)
+@click.option(
+    "-p",
+    "--listen-port",
+    type=int,
+    default=8009,
+    help="The listening port for incoming client connections (default: 8009)"
+)
+@click.argument(
+    "homeserver",
+    type=URL(),
+)
+def main(proxy, ssl_insecure, listen_address, listen_port, homeserver):
+    ssl = None if ssl_insecure is False else False
+
+    loop = asyncio.get_event_loop()
+    proxy, app = loop.run_until_complete(init(
+        homeserver.geturl(),
+        proxy.geturl() if proxy else None,
+        ssl
+    ))
+
+    web.run_app(app, host=str(listen_address), port=listen_port)
 
 
 if __name__ == "__main__":

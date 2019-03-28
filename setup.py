@@ -16,6 +16,7 @@ setup(
         "attrs",
         "aiohttp",
         "appdirs",
+        "click",
         "typing;python_version<'3.5'",
         "matrix-nio @ git+https://github.com/poljar/matrix-nio.git@async#egg=matrix-nio-0"
     ],
