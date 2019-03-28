@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 setup(
     name="pantalaimon",
     version="0.1",
-    url="https://github.com/poljar/pantalaimon",
+    url="https://github.com/matrix-org/pantalaimon",
     author="The Matrix.org Team",
     author_email="poljar@termina.org.uk",
     description=("A Matrix proxy daemon that adds E2E encryption "
