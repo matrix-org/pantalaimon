@@ -104,8 +104,6 @@ class ProxyDaemon:
                 })
             )
 
-        print("Login request")
-
         identifier = body.get("identifier", None)
 
         if identifier:
@@ -135,8 +133,6 @@ class ProxyDaemon:
             ssl=self.ssl,
             proxy=self.proxy
         )
-
-        print("Logging in")
 
         response = await client.login(password, device_name)
 
