@@ -327,9 +327,9 @@ class ProxyDaemon:
             self.default_session = None
 
 
-async def init(homeserver, proxy, ssl):
+async def init(homeserver, http_proxy, ssl):
     """Initialize the proxy and the http server."""
-    proxy = ProxyDaemon(homeserver, proxy="http://localhost:8080", ssl=ssl)
+    proxy = ProxyDaemon(homeserver, proxy=http_proxy, ssl=ssl)
 
     app = web.Application()
     app.add_routes([
