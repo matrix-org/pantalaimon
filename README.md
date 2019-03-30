@@ -5,7 +5,7 @@ A E2E aware matrix proxy daemon.
 
 This still in an early development phase.
 
-Instalation
+Installation
 ===========
 
 The [Olm](https://git.matrix.org/git/olm/) C library is required to be installed
