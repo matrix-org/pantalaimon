@@ -120,7 +120,7 @@ class ProxyDaemon:
 
         password = body.get("password", "")
         device_id = body.get("device_id", "")
-        device_name = body.get("initial_device_display_name", "")
+        device_name = body.get("initial_device_display_name", "pantalaimon")
 
         store_path = user_data_dir("pantalaimon", "")
 
