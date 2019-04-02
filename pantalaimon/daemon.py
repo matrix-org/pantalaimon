@@ -23,6 +23,7 @@ from nio import (
 )
 from appdirs import user_data_dir
 from json import JSONDecodeError
+from multidict import CIMultiDict
 
 
 @attr.s
@@ -57,7 +58,10 @@ class ProxyDaemon:
         path = request.path
         method = request.method
         data = await request.text()
-        headers = request.headers
+
+        headers = CIMultiDict(request.headers)
+        headers.pop("Host", None)
+
         params = request.query
 
         session = None
