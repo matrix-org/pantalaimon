@@ -366,6 +366,7 @@ class URL(click.ParamType):
 
         return value
 
+
 class ipaddress(click.ParamType):
     name = "ipaddress"
 
@@ -376,6 +377,7 @@ class ipaddress(click.ParamType):
             self.fail(f"Error parsing ip address: {e}")
 
         return value
+
 
 @click.command(
     help=("pantalaimon is a reverse proxy for matrix homeservers that "
