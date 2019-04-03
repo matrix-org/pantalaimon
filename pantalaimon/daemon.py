@@ -54,6 +54,15 @@ class ProxyDaemon:
         return access_token
 
     async def forward_request(self, request, session):
+        # type: (aiohttp.BaseRequest, aiohttp.ClientSession) -> str
+        """Forward the given request to our configured homeserver.
+
+        Args:
+            request (aiohttp.BaseRequest): The request that should be
+                forwarded.
+            session (aiohttp.ClientSession): The client session that should be
+                used to forward the request.
+        """
         path = request.path
         method = request.method
         data = await request.text()
@@ -74,6 +83,7 @@ class ProxyDaemon:
         )
 
     async def router(self, request):
+        """Catchall request router."""
         session = None
 
         token = self.get_access_token(request)
