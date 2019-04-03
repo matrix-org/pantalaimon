@@ -55,7 +55,7 @@ class ProxyDaemon:
 
         return access_token
 
-    async def router(self, request):
+    async def forward_request(self, request, session):
         path = request.path
         method = request.method
         data = await request.text()
@@ -65,20 +65,7 @@ class ProxyDaemon:
 
         params = request.query
 
-        session = None
-
-        token = self.get_access_token(request)
-        client = self.client_sessions.get(token, None)
-
-        if client:
-            session = client.client_session
-
-        if not session:
-            if not self.default_session:
-                self.default_session = ClientSession()
-            session = self.default_session
-
-        async with session.request(
+        return await session.request(
             method,
             self.homeserver + path,
             data=data,
@@ -86,8 +73,23 @@ class ProxyDaemon:
             headers=headers,
             proxy=self.proxy,
             ssl=False
-        ) as resp:
-            return(web.Response(text=await resp.text()))
+        )
+
+    async def router(self, request):
+        session = None
+
+        token = self.get_access_token(request)
+        client = self.client_sessions.get(token, None)
+
+        if client:
+            session = client.client_session
+        else:
+            if not self.default_session:
+                self.default_session = ClientSession()
+            session = self.default_session
+
+        resp = await self.forward_request(request, session)
+        return(web.Response(text=await resp.text()))
 
     def _get_login_user(self, body):
         identifier = body.get("identifier", None)
