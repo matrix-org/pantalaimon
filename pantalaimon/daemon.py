@@ -89,6 +89,20 @@ class ProxyDaemon:
         ) as resp:
             return(web.Response(text=await resp.text()))
 
+    def _get_login_user(self, body):
+        identifier = body.get("identifier", None)
+
+        if identifier:
+            user = identifier.get("user", None)
+
+            if not user:
+                user = body.get("user", "")
+        else:
+            user = body.get("user", "")
+
+        return user
+
+
     async def login(self, request):
         try:
             body = await request.json()
@@ -109,16 +123,7 @@ class ProxyDaemon:
                 })
             )
 
-        identifier = body.get("identifier", None)
-
-        if identifier:
-            user = identifier.get("user", None)
-
-            if not user:
-                user = body.get("user", "")
-        else:
-            user = body.get("user", "")
-
+        user = self._get_login_user(body)
         password = body.get("password", "")
         device_id = body.get("device_id", "")
         device_name = body.get("initial_device_display_name", "pantalaimon")
