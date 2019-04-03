@@ -29,6 +29,7 @@ from multidict import CIMultiDict
 @attr.s
 class ProxyDaemon:
     homeserver = attr.ib()
+    data_dir = attr.ib()
     proxy = attr.ib(default=None)
     ssl = attr.ib(default=None)
 
@@ -122,18 +123,11 @@ class ProxyDaemon:
         device_id = body.get("device_id", "")
         device_name = body.get("initial_device_display_name", "pantalaimon")
 
-        store_path = user_data_dir("pantalaimon", "")
-
-        try:
-            os.makedirs(store_path)
-        except OSError:
-            pass
-
         client = AsyncClient(
             self.homeserver,
             user,
             device_id,
-            store_path=store_path,
+            store_path=self.data_dir,
             ssl=self.ssl,
             proxy=self.proxy
         )
@@ -333,7 +327,14 @@ class ProxyDaemon:
 
 async def init(homeserver, http_proxy, ssl):
     """Initialize the proxy and the http server."""
-    proxy = ProxyDaemon(homeserver, proxy=http_proxy, ssl=ssl)
+    data_dir = user_data_dir("pantalaimon", "")
+
+    try:
+        os.makedirs(data_dir)
+    except OSError:
+        pass
+
+    proxy = ProxyDaemon(homeserver, data_dir, proxy=http_proxy, ssl=ssl)
 
     app = web.Application()
     app.add_routes([
