@@ -9,6 +9,7 @@ import json
 import click
 from ipaddress import ip_address
 from urllib.parse import urlparse
+from logbook import StderrHandler
 
 from aiohttp import web, ClientSession
 from nio import (
@@ -22,6 +23,7 @@ from json import JSONDecodeError
 from multidict import CIMultiDict
 
 from pantalaimon.client import PantaClient
+from pantalaimon.log import logger
 
 
 @attr.s
@@ -242,9 +244,8 @@ class ProxyDaemon:
                         if device.deleted:
                             continue
 
-                        print("Automatically verifying device {}".format(
-                            device.id
-                        ))
+                        logger.info("Automatically verifying device {} of "
+                                    "user {}".format(device.id, user_id))
                         client.verify_device(device)
 
         json_response = await response.transport_response.json()
@@ -387,12 +388,27 @@ class ipaddress(click.ParamType):
     default=8009,
     help="The listening port for incoming client connections (default: 8009)"
 )
+@click.option("--log-level", type=click.Choice([
+    "error",
+    "warning",
+    "info",
+    "debug"
+]), default="error")
 @click.argument(
     "homeserver",
     type=URL(),
 )
-def main(proxy, ssl_insecure, listen_address, listen_port, homeserver):
+def main(
+    proxy,
+    ssl_insecure,
+    listen_address,
+    listen_port,
+    log_level,
+    homeserver
+):
     ssl = None if ssl_insecure is False else False
+
+    StderrHandler(level=log_level.upper()).push_application()
 
     loop = asyncio.get_event_loop()
     proxy, app = loop.run_until_complete(init(

@@ -1,4 +1,5 @@
 from typing import Any, Dict
+from pprint import pformat
 
 from nio import (
     AsyncClient,
@@ -7,6 +8,8 @@ from nio import (
     EncryptionError,
     SyncResponse
 )
+
+from pantalaimon.log import logger
 
 
 class PantaClient(AsyncClient):
@@ -23,26 +26,28 @@ class PantaClient(AsyncClient):
         """
         for room_id, room_dict in body["rooms"]["join"].items():
             if not self.rooms[room_id].encrypted:
-                print("Room {} not encrypted skipping...".format(
+                logger.info("Room {} is not encrypted skipping...".format(
                     self.rooms[room_id].display_name
                 ))
                 continue
 
             for event in room_dict["timeline"]["events"]:
                 if event["type"] != "m.room.encrypted":
-                    print("Event not encrypted skipping...")
+                    logger.info("Event is not encrypted: "
+                                "{}".format(pformat(event)))
                     continue
 
                 parsed_event = RoomEncryptedEvent.parse_event(event)
                 parsed_event.room_id = room_id
 
                 if not isinstance(parsed_event, MegolmEvent):
-                    print("Not a megolm event.")
+                    logger.warn("Encrypted event is not a megolm event:"
+                                "{}".format(pformat(event)))
                     continue
 
                 try:
                     decrypted_event = self.decrypt_event(parsed_event)
-                    print("Decrypted event: {}".format(decrypted_event))
+                    logger.info("Decrypted event: {}".format(decrypted_event))
                     event["type"] = "m.room.message"
 
                     # TODO support other event types
@@ -63,7 +68,7 @@ class PantaClient(AsyncClient):
                     event["verified"] = decrypted_event.verified
 
                 except EncryptionError as error:
-                    print("ERROR decrypting {}".format(error))
+                    logger.warn(error)
                     continue
 
         return body
