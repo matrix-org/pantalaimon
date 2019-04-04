@@ -5,7 +5,7 @@ import asyncio
 import aiohttp
 import os
 import json
-import ssl
+import logbook
 
 import click
 from ipaddress import ip_address
@@ -459,6 +459,15 @@ def main(
     ssl = None if ssl_insecure is False else False
 
     StderrHandler(level=log_level.upper()).push_application()
+
+    if log_level == "info":
+        logger.level = logbook.INFO
+    elif log_level == "warning":
+        logger.level = logbook.WARNING
+    elif log_level == "error":
+        logger.level = logbook.ERROR
+    elif log_level == "debug":
+        logger.level = logbook.DEBUG
 
     loop = asyncio.get_event_loop()
     proxy, app = loop.run_until_complete(init(
