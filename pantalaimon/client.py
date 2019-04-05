@@ -89,7 +89,7 @@ class PantaClient(AsyncClient):
         Raises LocalProtocolError if the loop isn't running.
         """
         if not self.loop_running:
-            LocalProtocolError("Loop is not running")
+            raise LocalProtocolError("Loop is not running")
 
         self.loop_running = False
         await self.loop_stopped.wait()
