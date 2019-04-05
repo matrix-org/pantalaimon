@@ -119,10 +119,14 @@ class PantaClient(AsyncClient):
             Returns the json response with decrypted events.
         """
         for room_id, room_dict in body["rooms"]["join"].items():
-            if not self.rooms[room_id].encrypted:
-                logger.info("Room {} is not encrypted skipping...".format(
-                    self.rooms[room_id].display_name
-                ))
+            try:
+                if not self.rooms[room_id].encrypted:
+                    logger.info("Room {} is not encrypted skipping...".format(
+                        self.rooms[room_id].display_name
+                    ))
+                    continue
+            except KeyError:
+                logger.info("Unknown room {} skipping...".format(room_id))
                 continue
 
             for event in room_dict["timeline"]["events"]:
