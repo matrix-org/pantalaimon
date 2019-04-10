@@ -1,25 +1,21 @@
 #!/usr/bin/env python3
 
-import attr
 import asyncio
-import aiohttp
-import os
 import json
-import logbook
-
-import click
+import os
 from ipaddress import ip_address
-from urllib.parse import urlparse
-from logbook import StderrHandler
-
-from aiohttp import web, ClientSession
-from nio import (
-    LoginResponse,
-    GroupEncryptionError,
-)
-from appdirs import user_data_dir
 from json import JSONDecodeError
+from urllib.parse import urlparse
+
+import aiohttp
+import attr
+import click
+import logbook
+from aiohttp import ClientSession, web
+from appdirs import user_data_dir
+from logbook import StderrHandler
 from multidict import CIMultiDict
+from nio import GroupEncryptionError, LoginResponse
 
 from pantalaimon.client import PantaClient
 from pantalaimon.log import logger

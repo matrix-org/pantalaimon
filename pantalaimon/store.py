@@ -1,16 +1,10 @@
 import os
+from typing import List, Optional, Tuple
+
 import attr
-from typing import Tuple, List, Optional
-
-from peewee import (
-    Model,
-    TextField,
-    ForeignKeyField,
-    DoesNotExist,
-    SqliteDatabase
-)
-
 from nio.store import Accounts, use_database
+from peewee import (DoesNotExist, ForeignKeyField, Model, SqliteDatabase,
+                    TextField)
 
 
 class AccessTokens(Model):

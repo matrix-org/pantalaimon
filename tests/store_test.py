@@ -1,18 +1,16 @@
 import pdb
-import pytest
-import tempfile
 import shutil
+import tempfile
+from random import choices
+from string import ascii_letters, ascii_uppercase, digits
 
-from nio.crypto import OlmAccount
-from nio.store import SqliteStore
-from pantalaimon.store import PanStore
-
+import pytest
 from faker import Faker
 from faker.providers import BaseProvider
+from nio.crypto import OlmAccount
+from nio.store import SqliteStore
 
-from random import choices
-from string import digits, ascii_letters, ascii_uppercase
-
+from pantalaimon.store import PanStore
 
 faker = Faker()
 

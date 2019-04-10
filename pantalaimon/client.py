@@ -1,17 +1,10 @@
 import asyncio
-from typing import Any, Dict
 from pprint import pformat
+from typing import Any, Dict
 
-from nio import (
-    AsyncClient,
-    RoomEncryptedEvent,
-    MegolmEvent,
-    EncryptionError,
-    SyncResponse,
-    KeysQueryResponse,
-    LocalProtocolError,
-    GroupEncryptionError
-)
+from nio import (AsyncClient, EncryptionError, GroupEncryptionError,
+                 KeysQueryResponse, LocalProtocolError, MegolmEvent,
+                 RoomEncryptedEvent, SyncResponse)
 
 from pantalaimon.log import logger
 
