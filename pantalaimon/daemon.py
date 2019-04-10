@@ -43,7 +43,7 @@ class ProxyDaemon:
     default_session = attr.ib(init=False, default=None)
 
     def get_access_token(self, request):
-        # type: (aiohttp.BaseRequest) -> str
+        # type: (aiohttp.web.BaseRequest) -> str
         """Extract the access token from the request.
 
         This method extracts the access token either from the query string or
@@ -63,11 +63,11 @@ class ProxyDaemon:
 
     async def forward_request(
         self,
-        request,
-        params=None,
-        session=None
+        request,      # type: aiohttp.web.BaseRequest
+        params=None,  # type: CIMultiDict
+        session=None  # type: aiohttp.ClientSession
     ):
-        # type: (aiohttp.BaseRequest, aiohttp.ClientSession) -> str
+        # type: (...) -> aiohttp.ClientResponse
         """Forward the given request to our configured homeserver.
 
         Args:
@@ -81,6 +81,8 @@ class ProxyDaemon:
             if not self.default_session:
                 self.default_session = ClientSession()
             session = self.default_session
+
+        assert session
 
         path = request.path
         method = request.method
