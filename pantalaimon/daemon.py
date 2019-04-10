@@ -15,9 +15,7 @@ from logbook import StderrHandler
 from aiohttp import web, ClientSession
 from nio import (
     LoginResponse,
-    KeysQueryResponse,
     GroupEncryptionError,
-    SyncResponse
 )
 from appdirs import user_data_dir
 from json import JSONDecodeError
@@ -250,7 +248,7 @@ class ProxyDaemon:
             return self._unknown_token
 
         sync_filter = request.query.get("filter", None)
-        timeout = request.query.get("timeout", None)
+        # timeout = request.query.get("timeout", None)
 
         try:
             sync_filter = json.loads(sync_filter)
