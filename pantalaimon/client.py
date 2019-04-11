@@ -117,7 +117,7 @@ class PanClient(AsyncClient):
         Args:
             body (Dict[Any, Any]): The dictionary of a Sync response.
 
-            Returns the json response with decrypted events.
+        Returns the json response with decrypted events.
         """
         for room_id, room_dict in body["rooms"]["join"].items():
             try:
