@@ -10,7 +10,7 @@ from faker.providers import BaseProvider
 from nio.crypto import OlmAccount
 from nio.store import SqliteStore
 
-from pantalaimon.store import PanStore
+from pantalaimon.store import ClientInfo, PanStore
 
 faker = Faker()
 
@@ -25,6 +25,9 @@ class Provider(BaseProvider):
     def access_token(self):
         return "MDA" + "".join(choices(digits + ascii_letters, k=272))
 
+    def client(self):
+        return ClientInfo(faker.mx_id(), faker.access_token())
+
 
 faker.add_provider(Provider)
 
@@ -32,6 +35,11 @@ faker.add_provider(Provider)
 @pytest.fixture
 def access_token():
     return faker.access_token()
+
+
+@pytest.fixture
+def client():
+    return faker.client()
 
 
 @pytest.fixture
@@ -73,3 +81,17 @@ class TestClass(object):
 
         token = panstore.load_access_token(user_id, device_id)
         access_token == token
+
+    def test_child_clinets_storing(self, panstore, client):
+        clients = panstore.load_clients()
+        assert not clients
+
+        panstore.save_client(client)
+
+        clients = panstore.load_clients()
+        assert clients
+
+        client2 = faker.client()
+        panstore.save_client(client2)
+        clients = panstore.load_clients()
+        assert len(clients) == 2

@@ -20,13 +20,7 @@ from nio import GroupEncryptionError, LoginResponse
 
 from pantalaimon.client import PanClient
 from pantalaimon.log import logger
-from pantalaimon.store import PanStore
-
-
-@attr.s
-class Client:
-    user_id = attr.ib(type=str)
-    access_token = attr.ib(type=str)
+from pantalaimon.store import ClientInfo, PanStore
 
 
 @attr.s
@@ -49,6 +43,8 @@ class ProxyDaemon:
     def __attrs_post_init__(self):
         self.store = PanStore(self.data_dir)
         accounts = self.store.get_users()
+
+        self.client_info = self.store.load_clients()
 
         for user_id, device_id in accounts:
             token = self.store.load_access_token(user_id, device_id)
@@ -159,8 +155,9 @@ class ProxyDaemon:
         return user
 
     async def start_pan_client(self, access_token, user, user_id, password):
-        client = Client(user_id, access_token)
+        client = ClientInfo(user_id, access_token)
         self.client_info[access_token] = client
+        self.store.save_client(client)
 
         if user_id in self.pan_clients:
             logger.info(f"Background sync client already exists for {user_id},"

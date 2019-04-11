@@ -1,9 +1,9 @@
 import os
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import attr
 from nio.store import Accounts, use_database
-from peewee import (DoesNotExist, ForeignKeyField, Model, SqliteDatabase,
+from peewee import (SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase,
                     TextField)
 
 
@@ -17,13 +17,27 @@ class AccessTokens(Model):
     )
 
 
+class Clients(Model):
+    user_id = TextField()
+    token = TextField()
+
+    class Meta:
+        constraints = [SQL("UNIQUE(user_id,token)")]
+
+
+@attr.s
+class ClientInfo:
+    user_id = attr.ib(type=str)
+    access_token = attr.ib(type=str)
+
+
 @attr.s
 class PanStore:
     store_path = attr.ib(type=str)
     database_name = attr.ib(type=str, default="pan.db")
     database = attr.ib(type=SqliteDatabase, init=False)
     database_path = attr.ib(type=str, init=False)
-    models = [Accounts, AccessTokens]
+    models = [Accounts, AccessTokens, Clients]
 
     def __attrs_post_init__(self):
         self.database_path = os.path.join(
@@ -93,3 +107,24 @@ class PanStore:
             return account.access_token[0].token
         except IndexError:
             return None
+
+    @use_database
+    def save_client(self, client):
+        # type: (ClientInfo) -> None
+        Clients.replace(
+            user_id=client.user_id,
+            token=client.access_token
+        ).execute()
+
+    @use_database
+    def load_clients(self):
+        # type: () -> Dict[str, ClientInfo]
+        clients = dict()
+
+        query = Clients.select()
+
+        for c in query:
+            client = ClientInfo(c.user_id, c.token)
+            clients[c.token] = client
+
+        return clients
