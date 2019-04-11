@@ -25,7 +25,7 @@ class PantaClient(AsyncClient):
         super().__init__(homeserver, user, device_id, store_path, config,
                          ssl, proxy)
 
-        self.loop_running = False
+        self.task = None
         self.loop_stopped = asyncio.Event()
         self.synced = asyncio.Event()
 
@@ -40,51 +40,57 @@ class PantaClient(AsyncClient):
                             "user {}".format(device.id, user_id))
                 self.verify_device(device)
 
-    async def loop(self):
+    def start_loop(self):
         """Start a loop that runs forever and keeps on syncing with the server.
 
         The loop can be stopped with the stop_loop() method.
         """
+        loop = asyncio.get_event_loop()
+        task = loop.create_task(self.loop())
+        self.task = task
+        return task
+
+    async def loop(self):
         self.loop_running = True
         self.loop_stopped.clear()
 
         logger.info(f"Starting sync loop for {self.user_id}")
 
-        while self.loop_running:
-            if not self.logged_in:
-                # TODO login
-                pass
+        try:
+            while True:
+                if not self.logged_in:
+                    # TODO login
+                    pass
 
-            # TODO use user lazy loading here
-            response = await self.sync(30000)
+                # TODO use user lazy loading here
+                response = await self.sync(30000)
 
-            if self.should_upload_keys:
-                await self.keys_upload()
+                if self.should_upload_keys:
+                    await self.keys_upload()
 
-            if self.should_query_keys:
-                key_query_response = await self.keys_query()
-                if isinstance(key_query_response, KeysQueryResponse):
-                    self.verify_devices(key_query_response.changed)
+                if self.should_query_keys:
+                    key_query_response = await self.keys_query()
+                    if isinstance(key_query_response, KeysQueryResponse):
+                        self.verify_devices(key_query_response.changed)
 
-            if not isinstance(response, SyncResponse):
-                # TODO error handling
-                pass
+                if not isinstance(response, SyncResponse):
+                    # TODO error handling
+                    pass
 
-            self.synced.set()
-            self.synced.clear()
+                self.synced.set()
+                self.synced.clear()
 
-        logger.info("Stopping the sync loop")
-        self.loop_stopped.set()
+        except asyncio.CancelledError:
+            logger.info("Stopping the sync loop")
+            self.loop_running = False
+            self.loop_stopped.set()
 
     async def loop_stop(self):
-        """Stop the client loop.
+        """Stop the client loop."""
+        if not self.task:
+            return
 
-        Raises LocalProtocolError if the loop isn't running.
-        """
-        if not self.loop_running:
-            raise LocalProtocolError("Loop is not running")
-
-        self.loop_running = False
+        self.task.cancel()
         await self.loop_stopped.wait()
 
     async def encrypt(self, room_id, msgtype, content):

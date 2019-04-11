@@ -152,8 +152,7 @@ class ProxyDaemon:
 
         self.panta_clients[user_id] = panta_client
 
-        loop = asyncio.get_event_loop()
-        loop.create_task(panta_client.loop())
+        panta_client.start_loop()
 
     async def login(self, request):
         try:
