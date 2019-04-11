@@ -3,9 +3,9 @@ dist: xenial
 sudo: false
 before_install:
     - wget https://matrix.org/git/olm/snapshot/olm-2.3.0.tar.bz2
-    - tar -xvf olm-2.3.0.tar.bz2
-    - pushd olm-2.3.0 && make && sudo make PREFIX="/usr" install && popd
-    - rm -r olm-2.3.0
+    - tar -xvf olm-3.0.0.tar.bz2
+    - pushd olm-3.0.0 && make && sudo make PREFIX="/usr" install && popd
+    - rm -r olm-3.0.0
 
 matrix:
     include:
