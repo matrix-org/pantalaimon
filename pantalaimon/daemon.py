@@ -17,8 +17,9 @@ from logbook import StderrHandler
 from multidict import CIMultiDict
 from nio import GroupEncryptionError, LoginResponse
 
-from pantalaimon.client import PantaClient
+from pantalaimon.client import PanClient
 from pantalaimon.log import logger
+from pantalaimon.store import PanStore
 
 
 @attr.s
@@ -34,13 +35,44 @@ class ProxyDaemon:
     proxy = attr.ib(default=None)
     ssl = attr.ib(default=None)
 
-    panta_clients = attr.ib(init=False, default=attr.Factory(dict))
+    store = attr.ib(type=PanStore, init=False)
+    pan_clients = attr.ib(init=False, default=attr.Factory(dict))
     client_info = attr.ib(
         init=False,
         default=attr.Factory(dict),
         type=dict
     )
     default_session = attr.ib(init=False, default=None)
+    database_name = "pan.db"
+
+    def __attrs_post_init__(self):
+        self.store = PanStore(self.data_dir)
+        accounts = self.store.get_users()
+
+        for user_id, device_id in accounts:
+            token = self.store.load_access_token(user_id, device_id)
+
+            if not token:
+                logger.warn(f"Not restoring client for {user_id} {device_id}, "
+                            f"missing access token.")
+                continue
+
+            logger.info(f"Restoring client for {user_id} {device_id}")
+
+            pan_client = PanClient(
+                self.homeserver,
+                user_id,
+                device_id,
+                store_path=self.data_dir,
+                ssl=self.ssl,
+                proxy=self.proxy
+            )
+            pan_client.user_id = user_id
+            pan_client.access_token = token
+            pan_client.load_store()
+            self.pan_clients[user_id] = pan_client
+
+            pan_client.start_loop()
 
     def get_access_token(self, request):
         # type: (aiohttp.web.BaseRequest) -> str
@@ -125,34 +157,39 @@ class ProxyDaemon:
 
         return user
 
-    async def start_panta_client(self, access_token, user, user_id, password):
+    async def start_pan_client(self, access_token, user, user_id, password):
         client = Client(user_id, access_token)
         self.client_info[access_token] = client
 
-        if user_id in self.panta_clients:
+        if user_id in self.pan_clients:
             logger.info(f"Background sync client already exists for {user_id},"
                         f" not starting new one")
             return
 
-        panta_client = PantaClient(
+        pan_client = PanClient(
             self.homeserver,
             user,
             store_path=self.data_dir,
             ssl=self.ssl,
             proxy=self.proxy
         )
-        response = await panta_client.login(password, "pantalaimon")
+        response = await pan_client.login(password, "pantalaimon")
 
         if not isinstance(response, LoginResponse):
-            await panta_client.close()
+            await pan_client.close()
             return
 
         logger.info(f"Succesfully started new background sync client for "
                     f"{user_id}")
 
-        self.panta_clients[user_id] = panta_client
+        self.pan_clients[user_id] = pan_client
+        self.store.save_access_token(
+            user_id,
+            pan_client.device_id,
+            pan_client.access_token
+        )
 
-        panta_client.start_loop()
+        pan_client.start_loop()
 
     async def login(self, request):
         try:
@@ -194,8 +231,8 @@ class ProxyDaemon:
             if user_id and access_token:
                 logger.info(f"User: {user} succesfully logged in, starting "
                             f"a background sync client.")
-                await self.start_panta_client(access_token, user, user_id,
-                                              password)
+                await self.start_pan_client(access_token, user, user_id,
+                                            password)
 
         return web.Response(
             status=response.status,
@@ -240,7 +277,7 @@ class ProxyDaemon:
 
         try:
             client_info = self.client_info[access_token]
-            client = self.panta_clients[client_info.user_id]
+            client = self.pan_clients[client_info.user_id]
         except KeyError:
             return self._unknown_token
 
@@ -295,7 +332,7 @@ class ProxyDaemon:
 
         try:
             client_info = self.client_info[access_token]
-            client = self.panta_clients[client_info.user_id]
+            client = self.pan_clients[client_info.user_id]
         except KeyError:
             return self._unknown_token
 
@@ -337,7 +374,7 @@ class ProxyDaemon:
 
         This method is called when we shut the whole app down
         """
-        for client in self.panta_clients.values():
+        for client in self.pan_clients.values():
             await client.loop_stop()
             await client.close()
 

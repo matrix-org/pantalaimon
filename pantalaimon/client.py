@@ -2,14 +2,15 @@ import asyncio
 from pprint import pformat
 from typing import Any, Dict
 
-from nio import (AsyncClient, EncryptionError, GroupEncryptionError,
-                 KeysQueryResponse, LocalProtocolError, MegolmEvent,
+from nio import (AsyncClient, ClientConfig, EncryptionError,
+                 GroupEncryptionError, KeysQueryResponse, MegolmEvent,
                  RoomEncryptedEvent, SyncResponse)
+from nio.store import SqliteStore
 
 from pantalaimon.log import logger
 
 
-class PantaClient(AsyncClient):
+class PanClient(AsyncClient):
     """A wrapper class around a nio AsyncClient extending its functionality."""
 
     def __init__(
