@@ -22,6 +22,7 @@ class PantaClient(AsyncClient):
             ssl=None,
             proxy=None
     ):
+        config = config or ClientConfig(store=SqliteStore, store_name="pan.db")
         super().__init__(homeserver, user, device_id, store_path, config,
                          ssl, proxy)
 
