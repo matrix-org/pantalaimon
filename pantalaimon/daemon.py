@@ -12,6 +12,7 @@ import attr
 import click
 import logbook
 from aiohttp import ClientSession, web
+from aiohttp.client_exceptions import ContentTypeError
 from appdirs import user_data_dir
 from logbook import StderrHandler
 from multidict import CIMultiDict
@@ -194,7 +195,7 @@ class ProxyDaemon:
     async def login(self, request):
         try:
             body = await request.json()
-        except JSONDecodeError:
+        except (JSONDecodeError, ContentTypeError):
             # After a long debugging session the culprit ended up being aiohttp
             # and a similar bug to
             # https://github.com/aio-libs/aiohttp/issues/2277 but in the server
@@ -220,7 +221,7 @@ class ProxyDaemon:
 
         try:
             json_response = await response.json()
-        except JSONDecodeError:
+        except (JSONDecodeError, ContentTypeError):
             json_response = None
             pass
 
@@ -355,7 +356,7 @@ class ProxyDaemon:
 
         try:
             content = await request.json()
-        except JSONDecodeError:
+        except (JSONDecodeError, ContentTypeError):
             return self._not_json
 
         try:
