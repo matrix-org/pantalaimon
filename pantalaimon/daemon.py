@@ -32,6 +32,7 @@ class ProxyDaemon:
     ssl = attr.ib(default=None)
 
     store = attr.ib(type=PanStore, init=False)
+    homeserver_url = attr.ib(init=False, default=attr.Factory(dict))
     pan_clients = attr.ib(init=False, default=attr.Factory(dict))
     client_info = attr.ib(
         init=False,
@@ -42,10 +43,12 @@ class ProxyDaemon:
     database_name = "pan.db"
 
     def __attrs_post_init__(self):
+        self.homeserver_url = self.homeserver.geturl()
+        self.hostname = self.homeserver.hostname
         self.store = PanStore(self.data_dir)
-        accounts = self.store.get_users()
+        accounts = self.store.load_users(self.hostname)
 
-        self.client_info = self.store.load_clients()
+        self.client_info = self.store.load_clients(self.hostname)
 
         for user_id, device_id in accounts:
             token = self.store.load_access_token(user_id, device_id)
@@ -58,7 +61,7 @@ class ProxyDaemon:
             logger.info(f"Restoring client for {user_id} {device_id}")
 
             pan_client = PanClient(
-                self.homeserver,
+                self.homeserver_url,
                 user_id,
                 device_id,
                 store_path=self.data_dir,
@@ -126,7 +129,7 @@ class ProxyDaemon:
 
         return await session.request(
             method,
-            self.homeserver + path,
+            self.homeserver_url + path,
             data=data,
             params=params,
             headers=headers,
@@ -158,7 +161,8 @@ class ProxyDaemon:
     async def start_pan_client(self, access_token, user, user_id, password):
         client = ClientInfo(user_id, access_token)
         self.client_info[access_token] = client
-        self.store.save_client(client)
+        self.store.save_client(self.hostname, client)
+        self.store.save_server_user(self.hostname, user_id)
 
         if user_id in self.pan_clients:
             logger.info(f"Background sync client already exists for {user_id},"
@@ -166,7 +170,7 @@ class ProxyDaemon:
             return
 
         pan_client = PanClient(
-            self.homeserver,
+            self.homeserver_url,
             user,
             store_path=self.data_dir,
             ssl=self.ssl,
@@ -479,7 +483,7 @@ def cli():
 def _find_device(user):
     data_dir = user_data_dir("pantalaimon", "")
     store = PanStore(data_dir)
-    accounts = store.get_users()
+    accounts = store.load_all_users()
 
     for user_id, device in accounts:
         if user == user_id:
@@ -549,7 +553,7 @@ def keys_export(user, outfile, passphrase):
 def list_users():
     data_dir = user_data_dir("pantalaimon", "")
     store = PanStore(data_dir)
-    accounts = store.get_users()
+    accounts = store.load_all_users()
 
     click.echo(f"Pantalaimon users:")
     for user, device in accounts:
@@ -617,7 +621,7 @@ def start(
 
     loop = asyncio.get_event_loop()
     proxy, app = loop.run_until_complete(init(
-        homeserver.geturl(),
+        homeserver,
         proxy.geturl() if proxy else None,
         ssl
     ))
