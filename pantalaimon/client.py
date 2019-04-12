@@ -1,6 +1,6 @@
 import asyncio
 from pprint import pformat
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from nio import (AsyncClient, ClientConfig, EncryptionError,
                  GroupEncryptionError, KeysQueryResponse, MegolmEvent,
@@ -110,6 +110,71 @@ class PanClient(AsyncClient):
                 content
             )
 
+    def pan_decrypt_event(self, event_dict, room_id=None):
+        # type: (Dict[Any, Any], Optional[str]) -> ()
+        event = RoomEncryptedEvent.parse_event(event_dict)
+
+        if not event.room_id:
+            event.room_id = room_id
+
+        if not isinstance(event, MegolmEvent):
+            logger.warn("Encrypted event is not a megolm event:"
+                        "\n{}".format(pformat(event_dict)))
+            return None
+
+        try:
+            decrypted_event = self.decrypt_event(event)
+            logger.info("Decrypted event: {}".format(decrypted_event))
+            event_dict["type"] = "m.room.message"
+
+            # TODO support other event types
+            # This should be best done in nio, modify events so they
+            # keep the dictionary from which they are built in a source
+            # attribute.
+            event_dict["content"] = {
+                "msgtype": "m.text",
+                "body": decrypted_event.body
+            }
+
+            if decrypted_event.formatted_body:
+                event_dict["content"]["formatted_body"] = (
+                    decrypted_event.formatted_body)
+                event_dict["content"]["format"] = decrypted_event.format
+
+            event_dict["decrypted"] = True
+            event_dict["verified"] = decrypted_event.verified
+
+        except EncryptionError as error:
+            logger.warn(error)
+            return
+
+    def decrypt_messages_body(self, body):
+        # type: (Dict[Any, Any]) -> Dict[Any, Any]
+        """Go through a messages response and decrypt megolm encrypted events.
+
+        Args:
+            body (Dict[Any, Any]): The dictionary of a Sync response.
+
+        Returns the json response with decrypted events.
+        """
+        if "chunk" not in body:
+            return body
+
+        logger.info("Decrypting room messages")
+
+        for event in body["chunk"]:
+            if "type" not in event:
+                continue
+
+            if event["type"] != "m.room.encrypted":
+                logger.debug("Event is not encrypted: "
+                             "\n{}".format(pformat(event)))
+                continue
+
+            self.pan_decrypt_event(event)
+
+        return body
+
     def decrypt_sync_body(self, body):
         # type: (Dict[Any, Any]) -> Dict[Any, Any]
         """Go through a json sync response and decrypt megolm encrypted events.
@@ -119,6 +184,7 @@ class PanClient(AsyncClient):
 
         Returns the json response with decrypted events.
         """
+        logger.info("Decrypting sync")
         for room_id, room_dict in body["rooms"]["join"].items():
             try:
                 if not self.rooms[room_id].encrypted:
@@ -131,43 +197,6 @@ class PanClient(AsyncClient):
                 continue
 
             for event in room_dict["timeline"]["events"]:
-                if event["type"] != "m.room.encrypted":
-                    logger.info("Event is not encrypted: "
-                                "\n{}".format(pformat(event)))
-                    continue
-
-                parsed_event = RoomEncryptedEvent.parse_event(event)
-                parsed_event.room_id = room_id
-
-                if not isinstance(parsed_event, MegolmEvent):
-                    logger.warn("Encrypted event is not a megolm event:"
-                                "\n{}".format(pformat(event)))
-                    continue
-
-                try:
-                    decrypted_event = self.decrypt_event(parsed_event)
-                    logger.info("Decrypted event: {}".format(decrypted_event))
-                    event["type"] = "m.room.message"
-
-                    # TODO support other event types
-                    # This should be best done in nio, modify events so they
-                    # keep the dictionary from which they are built in a source
-                    # attribute.
-                    event["content"] = {
-                        "msgtype": "m.text",
-                        "body": decrypted_event.body
-                    }
-
-                    if decrypted_event.formatted_body:
-                        event["content"]["formatted_body"] = (
-                            decrypted_event.formatted_body)
-                        event["content"]["format"] = decrypted_event.format
-
-                    event["decrypted"] = True
-                    event["verified"] = decrypted_event.verified
-
-                except EncryptionError as error:
-                    logger.warn(error)
-                    continue
+                self.pan_decrypt_event(event, room_id)
 
         return body

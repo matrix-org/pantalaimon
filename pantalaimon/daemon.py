@@ -319,6 +319,34 @@ class ProxyDaemon:
                 text=await response.text()
             )
 
+    async def messages(self, request):
+        access_token = self.get_access_token(request)
+
+        if not access_token:
+            return self._missing_token
+
+        try:
+            client_info = self.client_info[access_token]
+            client = self.pan_clients[client_info.user_id]
+        except KeyError:
+            return self._unknown_token
+
+        response = await self.forward_request(request)
+
+        if response.status == 200:
+            json_response = await response.json()
+            json_response = client.decrypt_messages_body(json_response)
+
+            return web.Response(
+                status=response.status,
+                text=json.dumps(json_response)
+            )
+        else:
+            return web.Response(
+                status=response.status,
+                text=await response.text()
+            )
+
     async def to_web_response(self, response):
         return web.Response(status=response.status, text=await response.text())
 
@@ -396,6 +424,7 @@ async def init(homeserver, http_proxy, ssl):
     app.add_routes([
         web.post("/_matrix/client/r0/login", proxy.login),
         web.get("/_matrix/client/r0/sync", proxy.sync),
+        web.get("/_matrix/client/r0/rooms/{room_id}/messages", proxy.messages),
         web.put(
             r"/_matrix/client/r0/rooms/{room_id}/send/{event_type}/{txnid}",
             proxy.send_message
