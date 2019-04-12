@@ -10,4 +10,4 @@ typecheck:
 	mypy --ignore-missing-imports pantalaimon
 
 run-local:
-	python -m pantalaimon.daemon https://localhost:8448 --proxy http://localhost:8080 -k --log-level debug
+	python -m pantalaimon.daemon start https://localhost:8448 --proxy http://localhost:8080 -k --log-level debug

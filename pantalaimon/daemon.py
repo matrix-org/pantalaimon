@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import sys
 from ipaddress import ip_address
 from json import JSONDecodeError
 from urllib.parse import urlparse
@@ -16,7 +17,7 @@ from aiohttp.client_exceptions import ContentTypeError
 from appdirs import user_data_dir
 from logbook import StderrHandler
 from multidict import CIMultiDict
-from nio import GroupEncryptionError, LoginResponse
+from nio import EncryptionError, GroupEncryptionError, LoginResponse
 
 from pantalaimon.client import PanClient
 from pantalaimon.log import logger
@@ -464,12 +465,98 @@ class ipaddress(click.ParamType):
         return value
 
 
-@click.command(
+@click.group(
     help=("pantalaimon is a reverse proxy for matrix homeservers that "
           "transparently encrypts and decrypts messages for clients that "
           "connect to pantalaimon.\n\n"
           "HOMESERVER - the homeserver that the daemon should connect to.")
+
 )
+def cli():
+    pass
+
+
+def _find_device(user):
+    data_dir = user_data_dir("pantalaimon", "")
+    store = PanStore(data_dir)
+    accounts = store.get_users()
+
+    for user_id, device in accounts:
+        if user == user_id:
+            return device
+
+    click.echo("No such user/device combination found.")
+    sys.exit()
+
+
+@cli.command(
+    "keys-import",
+    help="Import encryption keys into the pantalaimon store."
+)
+@click.argument("user", type=str)
+@click.argument("infile", type=click.Path(exists=True))
+@click.argument("passphrase", type=str)
+def keys_import(user, infile, passphrase):
+    device = _find_device(user)
+    data_dir = user_data_dir("pantalaimon", "")
+
+    click.echo(f"Importing encryption keys for {user}, {device}...")
+
+    client = PanClient("", user, device, data_dir)
+    client.user_id = user
+    client.load_store()
+
+    try:
+        client.import_keys(infile, passphrase)
+    except (OSError, EncryptionError) as e:
+        click.echo(f"Error importing keys: {e}")
+        return
+
+    click.echo(
+        f"Succesfully imported encryption keys for {user}, {device}."
+    )
+
+
+@cli.command(
+    "keys-export",
+    help="Export encryption keys from the pantalaimon store."
+)
+@click.argument("user", type=str)
+@click.argument("outfile", type=click.Path())
+@click.argument("passphrase", type=str)
+def keys_export(user, outfile, passphrase):
+    device = _find_device(user)
+    data_dir = user_data_dir("pantalaimon", "")
+
+    click.echo(f"Exporting encryption keys for {user}, {device}...")
+
+    client = PanClient("", user, device, data_dir)
+    client.user_id = user
+    client.load_store()
+
+    try:
+        client.export_keys(outfile, passphrase)
+    except OSError as e:
+        click.echo(f"Error exporting keys: {e}")
+        return
+
+    click.echo(
+        f"Succesfully exported encryption keys for {user}, {device}."
+    )
+
+
+@cli.command("list-users", help="List the user/device pairs of the daemon")
+def list_users():
+    data_dir = user_data_dir("pantalaimon", "")
+    store = PanStore(data_dir)
+    accounts = store.get_users()
+
+    click.echo(f"Pantalaimon users:")
+    for user, device in accounts:
+        click.echo(f"  {user} - {device}")
+
+
+@cli.command(help=("Start the daemon"))
 @click.option(
     "--proxy",
     type=URL(),
@@ -507,7 +594,7 @@ class ipaddress(click.ParamType):
     "homeserver",
     type=URL(),
 )
-def main(
+def start(
     proxy,
     ssl_insecure,
     listen_address,
@@ -539,4 +626,4 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+    cli()
