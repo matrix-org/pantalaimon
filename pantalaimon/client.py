@@ -104,7 +104,7 @@ class PanClient(AsyncClient):
 
     async def loop_stop(self):
         """Stop the client loop."""
-        if not self.task:
+        if not self.task or self.task.done():
             return
 
         self.task.cancel()
