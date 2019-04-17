@@ -20,6 +20,7 @@ setup(
         "keyring",
         "logbook",
         "peewee",
+        "dbus-python",
         "typing;python_version<'3.5'",
         "matrix-nio"
     ],

@@ -4,18 +4,27 @@ import asyncio
 import json
 import os
 import sys
+from enum import Enum, auto
+from functools import partial
 from ipaddress import ip_address
 from json import JSONDecodeError
+from queue import Empty
 from urllib.parse import urlparse
 
 import aiohttp
 import attr
 import click
+import dbus
+import dbus.exceptions
+import dbus.service
+import janus
 import keyring
 import logbook
 from aiohttp import ClientSession, web
 from aiohttp.client_exceptions import ContentTypeError
 from appdirs import user_data_dir
+from dbus.mainloop.glib import DBusGMainLoop
+from gi.repository import GLib
 from logbook import StderrHandler
 from multidict import CIMultiDict
 from nio import EncryptionError, GroupEncryptionError, LoginResponse
@@ -25,10 +34,74 @@ from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
 
 
+class Tasks(Enum):
+    shutdown = auto()
+
+
+class Devices(dbus.service.Object):
+    def __init__(self, bus_name, device_list):
+        super().__init__(bus_name, "/org/pantalaimon/Devices")
+        self.device_list = device_list
+
+    @dbus.service.method("org.pantalaimon.devices.list",
+                         out_signature="a{sa{saa{ss}}}")
+    def list(self):
+        return self.device_list
+
+
+class Users(dbus.service.Object):
+    def __init__(self, bus_name, user_list=None):
+        super().__init__(bus_name, "/org/pantalaimon/Users")
+        self.users = user_list
+
+    @dbus.service.method("org.pantalaimon.users.list",
+                         out_signature="a(ss)")
+    def list(self):
+        return self.users
+
+
+def dbus_loop(task_queue, data_dir):
+    DBusGMainLoop(set_as_default=True)
+    loop = GLib.MainLoop()
+
+    bus_name = dbus.service.BusName("org.pantalaimon",
+                                    bus=dbus.SessionBus(),
+                                    do_not_queue=True)
+
+    store = PanStore(data_dir)
+    users = store.load_all_users()
+    devices = store.load_all_devices()
+
+    # TODO update bus data if the asyncio thread tells us so.
+    Users(bus_name, users)
+    Devices(bus_name, devices)
+
+    def task_callback():
+        try:
+            task = task_queue.get_nowait()
+        except Empty:
+            return True
+
+        if task == Tasks.shutdown:
+            task_queue.task_done()
+            loop.quit()
+            return False
+
+    GLib.timeout_add(100, task_callback)
+
+    loop.run()
+
+
+async def shutdown_dbus(future, queue, app):
+    await queue.put(Tasks.shutdown)
+    await future
+
+
 @attr.s
 class ProxyDaemon:
     homeserver = attr.ib()
     data_dir = attr.ib()
+    queue = attr.ib()
     proxy = attr.ib(default=None)
     ssl = attr.ib(default=None)
 
@@ -420,7 +493,7 @@ class ProxyDaemon:
             self.default_session = None
 
 
-async def init(homeserver, http_proxy, ssl):
+async def init(homeserver, http_proxy, ssl, queue):
     """Initialize the proxy and the http server."""
     data_dir = user_data_dir("pantalaimon", "")
 
@@ -429,7 +502,13 @@ async def init(homeserver, http_proxy, ssl):
     except OSError:
         pass
 
-    proxy = ProxyDaemon(homeserver, data_dir, proxy=http_proxy, ssl=ssl)
+    proxy = ProxyDaemon(
+        homeserver,
+        data_dir,
+        queue=queue,
+        proxy=http_proxy,
+        ssl=ssl,
+    )
 
     app = web.Application()
     app.add_routes([
@@ -626,11 +705,23 @@ def start(
         logger.level = logbook.DEBUG
 
     loop = asyncio.get_event_loop()
+
+    queue = janus.Queue(loop=loop)
+
     proxy, app = loop.run_until_complete(init(
         homeserver,
         proxy.geturl() if proxy else None,
-        ssl
+        ssl,
+        queue.async_q
     ))
+
+    data_dir = user_data_dir("pantalaimon", "")
+    fut = loop.run_in_executor(None, dbus_loop, queue.sync_q, data_dir)
+
+    kill_dbus_loop = partial(shutdown_dbus, fut, queue.async_q)
+
+    app.on_shutdown.append(proxy.shutdown)
+    app.on_shutdown.append(kill_dbus_loop)
 
     web.run_app(app, host=str(listen_address), port=listen_port)
 

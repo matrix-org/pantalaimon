@@ -1,8 +1,10 @@
 import os
+from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 import attr
-from nio.store import Accounts, use_database
+from nio.store import (Accounts, DeviceKeys, DeviceTrustState, TrustState,
+                       use_database)
 from peewee import (SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase,
                     TextField)
 
@@ -58,12 +60,29 @@ class ClientInfo:
 
 
 @attr.s
+class OlmDevice:
+    user_id = attr.ib()
+    id = attr.ib()
+    fp_key = attr.ib()
+    sender_key = attr.ib()
+    trust_state = attr.ib()
+
+
+@attr.s
 class PanStore:
     store_path = attr.ib(type=str)
     database_name = attr.ib(type=str, default="pan.db")
     database = attr.ib(type=SqliteDatabase, init=False)
     database_path = attr.ib(type=str, init=False)
-    models = [Accounts, AccessTokens, Clients, Servers, ServerUsers]
+    models = [
+        Accounts,
+        AccessTokens,
+        Clients,
+        Servers,
+        ServerUsers,
+        DeviceKeys,
+        DeviceTrustState,
+    ]
 
     def __attrs_post_init__(self):
         self.database_path = os.path.join(
@@ -191,3 +210,32 @@ class PanStore:
             clients[c.token] = client
 
         return clients
+
+    @use_database
+    def load_all_devices(self):
+        # type (str, str) -> Dict[str, Dict[str, DeviceStore]]
+        store = defaultdict(dict)
+
+        query = Accounts.select()
+
+        for account in query:
+            device_store = []
+
+            for d in account.device_keys:
+
+                try:
+                    trust_state = d.trust_state[0].state
+                except IndexError:
+                    trust_state = TrustState.unset
+
+                device_store.append({
+                    "user_id": d.user_id,
+                    "device_id": d.device_id,
+                    "fingerprint_key": d.fp_key,
+                    "sender_key": d.sender_key,
+                    "trust_state": trust_state.name
+                })
+
+            store[account.user_id][account.device_id] = device_store
+
+        return store
