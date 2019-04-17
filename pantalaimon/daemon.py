@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 import aiohttp
 import attr
 import click
+import keyring
 import logbook
 from aiohttp import ClientSession, web
 from aiohttp.client_exceptions import ContentTypeError
@@ -51,7 +52,10 @@ class ProxyDaemon:
         self.client_info = self.store.load_clients(self.hostname)
 
         for user_id, device_id in accounts:
-            token = self.store.load_access_token(user_id, device_id)
+            token = keyring.get_password(
+                "pantalaimon",
+                f"{user_id}-{device_id}-token"
+            )
 
             if not token:
                 logger.warn(f"Not restoring client for {user_id} {device_id}, "
@@ -186,9 +190,10 @@ class ProxyDaemon:
                     f"{user_id}")
 
         self.pan_clients[user_id] = pan_client
-        self.store.save_access_token(
-            user_id,
-            pan_client.device_id,
+
+        keyring.set_password(
+            "pantalaimon",
+            f"{user_id}-{pan_client.device_id}-token",
             pan_client.access_token
         )
 
@@ -405,6 +410,7 @@ class ProxyDaemon:
 
         This method is called when we shut the whole app down
         """
+
         for client in self.pan_clients.values():
             await client.loop_stop()
             await client.close()

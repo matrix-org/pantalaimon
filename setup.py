@@ -17,6 +17,7 @@ setup(
         "aiohttp",
         "appdirs",
         "click",
+        "keyring",
         "logbook",
         "peewee",
         "typing;python_version<'3.5'",
