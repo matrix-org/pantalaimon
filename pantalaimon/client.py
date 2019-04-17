@@ -2,6 +2,7 @@ import asyncio
 from pprint import pformat
 from typing import Any, Dict, Optional
 
+from aiohttp.client_exceptions import ClientProxyConnectionError
 from nio import (AsyncClient, ClientConfig, EncryptionError,
                  GroupEncryptionError, KeysQueryResponse, MegolmEvent,
                  RoomEncryptedEvent, SyncResponse)
@@ -58,14 +59,17 @@ class PanClient(AsyncClient):
 
         logger.info(f"Starting sync loop for {self.user_id}")
 
-        try:
-            while True:
+        while True:
+            try:
                 if not self.logged_in:
                     # TODO login
                     pass
 
                 # TODO use user lazy loading here
                 response = await self.sync(30000)
+                if response.transport_response.status != 200:
+                    await asyncio.sleep(5)
+                    continue
 
                 if self.should_upload_keys:
                     await self.keys_upload()
@@ -82,10 +86,21 @@ class PanClient(AsyncClient):
                 self.synced.set()
                 self.synced.clear()
 
-        except asyncio.CancelledError:
-            logger.info("Stopping the sync loop")
-            self.loop_running = False
-            self.loop_stopped.set()
+            except asyncio.CancelledError:
+                logger.info("Stopping the sync loop")
+                self._loop_stop()
+                break
+
+            except (ClientProxyConnectionError, ConnectionRefusedError):
+                try:
+                    await asyncio.sleep(5)
+                except asyncio.CancelledError:
+                    self._loop_stop()
+                    break
+
+    def _loop_stop(self):
+        self.loop_running = False
+        self.loop_stopped.set()
 
     async def loop_stop(self):
         """Stop the client loop."""
