@@ -31,6 +31,23 @@ class DevicesMessage(Message):
 
 
 @attr.s
+class _KeysOperation(Message):
+    pan_user = attr.ib()
+    file_path = attr.ib()
+    passphrase = attr.ib()
+
+
+@attr.s
+class ImportKeysMessage(_KeysOperation):
+    pass
+
+
+@attr.s
+class ExportKeysMessage(_KeysOperation):
+    pass
+
+
+@attr.s
 class _VerificationMessage(Message):
     pan_user = attr.ib()
     user_id = attr.ib()
@@ -111,9 +128,10 @@ class Devices(dbus.service.Object):
 
 
 class Control(dbus.service.Object):
-    def __init__(self, bus_name, user_list=None):
+    def __init__(self, bus_name, queue, user_list=None):
         super().__init__(bus_name, "/org/pantalaimon/Control")
         self.users = user_list
+        self.queue = queue
 
     @dbus.service.method("org.pantalaimon.control.list_users",
                          out_signature="a(ss)")
@@ -121,8 +139,15 @@ class Control(dbus.service.Object):
         return self.users
 
     @dbus.service.method("org.pantalaimon.control.export_keys",
-                         in_signature="ss")
-    def export_keys(self, user, filepath):
+                         in_signature="sss")
+    def export_keys(self, pan_user, filepath, passphrase):
+        message = ExportKeysMessage(
+            pan_user,
+            filepath,
+            passphrase
+        )
+        self.queue.put(message)
+
         return
 
 
@@ -138,8 +163,7 @@ def glib_loop(receive_queue, send_queue, data_dir):
     users = store.load_all_users()
     devices = store.load_all_devices()
 
-    # TODO update bus data if the asyncio thread tells us so.
-    Control(bus_name, users)
+    Control(bus_name, send_queue, users)
     device_bus = Devices(bus_name, send_queue, devices)
 
     def message_callback():

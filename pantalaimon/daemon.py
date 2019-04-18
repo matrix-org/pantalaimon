@@ -29,7 +29,9 @@ from pantalaimon.ui import (
     glib_loop,
     shutdown_glib_loop,
     DeviceVerifyMessage,
-    DeviceUnverifyMessage
+    DeviceUnverifyMessage,
+    ExportKeysMessage,
+    ImportKeysMessage
 )
 
 
@@ -141,6 +143,25 @@ class ProxyDaemon:
                     self._verify_device(client, device)
                 else:
                     self._unverify_device(client, device)
+
+            elif isinstance(message, ExportKeysMessage):
+                client = self.pan_clients.get(message.pan_user, None)
+
+                if not client:
+                    return
+
+                path = os.path.abspath(message.file_path)
+                logger.info(f"Exporting keys to {path}")
+
+                try:
+                    client.export_keys(path, message.passphrase)
+                except OSError as e:
+                    logger.warn(f"Error exporint keys for {client.user_id} to "
+                                f"{path} {e}")
+                    pass
+
+            elif isinstance(message, ImportKeysMessage):
+                pass
 
     def get_access_token(self, request):
         # type: (aiohttp.web.BaseRequest) -> str
