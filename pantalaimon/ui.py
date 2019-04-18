@@ -150,6 +150,19 @@ class Control(dbus.service.Object):
 
         return
 
+    @dbus.service.method("org.pantalaimon.control.import_keys",
+                         in_signature="sss")
+    def import_keys(self, pan_user, filepath, passphrase):
+        message = ImportKeysMessage(
+            pan_user,
+            filepath,
+            passphrase
+        )
+        self.queue.put(message)
+
+        return
+
+
 
 def glib_loop(receive_queue, send_queue, data_dir):
     DBusGMainLoop(set_as_default=True)

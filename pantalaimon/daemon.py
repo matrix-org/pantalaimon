@@ -156,12 +156,25 @@ class ProxyDaemon:
                 try:
                     client.export_keys(path, message.passphrase)
                 except OSError as e:
-                    logger.warn(f"Error exporint keys for {client.user_id} to "
-                                f"{path} {e}")
+                    logger.warn(f"Error exporting keys for {client.user_id} to"
+                                f" {path} {e}")
                     pass
 
             elif isinstance(message, ImportKeysMessage):
-                pass
+                client = self.pan_clients.get(message.pan_user, None)
+
+                if not client:
+                    return
+
+                path = os.path.abspath(message.file_path)
+                logger.info(f"Importing keys from {path}")
+
+                try:
+                    client.import_keys(path, message.passphrase)
+                except (OSError, EncryptionError) as e:
+                    logger.warn(f"Error importing keys for {client.user_id} "
+                                f"from {path} {e}")
+                    pass
 
     def get_access_token(self, request):
         # type: (aiohttp.web.BaseRequest) -> str
