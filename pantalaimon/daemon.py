@@ -4,27 +4,20 @@ import asyncio
 import json
 import os
 import sys
-from enum import Enum, auto
 from functools import partial
 from ipaddress import ip_address
 from json import JSONDecodeError
-from queue import Empty
 from urllib.parse import urlparse
 
 import aiohttp
 import attr
 import click
-import dbus
-import dbus.exceptions
-import dbus.service
 import janus
 import keyring
 import logbook
 from aiohttp import ClientSession, web
 from aiohttp.client_exceptions import ContentTypeError
 from appdirs import user_data_dir
-from dbus.mainloop.glib import DBusGMainLoop
-from gi.repository import GLib
 from logbook import StderrHandler
 from multidict import CIMultiDict
 from nio import EncryptionError, GroupEncryptionError, LoginResponse
@@ -32,69 +25,7 @@ from nio import EncryptionError, GroupEncryptionError, LoginResponse
 from pantalaimon.client import PanClient
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
-
-
-class Tasks(Enum):
-    shutdown = auto()
-
-
-class Devices(dbus.service.Object):
-    def __init__(self, bus_name, device_list):
-        super().__init__(bus_name, "/org/pantalaimon/Devices")
-        self.device_list = device_list
-
-    @dbus.service.method("org.pantalaimon.devices.list",
-                         out_signature="a{sa{saa{ss}}}")
-    def list(self):
-        return self.device_list
-
-
-class Users(dbus.service.Object):
-    def __init__(self, bus_name, user_list=None):
-        super().__init__(bus_name, "/org/pantalaimon/Users")
-        self.users = user_list
-
-    @dbus.service.method("org.pantalaimon.users.list",
-                         out_signature="a(ss)")
-    def list(self):
-        return self.users
-
-
-def dbus_loop(task_queue, data_dir):
-    DBusGMainLoop(set_as_default=True)
-    loop = GLib.MainLoop()
-
-    bus_name = dbus.service.BusName("org.pantalaimon",
-                                    bus=dbus.SessionBus(),
-                                    do_not_queue=True)
-
-    store = PanStore(data_dir)
-    users = store.load_all_users()
-    devices = store.load_all_devices()
-
-    # TODO update bus data if the asyncio thread tells us so.
-    Users(bus_name, users)
-    Devices(bus_name, devices)
-
-    def task_callback():
-        try:
-            task = task_queue.get_nowait()
-        except Empty:
-            return True
-
-        if task == Tasks.shutdown:
-            task_queue.task_done()
-            loop.quit()
-            return False
-
-    GLib.timeout_add(100, task_callback)
-
-    loop.run()
-
-
-async def shutdown_dbus(future, queue, app):
-    await queue.put(Tasks.shutdown)
-    await future
+from pantalaimon.ui import glib_loop, shutdown_glib_loop
 
 
 @attr.s
@@ -139,6 +70,7 @@ class ProxyDaemon:
 
             pan_client = PanClient(
                 self.homeserver_url,
+                self.queue,
                 user_id,
                 device_id,
                 store_path=self.data_dir,
@@ -248,6 +180,7 @@ class ProxyDaemon:
 
         pan_client = PanClient(
             self.homeserver_url,
+            self.queue,
             user,
             store_path=self.data_dir,
             ssl=self.ssl,
@@ -716,12 +649,12 @@ def start(
     ))
 
     data_dir = user_data_dir("pantalaimon", "")
-    fut = loop.run_in_executor(None, dbus_loop, queue.sync_q, data_dir)
+    fut = loop.run_in_executor(None, glib_loop, queue.sync_q, data_dir)
 
-    kill_dbus_loop = partial(shutdown_dbus, fut, queue.async_q)
+    kill_glib = partial(shutdown_glib_loop, fut, queue.async_q)
 
     app.on_shutdown.append(proxy.shutdown)
-    app.on_shutdown.append(kill_dbus_loop)
+    app.on_shutdown.append(kill_glib)
 
     web.run_app(app, host=str(listen_address), port=listen_port)
 

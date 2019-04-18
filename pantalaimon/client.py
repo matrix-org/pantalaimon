@@ -9,6 +9,7 @@ from nio import (AsyncClient, ClientConfig, EncryptionError,
 from nio.store import SqliteStore
 
 from pantalaimon.log import logger
+from pantalaimon.ui import DevicesMessage
 
 
 class PanClient(AsyncClient):
@@ -17,6 +18,7 @@ class PanClient(AsyncClient):
     def __init__(
             self,
             homeserver,
+            queue=None,
             user="",
             device_id="",
             store_path="",
@@ -29,6 +31,7 @@ class PanClient(AsyncClient):
                          ssl, proxy)
 
         self.task = None
+        self.queue = queue
         self.loop_stopped = asyncio.Event()
         self.synced = asyncio.Event()
 
@@ -78,6 +81,12 @@ class PanClient(AsyncClient):
                     key_query_response = await self.keys_query()
                     if isinstance(key_query_response, KeysQueryResponse):
                         self.verify_devices(key_query_response.changed)
+                        message = DevicesMessage(
+                            self.user_id,
+                            self.device_id,
+                            key_query_response.changed
+                        )
+                        await self.queue.put(message)
 
                 if not isinstance(response, SyncResponse):
                     # TODO error handling

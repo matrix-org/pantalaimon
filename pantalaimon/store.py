@@ -223,6 +223,9 @@ class PanStore:
 
             for d in account.device_keys:
 
+                if d.deleted:
+                    continue
+
                 try:
                     trust_state = d.trust_state[0].state
                 except IndexError:
