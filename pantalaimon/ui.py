@@ -110,7 +110,7 @@ class Devices(dbus.service.Object):
                     }
 
 
-class Users(dbus.service.Object):
+class Control(dbus.service.Object):
     def __init__(self, bus_name, user_list=None):
         super().__init__(bus_name, "/org/pantalaimon/Control")
         self.users = user_list
@@ -139,7 +139,7 @@ def glib_loop(receive_queue, send_queue, data_dir):
     devices = store.load_all_devices()
 
     # TODO update bus data if the asyncio thread tells us so.
-    Users(bus_name, users)
+    Control(bus_name, users)
     device_bus = Devices(bus_name, send_queue, devices)
 
     def message_callback():
