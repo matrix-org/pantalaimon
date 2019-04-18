@@ -135,7 +135,7 @@ def glib_loop(receive_queue, send_queue, data_dir):
         except Empty:
             return True
 
-        logger.info(f"Dbus loop received message {message}")
+        logger.debug(f"UI loop received message {message}")
 
         if isinstance(message, ShutDownMessage):
             receive_queue.task_done()
