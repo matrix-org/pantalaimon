@@ -21,6 +21,7 @@ setup(
         "logbook",
         "peewee",
         "dbus-python",
+        "janus"
         "typing;python_version<'3.5'",
         "matrix-nio"
     ],
