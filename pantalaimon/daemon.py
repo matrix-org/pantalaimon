@@ -746,6 +746,9 @@ def start(
     app.on_shutdown.append(proxy.shutdown)
     app.on_shutdown.append(kill_glib)
 
+    home = os.path.expanduser("~")
+    os.chdir(home)
+
     web.run_app(app, host=str(listen_address), port=listen_port)
 
 
