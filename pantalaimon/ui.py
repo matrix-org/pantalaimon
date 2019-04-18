@@ -31,10 +31,20 @@ class DevicesMessage(Message):
 
 
 @attr.s
-class DeviceVerifyMessage(Message):
+class _VerificationMessage(Message):
     pan_user = attr.ib()
     user_id = attr.ib()
     device_id = attr.ib()
+
+
+@attr.s
+class DeviceVerifyMessage(_VerificationMessage):
+    pass
+
+
+@attr.s
+class DeviceUnverifyMessage(_VerificationMessage):
+    pass
 
 
 class Devices(dbus.service.Object):
@@ -51,15 +61,18 @@ class Devices(dbus.service.Object):
     @dbus.service.method("org.pantalaimon.devices.verify",
                          in_signature="sss")
     def verify(self, pan_user, user_id, device_id):
-        device_store = self.device_list.get(pan_user)
-
-        if not device_store:
-            logger.debug(f"Not verifying device, no store found for user "
-                         f"{pan_user}")
-            return
-
-        logger.debug(f"Verifying device {user_id} {device_id}")
         message = DeviceVerifyMessage(
+            pan_user,
+            user_id,
+            device_id
+        )
+        self.queue.put(message)
+        return
+
+    @dbus.service.method("org.pantalaimon.devices.unverify",
+                         in_signature="sss")
+    def unverify(self, pan_user, user_id, device_id):
+        message = DeviceUnverifyMessage(
             pan_user,
             user_id,
             device_id

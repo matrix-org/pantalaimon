@@ -25,7 +25,12 @@ from nio import EncryptionError, GroupEncryptionError, LoginResponse
 from pantalaimon.client import PanClient
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
-from pantalaimon.ui import glib_loop, shutdown_glib_loop, DeviceVerifyMessage
+from pantalaimon.ui import (
+    glib_loop,
+    shutdown_glib_loop,
+    DeviceVerifyMessage,
+    DeviceUnverifyMessage
+)
 
 
 @attr.s
@@ -89,32 +94,53 @@ class ProxyDaemon:
         loop = asyncio.get_event_loop()
         self.queue_task = loop.create_task(self.queue_loop())
 
+    def _verify_device(self, client, device):
+        ret = client.verify_device(device)
+
+        if ret:
+            logger.info(f"Device {device.id} of user "
+                        f"{device.user_id} succesfully verified")
+        else:
+            logger.info(f"Device {device.id} of user "
+                        f"{device.user_id} already verified")
+        pass
+
+    def _unverify_device(self, client, device):
+        ret = client.unverify_device(device)
+
+        if ret:
+            logger.info(f"Device {device.id} of user "
+                        f"{device.user_id} succesfully unverified")
+        else:
+            logger.info(f"Device {device.id} of user "
+                        f"{device.user_id} already unverified")
+
     async def queue_loop(self):
-        message = await self.recv_queue.get()
-        logger.debug(f"Daemon got message {message}")
+        while True:
+            message = await self.recv_queue.get()
+            logger.debug(f"Daemon got message {message}")
 
-        if isinstance(message, DeviceVerifyMessage):
-            client = self.pan_clients.get(message.pan_user, None)
+            if isinstance(
+                message,
+                (DeviceVerifyMessage, DeviceUnverifyMessage)
+            ):
+                client = self.pan_clients.get(message.pan_user, None)
 
-            if not client:
-                return
+                if not client:
+                    return
 
-            device = client.device_store[message.user_id].get(
-                message.device_id,
-                None
-            )
+                device = client.device_store[message.user_id].get(
+                    message.device_id,
+                    None
+                )
 
-            if not device:
-                return
+                if not device:
+                    return
 
-            ret = client.verify_device(device)
-
-            if ret:
-                logger.info(f"Device {message.device_id} of user "
-                            f"{message.user_id} succesfully verified")
-            else:
-                logger.info(f"Device {message.device_id} of user "
-                            f"{message.user_id} already verified")
+                if isinstance(message, DeviceVerifyMessage):
+                    self._verify_device(client, device)
+                else:
+                    self._unverify_device(client, device)
 
     def get_access_token(self, request):
         # type: (aiohttp.web.BaseRequest) -> str
