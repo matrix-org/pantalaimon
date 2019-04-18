@@ -83,7 +83,6 @@ class PanClient(AsyncClient):
                         self.verify_devices(key_query_response.changed)
                         message = DevicesMessage(
                             self.user_id,
-                            self.device_id,
                             key_query_response.changed
                         )
                         await self.queue.put(message)

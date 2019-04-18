@@ -25,20 +25,22 @@ from nio import EncryptionError, GroupEncryptionError, LoginResponse
 from pantalaimon.client import PanClient
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
-from pantalaimon.ui import glib_loop, shutdown_glib_loop
+from pantalaimon.ui import glib_loop, shutdown_glib_loop, DeviceVerifyMessage
 
 
 @attr.s
 class ProxyDaemon:
     homeserver = attr.ib()
     data_dir = attr.ib()
-    queue = attr.ib()
+    send_queue = attr.ib()
+    recv_queue = attr.ib()
     proxy = attr.ib(default=None)
     ssl = attr.ib(default=None)
 
     store = attr.ib(type=PanStore, init=False)
     homeserver_url = attr.ib(init=False, default=attr.Factory(dict))
     pan_clients = attr.ib(init=False, default=attr.Factory(dict))
+    queue_task = attr.ib(init=False)
     client_info = attr.ib(
         init=False,
         default=attr.Factory(dict),
@@ -70,7 +72,7 @@ class ProxyDaemon:
 
             pan_client = PanClient(
                 self.homeserver_url,
-                self.queue,
+                self.send_queue,
                 user_id,
                 device_id,
                 store_path=self.data_dir,
@@ -83,6 +85,36 @@ class ProxyDaemon:
             self.pan_clients[user_id] = pan_client
 
             pan_client.start_loop()
+
+        loop = asyncio.get_event_loop()
+        self.queue_task = loop.create_task(self.queue_loop())
+
+    async def queue_loop(self):
+        message = await self.recv_queue.get()
+        logger.debug(f"Daemon got message {message}")
+
+        if isinstance(message, DeviceVerifyMessage):
+            client = self.pan_clients.get(message.pan_user, None)
+
+            if not client:
+                return
+
+            device = client.device_store[message.user_id].get(
+                message.device_id,
+                None
+            )
+
+            if not device:
+                return
+
+            ret = client.verify_device(device)
+
+            if ret:
+                logger.info(f"Device {message.device_id} of user "
+                            f"{message.user_id} succesfully verified")
+            else:
+                logger.info(f"Device {message.device_id} of user "
+                            f"{message.user_id} already verified")
 
     def get_access_token(self, request):
         # type: (aiohttp.web.BaseRequest) -> str
@@ -180,7 +212,7 @@ class ProxyDaemon:
 
         pan_client = PanClient(
             self.homeserver_url,
-            self.queue,
+            self.send_queue,
             user,
             store_path=self.data_dir,
             ssl=self.ssl,
@@ -425,8 +457,10 @@ class ProxyDaemon:
             await self.default_session.close()
             self.default_session = None
 
+        self.queue_task.cancel()
 
-async def init(homeserver, http_proxy, ssl, queue):
+
+async def init(homeserver, http_proxy, ssl, send_queue, recv_queue):
     """Initialize the proxy and the http server."""
     data_dir = user_data_dir("pantalaimon", "")
 
@@ -438,7 +472,8 @@ async def init(homeserver, http_proxy, ssl, queue):
     proxy = ProxyDaemon(
         homeserver,
         data_dir,
-        queue=queue,
+        send_queue=send_queue,
+        recv_queue=recv_queue,
         proxy=http_proxy,
         ssl=ssl,
     )
@@ -639,19 +674,27 @@ def start(
 
     loop = asyncio.get_event_loop()
 
-    queue = janus.Queue(loop=loop)
+    pan_queue = janus.Queue(loop=loop)
+    ui_queue = janus.Queue(loop=loop)
 
     proxy, app = loop.run_until_complete(init(
         homeserver,
         proxy.geturl() if proxy else None,
         ssl,
-        queue.async_q
+        pan_queue.async_q,
+        ui_queue.async_q
     ))
 
     data_dir = user_data_dir("pantalaimon", "")
-    fut = loop.run_in_executor(None, glib_loop, queue.sync_q, data_dir)
+    fut = loop.run_in_executor(
+        None,
+        glib_loop,
+        pan_queue.sync_q,
+        ui_queue.sync_q,
+        data_dir
+    )
 
-    kill_glib = partial(shutdown_glib_loop, fut, queue.async_q)
+    kill_glib = partial(shutdown_glib_loop, fut, pan_queue.async_q)
 
     app.on_shutdown.append(proxy.shutdown)
     app.on_shutdown.append(kill_glib)

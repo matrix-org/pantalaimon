@@ -214,7 +214,7 @@ class PanStore:
     @use_database
     def load_all_devices(self):
         # type (str, str) -> Dict[str, Dict[str, DeviceStore]]
-        store = defaultdict(dict)
+        store = dict()
 
         query = Accounts.select()
 
@@ -239,6 +239,6 @@ class PanStore:
                     "trust_state": trust_state.name
                 })
 
-            store[account.user_id][account.device_id] = device_store
+            store[account.user_id] = device_store
 
         return store

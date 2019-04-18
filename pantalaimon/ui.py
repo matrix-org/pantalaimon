@@ -27,22 +27,21 @@ class ShutDownMessage(Message):
 @attr.s
 class DevicesMessage(Message):
     user_id = attr.ib()
-    device_id = attr.ib()
     devices = attr.ib()
 
 
 @attr.s
 class DeviceVerifyMessage(Message):
+    pan_user = attr.ib()
     user_id = attr.ib()
     device_id = attr.ib()
-    device_user = attr.ib()
-    device_device_id = attr.ib()
 
 
 class Devices(dbus.service.Object):
-    def __init__(self, bus_name, device_list):
+    def __init__(self, bus_name, queue, device_list):
         super().__init__(bus_name, "/org/pantalaimon/Devices")
         self.device_list = device_list
+        self.queue = queue
 
     @dbus.service.method("org.pantalaimon.devices.list",
                          out_signature="a{sa{saa{ss}}}")
@@ -50,33 +49,39 @@ class Devices(dbus.service.Object):
         return self.device_list
 
     @dbus.service.method("org.pantalaimon.devices.verify",
-                         in_signature="ssss")
-    def verify(self, user_id, device_id, devices_user, devices_id):
-        device_store = self.device_list[user_id].get(device_id, None)
+                         in_signature="sss")
+    def verify(self, pan_user, user_id, device_id):
+        device_store = self.device_list.get(pan_user)
 
         if not device_store:
             logger.debug(f"Not verifying device, no store found for user "
-                        f"{user_id}")
+                         f"{pan_user}")
             return
 
-        logger.debug(f"Verifying device {devices_user} {devices_id}")
+        logger.debug(f"Verifying device {user_id} {device_id}")
+        message = DeviceVerifyMessage(
+            pan_user,
+            user_id,
+            device_id
+        )
+        self.queue.put(message)
         return
 
     @dbus.service.method("org.pantalaimon.devices.start_verification",
-                         in_signature="ssss")
-    def start_verify(self, user_id, device_id, devices_user, devices_id):
-        device_store = self.device_list[user_id].get(device_id, None)
+                         in_signature="sss")
+    def start_verify(self, pan_user, user_id, device_id):
+        device_store = self.device_list.get(pan_user)
 
         if not device_store:
             logger.info(f"Not verifying device, no store found for user "
                         f"{user_id}")
             return
 
-        logger.info(f"Verifying device {devices_user} {devices_id}")
+        logger.info(f"Verifying device {user_id} {device_id}")
         return
 
     def update_devices(self, message):
-        device_store = self.device_list[message.user_id][message.device_id]
+        device_store = self.device_list[message.user_id]
 
         for user_id, device_dict in message.devices.items():
             for device in device_dict.values():
@@ -108,7 +113,7 @@ class Users(dbus.service.Object):
         return
 
 
-def glib_loop(queue, data_dir):
+def glib_loop(receive_queue, send_queue, data_dir):
     DBusGMainLoop(set_as_default=True)
     loop = GLib.MainLoop()
 
@@ -122,23 +127,24 @@ def glib_loop(queue, data_dir):
 
     # TODO update bus data if the asyncio thread tells us so.
     Users(bus_name, users)
-    device_bus = Devices(bus_name, devices)
+    device_bus = Devices(bus_name, send_queue, devices)
 
     def message_callback():
         try:
-            message = queue.get_nowait()
+            message = receive_queue.get_nowait()
         except Empty:
             return True
 
         logger.info(f"Dbus loop received message {message}")
 
         if isinstance(message, ShutDownMessage):
-            queue.task_done()
+            receive_queue.task_done()
             loop.quit()
             return False
 
         elif isinstance(message, DevicesMessage):
             device_bus.update_devices(message)
+            receive_queue.task_done()
 
         return True
 
