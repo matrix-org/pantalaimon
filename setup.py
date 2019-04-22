@@ -21,12 +21,14 @@ setup(
         "logbook",
         "peewee",
         "dbus-python",
-        "janus"
+        "janus",
+        "prompt_toolkit",
         "typing;python_version<'3.5'",
         "matrix-nio"
     ],
     entry_points={
-        "console_scripts": ["pantalaimon=pantalaimon.daemon:main"],
+        "console_scripts": ["pantalaimon=pantalaimon.daemon:main",
+                            "panctl=pantalaimon.panctl:main"],
     },
     zip_safe=False
 )
