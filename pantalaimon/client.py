@@ -164,13 +164,13 @@ class PanClient(AsyncClient):
         # type: (Dict[Any, Any], Optional[str]) -> ()
         event = RoomEncryptedEvent.parse_event(event_dict)
 
-        if not event.room_id:
-            event.room_id = room_id
-
         if not isinstance(event, MegolmEvent):
             logger.warn("Encrypted event is not a megolm event:"
                         "\n{}".format(pformat(event_dict)))
             return None
+
+        if not event.room_id:
+            event.room_id = room_id
 
         try:
             decrypted_event = self.decrypt_event(event)
