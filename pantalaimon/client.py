@@ -57,6 +57,26 @@ class PanClient(AsyncClient):
         self.task = task
         return task
 
+    async def _to_device(self, message):
+        response = await self.to_device(message)
+        return message, response
+
+    async def send_to_device_messages(self):
+        if not self.outgoing_to_device_messages:
+            return
+
+        tasks = []
+
+        for message in self.outgoing_to_device_messages:
+            task = asyncio.create_task(self._to_device(message))
+            tasks.append(task)
+
+        responses = await asyncio.gather(*tasks)
+
+        for message, response in responses:
+            if response.transport_response.status == 200:
+                self.mark_to_device_message_as_sent(message)
+
     async def loop(self):
         self.loop_running = True
         self.loop_stopped.clear()
@@ -74,6 +94,8 @@ class PanClient(AsyncClient):
                 if response.transport_response.status != 200:
                     await asyncio.sleep(5)
                     continue
+
+                await self.send_to_device_messages()
 
                 if self.should_upload_keys:
                     await self.keys_upload()
