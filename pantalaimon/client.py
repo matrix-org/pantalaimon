@@ -6,7 +6,9 @@ from aiohttp.client_exceptions import (ClientProxyConnectionError,
                                        ServerDisconnectedError)
 from nio import (AsyncClient, ClientConfig, EncryptionError,
                  GroupEncryptionError, KeysQueryResponse, MegolmEvent,
-                 RoomEncryptedEvent, SyncResponse)
+                 RoomEncryptedEvent, SyncResponse,
+                 KeyVerificationEvent, LocalProtocolError,
+                 KeyVerificationStart, KeyVerificationKey, KeyVerificationMac)
 from nio.store import SqliteStore
 
 from pantalaimon.log import logger
@@ -36,6 +38,11 @@ class PanClient(AsyncClient):
         self.loop_stopped = asyncio.Event()
         self.synced = asyncio.Event()
 
+        self.add_to_device_callback(
+            self.key_verification_cb,
+            KeyVerificationEvent
+        )
+
     def verify_devices(self, changed_devices):
         # Verify new devices automatically for now.
         for user_id, device_dict in changed_devices.items():
@@ -46,6 +53,48 @@ class PanClient(AsyncClient):
                 logger.info("Automatically verifying device {} of "
                             "user {}".format(device.id, user_id))
                 self.verify_device(device)
+
+    def key_verification_cb(self, event):
+        logger.info("Received key verification event: {}".format(event))
+        loop = asyncio.get_event_loop()
+
+        if isinstance(event, KeyVerificationStart):
+            try:
+                loop.create_task(
+                    self.accept_key_verification(event.transaction_id)
+                )
+            except LocalProtocolError as e:
+                self.info(e)
+
+        elif isinstance(event, KeyVerificationKey):
+            sas = self.key_verifications.get(event.transaction_id, None)
+            if not sas:
+                return
+
+            emoji = sas.get_emoji()
+
+            emojies = [x[0] for x in emoji]
+            descriptions = [x[1] for x in emoji]
+            device = sas.other_olm_device
+
+            emoji_str = u"{:^10}{:^10}{:^10}{:^10}{:^10}{:^10}{:^10}".format(
+                *emojies
+            )
+            desc = u"{:^11}{:^11}{:^11}{:^11}{:^11}{:^11}{:^11}".format(
+                *descriptions
+            )
+            short_string = u"\n".join([emoji_str, desc])
+
+            logger.info(u"Short authentication string for {} via {}:\n"
+                        u"{}".format(device.user_id, device.id, short_string))
+
+        elif isinstance(event, KeyVerificationMac):
+            try:
+                loop.create_task(
+                    self.accept_short_auth_string(event.transaction_id)
+                )
+            except LocalProtocolError as e:
+                self.info(e)
 
     def start_loop(self):
         """Start a loop that runs forever and keeps on syncing with the server.
