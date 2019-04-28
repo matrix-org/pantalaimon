@@ -2,7 +2,8 @@ import asyncio
 from pprint import pformat
 from typing import Any, Dict, Optional
 
-from aiohttp.client_exceptions import ClientProxyConnectionError
+from aiohttp.client_exceptions import (ClientProxyConnectionError,
+                                       ServerDisconnectedError)
 from nio import (AsyncClient, ClientConfig, EncryptionError,
                  GroupEncryptionError, KeysQueryResponse, MegolmEvent,
                  RoomEncryptedEvent, SyncResponse)
@@ -99,7 +100,11 @@ class PanClient(AsyncClient):
                 self._loop_stop()
                 break
 
-            except (ClientProxyConnectionError, ConnectionRefusedError):
+            except (
+                ClientProxyConnectionError,
+                ServerDisconnectedError,
+                ConnectionRefusedError
+            ):
                 try:
                     await asyncio.sleep(5)
                 except asyncio.CancelledError:
