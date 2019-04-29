@@ -490,7 +490,7 @@ class ProxyDaemon:
 
         if not encrypt:
             return await self.to_web_response(
-                await self.forward_request(request)
+                await self.forward_request(request, token=client.access_token)
             )
 
         msgtype = request.match_info["event_type"]
