@@ -197,9 +197,10 @@ class ProxyDaemon:
 
     async def forward_request(
         self,
-        request,      # type: aiohttp.web.BaseRequest
-        params=None,  # type: CIMultiDict
-        session=None  # type: aiohttp.ClientSession
+        request,       # type: aiohttp.web.BaseRequest
+        params=None,   # type: CIMultiDict
+        session=None,  # type: aiohttp.ClientSession
+        token=None     # type: str
     ):
         # type: (...) -> aiohttp.ClientResponse
         """Forward the given request to our configured homeserver.
@@ -210,7 +211,6 @@ class ProxyDaemon:
             session (aiohttp.ClientSession): The client session that should be
                 used to forward the request.
         """
-
         if not session:
             if not self.default_session:
                 self.default_session = ClientSession()
@@ -225,6 +225,12 @@ class ProxyDaemon:
         headers.pop("Host", None)
 
         params = params or request.query
+
+        if token:
+            if "Authorization" in headers:
+                headers["Authorization"] = token
+            if "access_token" in params:
+                params["access_token"] = token
 
         data = await request.text()
 
@@ -388,7 +394,6 @@ class ProxyDaemon:
             return self._unknown_token
 
         sync_filter = request.query.get("filter", None)
-        # timeout = request.query.get("timeout", None)
 
         try:
             sync_filter = json.loads(sync_filter)
@@ -411,7 +416,11 @@ class ProxyDaemon:
         query = CIMultiDict(request.query)
         query.pop("filter", None)
 
-        response = await self.forward_request(request, query)
+        response = await self.forward_request(
+            request,
+            query,
+            token=client.access_token
+        )
 
         if response.status == 200:
             json_response = await response.json()
