@@ -42,6 +42,7 @@ class PanClient(AsyncClient):
             self.key_verification_cb,
             KeyVerificationEvent
         )
+        self.key_verificatins_tasks = []
 
     def verify_devices(self, changed_devices):
         # Verify new devices automatically for now.
@@ -59,12 +60,10 @@ class PanClient(AsyncClient):
         loop = asyncio.get_event_loop()
 
         if isinstance(event, KeyVerificationStart):
-            try:
-                loop.create_task(
-                    self.accept_key_verification(event.transaction_id)
-                )
-            except LocalProtocolError as e:
-                self.info(e)
+            task = loop.create_task(
+                self.accept_key_verification(event.transaction_id)
+            )
+            self.key_verificatins_tasks.append(task)
 
         elif isinstance(event, KeyVerificationKey):
             sas = self.key_verifications.get(event.transaction_id, None)
@@ -89,12 +88,10 @@ class PanClient(AsyncClient):
                         u"{}".format(device.user_id, device.id, short_string))
 
         elif isinstance(event, KeyVerificationMac):
-            try:
-                loop.create_task(
-                    self.accept_short_auth_string(event.transaction_id)
-                )
-            except LocalProtocolError as e:
-                self.info(e)
+            task = loop.create_task(
+                self.accept_short_auth_string(event.transaction_id)
+            )
+            self.key_verificatins_tasks.append(task)
 
     def start_loop(self):
         """Start a loop that runs forever and keeps on syncing with the server.
@@ -145,6 +142,13 @@ class PanClient(AsyncClient):
                     continue
 
                 await self.send_to_device_messages()
+
+                try:
+                    await asyncio.gather(*self.key_verificatins_tasks)
+                except LocalProtocolError as e:
+                    logger.info(e)
+
+                self.key_verificatins_tasks = []
 
                 if self.should_upload_keys:
                     await self.keys_upload()
