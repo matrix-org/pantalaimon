@@ -224,7 +224,7 @@ class ProxyDaemon:
         headers = CIMultiDict(request.headers)
         headers.pop("Host", None)
 
-        params = params or request.query
+        params = params or CIMultiDict(request.query)
 
         if token:
             if "Authorization" in headers:
