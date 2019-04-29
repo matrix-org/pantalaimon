@@ -135,8 +135,15 @@ class PanClient(AsyncClient):
                     # TODO login
                     pass
 
-                # TODO use user lazy loading here
-                response = await self.sync(30000)
+                response = await self.sync(
+                    30000,
+                    sync_filter={
+                        "room": {
+                            "state": {"lazy_load_members": True}
+                        }
+                    }
+                )
+
                 if response.transport_response.status != 200:
                     await asyncio.sleep(5)
                     continue
