@@ -16,7 +16,9 @@ import janus
 import keyring
 import logbook
 from aiohttp import ClientSession, web
-from aiohttp.client_exceptions import ContentTypeError
+from aiohttp.client_exceptions import (ContentTypeError,
+                                       ClientProxyConnectionError,
+                                       ServerDisconnectedError)
 from appdirs import user_data_dir
 from logbook import StderrHandler
 from multidict import CIMultiDict
@@ -208,8 +210,12 @@ class ProxyDaemon:
         Args:
             request (aiohttp.BaseRequest): The request that should be
                 forwarded.
-            session (aiohttp.ClientSession): The client session that should be
-                used to forward the request.
+            params (CIMultiDict, optional): The query parameters for the
+                request.
+            session (aiohttp.ClientSession, optional): The client session that
+                should be used to forward the request.
+            token (str, optional): The access token that should be used for the
+                request.
         """
         if not session:
             if not self.default_session:
@@ -244,13 +250,48 @@ class ProxyDaemon:
             ssl=self.ssl
         )
 
+    async def forward_to_web(
+        self,
+        request,
+        params=None,
+        session=None,
+        token=None
+    ):
+        """Forward the given request and convert the response to a Response.
+
+        If there is a exception raised by the client session this method
+        returns a Response with a 500 status code and the text set to the error
+        message of the exception.
+
+        Args:
+            request (aiohttp.BaseRequest): The request that should be
+                forwarded.
+            params (CIMultiDict, optional): The query parameters for the
+                request.
+            session (aiohttp.ClientSession, optional): The client session that
+                should be used to forward the request.
+            token (str, optional): The access token that should be used for the
+                request.
+        """
+        try:
+            response = await self.forward_request(
+                request,
+                params,
+                session,
+                token
+            )
+            return web.Response(
+                status=response.status,
+                text=await response.text()
+            )
+        except (ClientProxyConnectionError,
+                ServerDisconnectedError,
+                ConnectionRefusedError) as e:
+            return web.Response(status=500, text=str(e))
+
     async def router(self, request):
         """Catchall request router."""
-        resp = await self.forward_request(request)
-
-        return(
-            await self.to_web_response(resp)
-        )
+        return await self.forward_to_web(request)
 
     def _get_login_user(self, body):
         identifier = body.get("identifier", None)
@@ -328,7 +369,12 @@ class ProxyDaemon:
 
         logger.info(f"New user logging in: {user}")
 
-        response = await self.forward_request(request)
+        try:
+            response = await self.forward_request(request)
+        except (ClientProxyConnectionError,
+                ServerDisconnectedError,
+                ConnectionRefusedError) as e:
+            return web.Response(status=500, text=str(e))
 
         try:
             json_response = await response.json()
@@ -416,11 +462,16 @@ class ProxyDaemon:
         query = CIMultiDict(request.query)
         query.pop("filter", None)
 
-        response = await self.forward_request(
-            request,
-            query,
-            token=client.access_token
-        )
+        try:
+            response = await self.forward_request(
+                request,
+                query,
+                token=client.access_token
+            )
+        except (ClientProxyConnectionError,
+                ServerDisconnectedError,
+                ConnectionRefusedError) as e:
+            return web.Response(status=500, text=str(e))
 
         if response.status == 200:
             json_response = await response.json()
@@ -448,7 +499,12 @@ class ProxyDaemon:
         except KeyError:
             return self._unknown_token
 
-        response = await self.forward_request(request)
+        try:
+            response = await self.forward_request(request)
+        except (ClientProxyConnectionError,
+                ServerDisconnectedError,
+                ConnectionRefusedError) as e:
+            return web.Response(status=500, text=str(e))
 
         if response.status == 200:
             json_response = await response.json()
@@ -463,9 +519,6 @@ class ProxyDaemon:
                 status=response.status,
                 text=await response.text()
             )
-
-    async def to_web_response(self, response):
-        return web.Response(status=response.status, text=await response.text())
 
     async def send_message(self, request):
         access_token = self.get_access_token(request)
@@ -484,13 +537,12 @@ class ProxyDaemon:
         try:
             encrypt = client.rooms[room_id].encrypted
         except KeyError:
-            return await self.to_web_response(
-                await self.forward_request(request)
-            )
+            return await self.forward_to_web(request)
 
         if not encrypt:
-            return await self.to_web_response(
-                await self.forward_request(request, token=client.access_token)
+            return await self.forward_to_web(
+                request,
+                token=client.access_token
             )
 
         msgtype = request.match_info["event_type"]
@@ -506,6 +558,10 @@ class ProxyDaemon:
         except GroupEncryptionError:
             await client.share_group_session(room_id)
             response = await client.room_send(room_id, msgtype, content, txnid)
+        except (ClientProxyConnectionError,
+                ServerDisconnectedError,
+                ConnectionRefusedError) as e:
+            return web.Response(status=500, text=str(e))
 
         return web.Response(
             status=response.transport_response.status,
