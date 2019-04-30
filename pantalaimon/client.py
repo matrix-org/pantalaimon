@@ -119,10 +119,6 @@ class PanClient(AsyncClient):
 
         responses = await asyncio.gather(*tasks)
 
-        for message, response in responses:
-            if response.transport_response.status == 200:
-                self.mark_to_device_message_as_sent(message)
-
     async def loop(self):
         self.loop_running = True
         self.loop_stopped.clear()
