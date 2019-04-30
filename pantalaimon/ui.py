@@ -113,18 +113,21 @@ class Devices(dbus.service.Object):
     def update_devices(self, message):
         device_store = self.device_list[message.user_id]
 
-        for user_id, device_dict in message.devices.items():
-            for device in device_dict.values():
-                if device.deleted:
-                    device_store[user_id].pop(device.id, None)
-                else:
-                    device_store[user_id][device.id] = {
-                        "user_id": device.user_id,
-                        "device_id": device.id,
-                        "fingerprint_key": device.ed25519,
-                        "sender_key": device.curve25519,
-                        "trust_state": TrustState.unset.name,
-                    }
+        # TODO the store type got changed to a list, fix adding/removing of
+        # devices.
+
+        # for user_id, device_dict in message.devices.items():
+        #     for device in device_dict.values():
+        #         if device.deleted:
+        #             device_store[user_id].remove(device.id, None)
+        #         else:
+        #             device_store[user_id][device.id] = {
+        #                 "user_id": device.user_id,
+        #                 "device_id": device.id,
+        #                 "fingerprint_key": device.ed25519,
+        #                 "sender_key": device.curve25519,
+        #                 "trust_state": TrustState.unset.name,
+        #             }
 
 
 class Control(dbus.service.Object):

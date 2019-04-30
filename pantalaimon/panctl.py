@@ -119,7 +119,6 @@ class PanCtl:
             dbus_interface="org.pantalaimon.control.import_keys"
         )
 
-
     def export_keys(self, args):
         try:
             user, filepath, passphrase = args
