@@ -221,13 +221,13 @@ class PanClient(AsyncClient):
             )
 
     def pan_decrypt_event(self, event_dict, room_id=None):
-        # type: (Dict[Any, Any], Optional[str]) -> ()
+        # type: (Dict[Any, Any], Optional[str]) -> (bool)
         event = RoomEncryptedEvent.parse_event(event_dict)
 
         if not isinstance(event, MegolmEvent):
             logger.warn("Encrypted event is not a megolm event:"
                         "\n{}".format(pformat(event_dict)))
-            return None
+            return False
 
         if not event.room_id:
             event.room_id = room_id
@@ -235,28 +235,16 @@ class PanClient(AsyncClient):
         try:
             decrypted_event = self.decrypt_event(event)
             logger.info("Decrypted event: {}".format(decrypted_event))
-            event_dict["type"] = "m.room.message"
 
-            # TODO support other event types
-            # This should be best done in nio, modify events so they
-            # keep the dictionary from which they are built in a source
-            # attribute.
-            event_dict["content"] = {
-                "msgtype": "m.text",
-                "body": decrypted_event.body
-            }
-
-            if decrypted_event.formatted_body:
-                event_dict["content"]["formatted_body"] = (
-                    decrypted_event.formatted_body)
-                event_dict["content"]["format"] = decrypted_event.format
-
+            event_dict.update(decrypted_event.source)
             event_dict["decrypted"] = True
             event_dict["verified"] = decrypted_event.verified
 
+            return True
+
         except EncryptionError as error:
             logger.warn(error)
-            return
+            return False
 
     def decrypt_messages_body(self, body):
         # type: (Dict[Any, Any]) -> Dict[Any, Any]
