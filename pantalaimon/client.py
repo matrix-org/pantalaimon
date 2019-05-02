@@ -152,6 +152,7 @@ class PanClient(AsyncClient):
     async def loop(self):
         self.loop_running = True
         self.loop_stopped.clear()
+        self.synced.clear()
 
         logger.info(f"Starting sync loop for {self.user_id}")
 
