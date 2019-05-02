@@ -272,7 +272,7 @@ class ProxyDaemon:
             data = data
             headers.pop("Content-Length", None)
         else:
-            data = await request.text()
+            data = await request.read()
 
         return await session.request(
             method,
@@ -319,7 +319,8 @@ class ProxyDaemon:
             )
             return web.Response(
                 status=response.status,
-                text=await response.text()
+                content_type=response.content_type,
+                body=await response.read()
             )
         except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
@@ -427,7 +428,8 @@ class ProxyDaemon:
 
         return web.Response(
             status=response.status,
-            text=await response.text()
+            content_type=response.content_type,
+            body=await response.read()
         )
 
     @property
@@ -529,11 +531,12 @@ class ProxyDaemon:
                 status=response.status,
                 text=json.dumps(json_response)
             )
-        else:
-            return web.Response(
-                status=response.status,
-                text=await response.text()
-            )
+
+        return web.Response(
+            status=response.status,
+            content_type=response.content_type,
+            body=await response.read()
+        )
 
     async def messages(self, request):
         access_token = self.get_access_token(request)
@@ -560,11 +563,12 @@ class ProxyDaemon:
                 status=response.status,
                 text=json.dumps(json_response)
             )
-        else:
-            return web.Response(
-                status=response.status,
-                text=await response.text()
-            )
+
+        return web.Response(
+            status=response.status,
+            content_type=response.content_type,
+            body=await response.read()
+        )
 
     async def send_message(self, request):
         access_token = self.get_access_token(request)
@@ -609,7 +613,8 @@ class ProxyDaemon:
 
         return web.Response(
             status=response.transport_response.status,
-            text=await response.transport_response.text()
+            content_type=response.transport_response.content_type,
+            body=await response.transport_response.read()
         )
 
     async def filter(self, request):
