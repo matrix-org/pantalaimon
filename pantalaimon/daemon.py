@@ -18,8 +18,7 @@ import keyring
 import logbook
 from aiohttp import ClientSession, web
 from aiohttp.client_exceptions import (ContentTypeError,
-                                       ClientProxyConnectionError,
-                                       ServerDisconnectedError)
+                                       ClientConnectionError)
 from appdirs import user_data_dir
 from logbook import StderrHandler
 from multidict import CIMultiDict
@@ -322,9 +321,7 @@ class ProxyDaemon:
                 status=response.status,
                 text=await response.text()
             )
-        except (ClientProxyConnectionError,
-                ServerDisconnectedError,
-                ConnectionRefusedError) as e:
+        except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
 
     async def router(self, request):
@@ -409,9 +406,7 @@ class ProxyDaemon:
 
         try:
             response = await self.forward_request(request)
-        except (ClientProxyConnectionError,
-                ServerDisconnectedError,
-                ConnectionRefusedError) as e:
+        except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
 
         try:
@@ -522,9 +517,7 @@ class ProxyDaemon:
                 params=query,
                 token=client.access_token
             )
-        except (ClientProxyConnectionError,
-                ServerDisconnectedError,
-                ConnectionRefusedError) as e:
+        except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
 
         if response.status == 200:
@@ -556,9 +549,7 @@ class ProxyDaemon:
 
         try:
             response = await self.forward_request(request)
-        except (ClientProxyConnectionError,
-                ServerDisconnectedError,
-                ConnectionRefusedError) as e:
+        except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
 
         if response.status == 200:
@@ -613,9 +604,7 @@ class ProxyDaemon:
         except GroupEncryptionError:
             await client.share_group_session(room_id)
             response = await client.room_send(room_id, msgtype, content, txnid)
-        except (ClientProxyConnectionError,
-                ServerDisconnectedError,
-                ConnectionRefusedError) as e:
+        except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
 
         return web.Response(

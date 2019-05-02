@@ -2,8 +2,7 @@ import asyncio
 from pprint import pformat
 from typing import Any, Dict, Optional
 
-from aiohttp.client_exceptions import (ClientProxyConnectionError,
-                                       ServerDisconnectedError)
+from aiohttp.client_exceptions import ClientConnectionError
 from nio import (AsyncClient, ClientConfig, EncryptionError,
                  GroupEncryptionError, KeysQueryResponse, MegolmEvent,
                  RoomEncryptedEvent, SyncResponse,
@@ -212,8 +211,7 @@ class PanClient(AsyncClient):
                 break
 
             except (
-                ClientProxyConnectionError,
-                ServerDisconnectedError,
+                ClientConnectionError,
                 ConnectionRefusedError
             ):
                 try:
