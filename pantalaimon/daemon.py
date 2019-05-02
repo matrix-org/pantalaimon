@@ -269,7 +269,7 @@ class ProxyDaemon:
                 params["access_token"] = token
 
         if data:
-            data = data or await request.text()
+            data = data
             headers.pop("Content-Length", None)
         else:
             data = await request.text()
