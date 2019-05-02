@@ -47,6 +47,8 @@ class ProxyDaemon:
     proxy = attr.ib(default=None)
     ssl = attr.ib(default=None)
 
+    decryption_timeout = 10
+
     store = attr.ib(type=PanStore, init=False)
     homeserver_url = attr.ib(init=False, default=attr.Factory(dict))
     pan_clients = attr.ib(init=False, default=attr.Factory(dict))
@@ -463,6 +465,31 @@ class ProxyDaemon:
             })
         )
 
+    async def decrypt_sync(self, client, sync_body):
+        """Try to decrypt the sync body."""
+        async def decrypt_loop(client, sync_body):
+            while True:
+                try:
+                    logger.info("Trying to decrypt sync")
+                    return client.decrypt_sync_body(
+                        sync_body,
+                        ignore_failures=False
+                    )
+                except EncryptionError:
+                    logger.info("Error decrypting sync, waiting for next pan "
+                                "sync")
+                    await client.synced.wait(),
+                    logger.info("Pan synced, retrying decryption.")
+
+        try:
+            return await asyncio.wait_for(
+                decrypt_loop(client, sync_body),
+                timeout=self.decryption_timeout)
+        except asyncio.TimeoutError:
+            logger.info("Decryption attempt timed out, decrypting with "
+                        "failures")
+            return client.decrypt_sync_body(sync_body, ignore_failures=True)
+
     async def sync(self, request):
         access_token = self.get_access_token(request)
 
@@ -501,8 +528,9 @@ class ProxyDaemon:
             return web.Response(status=500, text=str(e))
 
         if response.status == 200:
+            # TODO this can fail even on a 200.
             json_response = await response.json()
-            json_response = client.decrypt_sync_body(json_response)
+            json_response = await self.decrypt_sync(client, json_response)
 
             return web.Response(
                 status=response.status,
