@@ -523,14 +523,16 @@ class ProxyDaemon:
             return web.Response(status=500, text=str(e))
 
         if response.status == 200:
-            # TODO this can fail even on a 200.
-            json_response = await response.json()
-            json_response = await self.decrypt_sync(client, json_response)
+            try:
+                json_response = await response.json()
+                json_response = await self.decrypt_sync(client, json_response)
 
-            return web.Response(
-                status=response.status,
-                text=json.dumps(json_response)
-            )
+                return web.Response(
+                    status=response.status,
+                    text=json.dumps(json_response)
+                )
+            except (JSONDecodeError, ContentTypeError):
+                pass
 
         return web.Response(
             status=response.status,
@@ -556,13 +558,16 @@ class ProxyDaemon:
             return web.Response(status=500, text=str(e))
 
         if response.status == 200:
-            json_response = await response.json()
-            json_response = client.decrypt_messages_body(json_response)
+            try:
+                json_response = await response.json()
+                json_response = client.decrypt_messages_body(json_response)
 
-            return web.Response(
-                status=response.status,
-                text=json.dumps(json_response)
-            )
+                return web.Response(
+                    status=response.status,
+                    text=json.dumps(json_response)
+                )
+            except (JSONDecodeError, ContentTypeError):
+                pass
 
         return web.Response(
             status=response.status,
