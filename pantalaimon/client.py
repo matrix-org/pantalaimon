@@ -42,7 +42,12 @@ class PanClient(AsyncClient):
             self.key_verification_cb,
             KeyVerificationEvent
         )
+        self.add_event_callback(
+            self.undecrypted_event_cb,
+            MegolmEvent
+        )
         self.key_verificatins_tasks = []
+        self.key_request_tasks = []
 
     def verify_devices(self, changed_devices):
         # Verify new devices automatically for now.
@@ -54,6 +59,19 @@ class PanClient(AsyncClient):
                 logger.info("Automatically verifying device {} of "
                             "user {}".format(device.id, user_id))
                 self.verify_device(device)
+
+    def undecrypted_event_cb(self, room, event):
+        loop = asyncio.get_event_loop()
+
+        logger.info("Unable to decrypt event from {} via {}.".format(
+            event.sender,
+            event.device_id
+        ))
+
+        if event.session_id not in self.outgoing_key_requests:
+            logger.info("Requesting room key for undecrypted event.")
+            task = loop.create_task(self.request_room_key(event))
+            self.key_request_tasks.append(task)
 
     def key_verification_cb(self, event):
         logger.info("Received key verification event: {}".format(event))
@@ -117,7 +135,7 @@ class PanClient(AsyncClient):
             task = asyncio.create_task(self._to_device(message))
             tasks.append(task)
 
-        responses = await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
 
     async def loop(self):
         self.loop_running = True
@@ -152,6 +170,8 @@ class PanClient(AsyncClient):
                     logger.info(e)
 
                 self.key_verificatins_tasks = []
+
+                await asyncio.gather(*self.key_request_tasks)
 
                 if self.should_upload_keys:
                     await self.keys_upload()
