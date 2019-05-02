@@ -49,6 +49,18 @@ class PanClient(AsyncClient):
         self.key_verificatins_tasks = []
         self.key_request_tasks = []
 
+    @property
+    def unable_to_decrypt(self):
+        """Room event signaling that the message couldn't be decrypted."""
+        return {
+            "type": "m.room.message",
+            "content": {
+                "msgtype": "m.text",
+                "body": ("** Unable to decrypt: The sender's device has not "
+                         "sent us the keys for this message. **")
+            }
+        }
+
     def verify_devices(self, changed_devices):
         # Verify new devices automatically for now.
         for user_id, device_dict in changed_devices.items():
@@ -236,8 +248,13 @@ class PanClient(AsyncClient):
                 content
             )
 
-    def pan_decrypt_event(self, event_dict, room_id=None):
-        # type: (Dict[Any, Any], Optional[str]) -> (bool)
+    def pan_decrypt_event(
+        self,
+        event_dict,
+        room_id=None,
+        ignore_failures=True
+    ):
+        # type: (Dict[Any, Any], Optional[str], bool) -> (bool)
         event = RoomEncryptedEvent.parse_event(event_dict)
 
         if not isinstance(event, MegolmEvent):
@@ -260,6 +277,12 @@ class PanClient(AsyncClient):
 
         except EncryptionError as error:
             logger.warn(error)
+
+            if ignore_failures:
+                event_dict.update(self.unable_to_decrypt)
+            else:
+                raise
+
             return False
 
     def decrypt_messages_body(self, body):
@@ -289,7 +312,7 @@ class PanClient(AsyncClient):
 
         return body
 
-    def decrypt_sync_body(self, body):
+    def decrypt_sync_body(self, body, ignore_failures=True):
         # type: (Dict[Any, Any]) -> Dict[Any, Any]
         """Go through a json sync response and decrypt megolm encrypted events.
 
@@ -311,6 +334,6 @@ class PanClient(AsyncClient):
                 continue
 
             for event in room_dict["timeline"]["events"]:
-                self.pan_decrypt_event(event, room_id)
+                self.pan_decrypt_event(event, room_id, ignore_failures)
 
         return body
