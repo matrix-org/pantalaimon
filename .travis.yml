@@ -1,6 +1,12 @@
 language: python
 dist: xenial
 sudo: false
+
+addons:
+  apt:
+    packages:
+    - libdbus-1-dev
+
 before_install:
     - wget https://gitlab.matrix.org/matrix-org/olm/-/archive/master/olm-master.tar.bz2
     - tar -xvf olm-master.tar.bz2
