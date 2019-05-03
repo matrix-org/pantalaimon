@@ -14,8 +14,6 @@ from prompt_toolkit.completion import Completer, Completion
 import dbus
 from gi.repository import GLib
 from dbus.mainloop.glib import DBusGMainLoop
-from janus import Queue
-from queue import Empty
 
 DBusGMainLoop(set_as_default=True)
 
@@ -53,34 +51,7 @@ class PanCompleter(Completer):
 
 
 @attr.s
-class DbusT:
-    loop = attr.ib()
-    receive_queue = attr.ib()
-    send_queue = attr.ib()
-
-    async def send(self, message):
-        self.receive_queue.async_q.put(message)
-        GLib.idle_add(self._message_callback)
-
-    def quit(self):
-        self.loop.quit()
-
-    def _message_callback(self):
-        print("Message")
-        try:
-            message = self.receive_queue.get_nowait()
-        except Empty:
-            return True
-
-        return True
-
-    def dbus_loop(self):
-        self.loop.run()
-
-
-@attr.s
 class PanCtl:
-    bus_thread = attr.ib()
     bus = attr.ib(init=False)
     ctl = attr.ib(init=False)
     devices = attr.ib(init=False)
@@ -257,21 +228,17 @@ class PanCtl:
 
 def main():
     loop = asyncio.get_event_loop()
-    main_queue = Queue()
-    glib_queue = Queue()
     glib_loop = GLib.MainLoop()
 
-    bus_thread = DbusT(glib_loop, main_queue.sync_q, glib_queue.sync_q)
-
     try:
-        panctl = PanCtl(bus_thread)
+        panctl = PanCtl()
     except dbus.exceptions.DBusException:
         print("Error, no pantalaimon bus found")
         sys.exit(-1)
 
     fut = loop.run_in_executor(
         None,
-        bus_thread.dbus_loop
+        glib_loop.run
     )
 
     try:
@@ -279,7 +246,7 @@ def main():
     except KeyboardInterrupt:
         pass
 
-    GLib.idle_add(bus_thread.quit)
+    GLib.idle_add(glib_loop.quit)
     loop.run_until_complete(fut)
 
 
