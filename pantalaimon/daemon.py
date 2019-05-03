@@ -34,7 +34,8 @@ from pantalaimon.ui import (
     DeviceUnverifyMessage,
     ExportKeysMessage,
     ImportKeysMessage,
-    DeviceAcceptSasMessage
+    DeviceAcceptSasMessage,
+    InfoMessage
 )
 
 
@@ -101,26 +102,36 @@ class ProxyDaemon:
         loop = asyncio.get_event_loop()
         self.queue_task = loop.create_task(self.queue_loop())
 
-    def _verify_device(self, client, device):
+    async def _verify_device(self, client, device):
         ret = client.verify_device(device)
 
         if ret:
-            logger.info(f"Device {device.id} of user "
-                        f"{device.user_id} succesfully verified")
+            msg = (f"Device {device.id} of user "
+                   f"{device.user_id} succesfully verified")
         else:
-            logger.info(f"Device {device.id} of user "
-                        f"{device.user_id} already verified")
-        pass
+            msg = (f"Device {device.id} of user "
+                   f"{device.user_id} already verified")
 
-    def _unverify_device(self, client, device):
+        logger.info(msg)
+        await self.send_info(msg)
+
+    async def _unverify_device(self, client, device):
         ret = client.unverify_device(device)
 
         if ret:
-            logger.info(f"Device {device.id} of user "
-                        f"{device.user_id} succesfully unverified")
+            msg = (f"Device {device.id} of user "
+                   f"{device.user_id} succesfully unverified")
         else:
-            logger.info(f"Device {device.id} of user "
-                        f"{device.user_id} already unverified")
+            msg = (f"Device {device.id} of user "
+                   f"{device.user_id} already unverified")
+
+        logger.info(msg)
+        await self.send_info(msg)
+
+    async def send_info(self, string):
+        """Send a info message to the UI thread."""
+        message = InfoMessage(string)
+        await self.queue.put(message)
 
     async def queue_loop(self):
         while True:
@@ -135,7 +146,9 @@ class ProxyDaemon:
                 client = self.pan_clients.get(message.pan_user, None)
 
                 if not client:
-                    logger.warn(f"No pan client found for {message.pan_user}.")
+                    msg = f"No pan client found for {message.pan_user}."
+                    logger.warn(msg)
+                    self.send_info(msg)
                     return
 
                 device = client.device_store[message.user_id].get(
@@ -144,14 +157,16 @@ class ProxyDaemon:
                 )
 
                 if not device:
-                    logger.warn(f"No device found for {message.user_id} and "
-                                f"{message.device_id}")
+                    msg = (f"No device found for {message.user_id} and "
+                           f"{message.device_id}")
+                    await self.send_info(msg)
+                    logger.info(msg)
                     return
 
                 if isinstance(message, DeviceVerifyMessage):
-                    self._verify_device(client, device)
+                    await self._verify_device(client, device)
                 elif isinstance(message, DeviceUnverifyMessage):
-                    self._unverify_device(client, device)
+                    await self._unverify_device(client, device)
                 elif isinstance(message, DeviceAcceptSasMessage):
                     await client.accept_sas(message)
 
