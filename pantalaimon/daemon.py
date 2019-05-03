@@ -33,7 +33,8 @@ from pantalaimon.ui import (
     DeviceVerifyMessage,
     DeviceUnverifyMessage,
     ExportKeysMessage,
-    ImportKeysMessage
+    ImportKeysMessage,
+    DeviceAcceptSasMessage
 )
 
 
@@ -128,11 +129,13 @@ class ProxyDaemon:
 
             if isinstance(
                 message,
-                (DeviceVerifyMessage, DeviceUnverifyMessage)
+                (DeviceVerifyMessage, DeviceUnverifyMessage,
+                 DeviceAcceptSasMessage)
             ):
                 client = self.pan_clients.get(message.pan_user, None)
 
                 if not client:
+                    logger.warn(f"No pan client found for {message.pan_user}.")
                     return
 
                 device = client.device_store[message.user_id].get(
@@ -141,12 +144,16 @@ class ProxyDaemon:
                 )
 
                 if not device:
+                    logger.warn(f"No device found for {message.user_id} and "
+                                f"{message.device_id}")
                     return
 
                 if isinstance(message, DeviceVerifyMessage):
                     self._verify_device(client, device)
-                else:
+                elif isinstance(message, DeviceUnverifyMessage):
                     self._unverify_device(client, device)
+                elif isinstance(message, DeviceAcceptSasMessage):
+                    await client.accept_sas(message)
 
             elif isinstance(message, ExportKeysMessage):
                 client = self.pan_clients.get(message.pan_user, None)
@@ -162,7 +169,6 @@ class ProxyDaemon:
                 except OSError as e:
                     logger.warn(f"Error exporting keys for {client.user_id} to"
                                 f" {path} {e}")
-                    pass
 
             elif isinstance(message, ImportKeysMessage):
                 client = self.pan_clients.get(message.pan_user, None)
@@ -178,7 +184,6 @@ class ProxyDaemon:
                 except (OSError, EncryptionError) as e:
                     logger.warn(f"Error importing keys for {client.user_id} "
                                 f"from {path} {e}")
-                    pass
 
     def get_access_token(self, request):
         # type: (aiohttp.web.BaseRequest) -> str

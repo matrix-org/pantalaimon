@@ -25,6 +25,11 @@ class ShutDownMessage(Message):
 
 
 @attr.s
+class InfoMessage(Message):
+    string = attr.ib()
+
+
+@attr.s
 class DevicesMessage(Message):
     user_id = attr.ib()
     devices = attr.ib()
@@ -64,18 +69,29 @@ class DeviceUnverifyMessage(_VerificationMessage):
     pass
 
 
+@attr.s
+class DeviceAcceptSasMessage(_VerificationMessage):
+    pass
+
+
+@attr.s
+class DeviceAuthStringMessage(_VerificationMessage):
+    short_string = attr.ib()
+
+
+
 class Devices(dbus.service.Object):
     def __init__(self, bus_name, queue, device_list):
         super().__init__(bus_name, "/org/pantalaimon/Devices")
         self.device_list = device_list
         self.queue = queue
 
-    @dbus.service.method("org.pantalaimon.devices.list",
+    @dbus.service.method("org.pantalaimon.devices",
                          out_signature="a{sa{saa{ss}}}")
     def list(self):
         return self.device_list
 
-    @dbus.service.method("org.pantalaimon.devices.verify",
+    @dbus.service.method("org.pantalaimon.devices",
                          in_signature="sss")
     def verify(self, pan_user, user_id, device_id):
         message = DeviceVerifyMessage(
@@ -86,7 +102,7 @@ class Devices(dbus.service.Object):
         self.queue.put(message)
         return
 
-    @dbus.service.method("org.pantalaimon.devices.unverify",
+    @dbus.service.method("org.pantalaimon.devices",
                          in_signature="sss")
     def unverify(self, pan_user, user_id, device_id):
         message = DeviceUnverifyMessage(
@@ -97,7 +113,7 @@ class Devices(dbus.service.Object):
         self.queue.put(message)
         return
 
-    @dbus.service.method("org.pantalaimon.devices.start_verification",
+    @dbus.service.method("org.pantalaimon.devices",
                          in_signature="sss")
     def start_verify(self, pan_user, user_id, device_id):
         device_store = self.device_list.get(pan_user)
@@ -108,6 +124,20 @@ class Devices(dbus.service.Object):
             return
 
         logger.info(f"Verifying device {user_id} {device_id}")
+        return
+
+    @dbus.service.signal(
+        dbus_interface="org.pantalaimon.devices",
+        signature="sssa(ss)"
+    )
+    def sas_show(self, pan_user, user_id, device_id, auth_string):
+        pass
+
+    @dbus.service.method("org.pantalaimon.devices",
+                         in_signature="sss")
+    def accept_sas(self, pan_user, user_id, device_id):
+        message = DeviceAcceptSasMessage(pan_user, user_id, device_id)
+        self.queue.put(message)
         return
 
     def update_devices(self, message):
@@ -136,12 +166,12 @@ class Control(dbus.service.Object):
         self.users = user_list
         self.queue = queue
 
-    @dbus.service.method("org.pantalaimon.control.list_users",
+    @dbus.service.method("org.pantalaimon.control",
                          out_signature="a(ss)")
-    def list(self):
+    def list_users(self):
         return self.users
 
-    @dbus.service.method("org.pantalaimon.control.export_keys",
+    @dbus.service.method("org.pantalaimon.control",
                          in_signature="sss")
     def export_keys(self, pan_user, filepath, passphrase):
         message = ExportKeysMessage(
@@ -153,7 +183,7 @@ class Control(dbus.service.Object):
 
         return
 
-    @dbus.service.method("org.pantalaimon.control.import_keys",
+    @dbus.service.method("org.pantalaimon.control",
                          in_signature="sss")
     def import_keys(self, pan_user, filepath, passphrase):
         message = ImportKeysMessage(
@@ -165,6 +195,12 @@ class Control(dbus.service.Object):
 
         return
 
+    @dbus.service.signal(
+        dbus_interface="org.pantalaimon.control",
+        signature="s"
+    )
+    def info(self, message):
+        pass
 
 
 def glib_loop(receive_queue, send_queue, data_dir):
@@ -179,7 +215,7 @@ def glib_loop(receive_queue, send_queue, data_dir):
     users = store.load_all_users()
     devices = store.load_all_devices()
 
-    Control(bus_name, send_queue, users)
+    control_bus = Control(bus_name, send_queue, users)
     device_bus = Devices(bus_name, send_queue, devices)
 
     def message_callback():
@@ -197,8 +233,19 @@ def glib_loop(receive_queue, send_queue, data_dir):
 
         elif isinstance(message, DevicesMessage):
             device_bus.update_devices(message)
-            receive_queue.task_done()
 
+        elif isinstance(message, DeviceAuthStringMessage):
+            device_bus.sas_show(
+                message.pan_user,
+                message.user_id,
+                message.device_id,
+                message.short_string
+            )
+
+        elif isinstance(message, InfoMessage):
+            control_bus.info(message.string)
+
+        receive_queue.task_done()
         return True
 
     GLib.timeout_add(100, message_callback)

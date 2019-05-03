@@ -11,7 +11,7 @@ from nio import (AsyncClient, ClientConfig, EncryptionError,
 from nio.store import SqliteStore
 
 from pantalaimon.log import logger
-from pantalaimon.ui import DevicesMessage
+from pantalaimon.ui import DevicesMessage, DeviceAuthStringMessage, InfoMessage
 
 
 class PanClient(AsyncClient):
@@ -60,6 +60,11 @@ class PanClient(AsyncClient):
             }
         }
 
+    async def send_info(self, string):
+        """Send a info message to the UI thread."""
+        message = InfoMessage(string)
+        await self.queue.put(message)
+
     def verify_devices(self, changed_devices):
         # Verify new devices automatically for now.
         for user_id, device_dict in changed_devices.items():
@@ -99,28 +104,34 @@ class PanClient(AsyncClient):
             if not sas:
                 return
 
+            device = sas.other_olm_device
             emoji = sas.get_emoji()
 
-            emojies = [x[0] for x in emoji]
-            descriptions = [x[1] for x in emoji]
-            device = sas.other_olm_device
-
-            emoji_str = u"{:^10}{:^10}{:^10}{:^10}{:^10}{:^10}{:^10}".format(
-                *emojies
+            message = DeviceAuthStringMessage(
+                self.user_id,
+                device.user_id,
+                device.id,
+                emoji
             )
-            desc = u"{:^11}{:^11}{:^11}{:^11}{:^11}{:^11}{:^11}".format(
-                *descriptions
-            )
-            short_string = u"\n".join([emoji_str, desc])
 
-            logger.info(u"Short authentication string for {} via {}:\n"
-                        u"{}".format(device.user_id, device.id, short_string))
-
-        elif isinstance(event, KeyVerificationMac):
             task = loop.create_task(
-                self.accept_short_auth_string(event.transaction_id)
+                self.queue.put(message)
             )
             self.key_verificatins_tasks.append(task)
+
+        elif isinstance(event, KeyVerificationMac):
+            sas = self.key_verifications.get(event.transaction_id, None)
+            if not sas:
+                return
+            device = sas.other_olm_device
+
+            if sas.verified:
+                task = loop.create_task(
+                    self.send_info(f"Device {device.id} of user "
+                                   f"{device.user_id} succesfully "
+                                   f"verified.")
+                )
+                self.key_verificatins_tasks.append(task)
 
     def start_loop(self):
         """Start a loop that runs forever and keeps on syncing with the server.
@@ -135,6 +146,29 @@ class PanClient(AsyncClient):
     async def _to_device(self, message):
         response = await self.to_device(message)
         return message, response
+
+    async def accept_sas(self, message):
+        user_id = message.user_id
+        device_id = message.device_id
+
+        sas = None
+
+        for s in self.key_verifications.values():
+            device = s.other_olm_device
+            if device.user_id == user_id and device.id == device_id:
+                sas = s
+                break
+
+        if not sas:
+            return
+
+        await self.accept_short_auth_string(sas.transaction_id)
+
+        if sas.verified:
+            await self.send_info(f"Device {device.id} of user {device.user_id}"
+                                 f" succesfully verified.")
+        else:
+            await self.send_info(f"Waiting for {device.user_id} to confirm...")
 
     async def send_to_device_messages(self):
         if not self.outgoing_to_device_messages:

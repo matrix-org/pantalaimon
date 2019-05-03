@@ -17,6 +17,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 from janus import Queue
 from queue import Empty
 
+DBusGMainLoop(set_as_default=True)
 
 use_asyncio_event_loop()
 
@@ -74,9 +75,6 @@ class DbusT:
         return True
 
     def dbus_loop(self):
-        DBusGMainLoop(set_as_default=True)
-        # TODO register to signals here
-        # bus = dbus.SessionBus()
         self.loop.run()
 
 
@@ -85,8 +83,14 @@ class PanCtl:
     bus_thread = attr.ib()
     bus = attr.ib(init=False)
     ctl = attr.ib(init=False)
+    devices = attr.ib(init=False)
 
-    commands = ["list-users", "export-keys", "import-keys"]
+    commands = [
+        "list-users",
+        "export-keys",
+        "import-keys",
+        "accept-verification"
+    ]
 
     def __attrs_post_init__(self):
         self.bus = dbus.SessionBus()
@@ -95,11 +99,73 @@ class PanCtl:
             "/org/pantalaimon/Control",
             introspect=True
         )
+        self.devices = self.bus.get_object(
+            "org.pantalaimon",
+            "/org/pantalaimon/Devices",
+            introspect=True
+        )
+        self.bus.add_signal_receiver(
+            self.show_sas,
+            dbus_interface="org.pantalaimon.devices",
+            signal_name="sas_show"
+        )
+        self.bus.add_signal_receiver(
+            self.show_info,
+            dbus_interface="org.pantalaimon.control",
+            signal_name="info"
+        )
+
+    def show_info(self, message):
+        print(message)
+
+    # The emoji printing logic was taken from weechat-matrix and was written by
+    # dkasak.
+    def show_sas(self, pan_user, user_id, device_id, emoji):
+        emojis = [x[0] for x in emoji]
+        descriptions = [x[1] for x in emoji]
+
+        centered_width = 12
+
+        def center_emoji(emoji, width):
+            # Assume each emoji has width 2
+            emoji_width = 2
+
+            # These are emojis that need VARIATION-SELECTOR-16 (U+FE0F) so
+            # that they are rendered with coloured glyphs. For these, we
+            # need to add an extra space after them so that they are
+            # rendered properly in weechat.
+            variation_selector_emojis = [
+                '☁️',
+                '❤️',
+                '☂️',
+                '✏️',
+                '✂️',
+                '☎️',
+                '✈️'
+            ]
+
+            if emoji in variation_selector_emojis:
+                emoji += " "
+
+            # This is a trick to account for the fact that emojis are wider
+            # than other monospace characters.
+            placeholder = '.' * emoji_width
+
+            return placeholder.center(width).replace(placeholder, emoji)
+
+        emoji_str = u"".join(center_emoji(e, centered_width)
+                             for e in emojis)
+        desc = u"".join(d.center(centered_width) for d in descriptions)
+        short_string = u"\n".join([emoji_str, desc])
+
+        print(f"Short authentication string for pan "
+              f"user {pan_user} from {user_id} via "
+              f"{device_id}:\n{short_string}")
 
     def list_users(self):
         """List the daemons users."""
-        users = self.ctl.list(
-            dbus_interface="org.pantalaimon.control.list_users"
+        users = self.ctl.list_users(
+            dbus_interface="org.pantalaimon.control"
         )
         print("pantalaimon users:")
         for user, devic in users:
@@ -116,7 +182,7 @@ class PanCtl:
             user,
             filepath,
             passphrase,
-            dbus_interface="org.pantalaimon.control.import_keys"
+            dbus_interface="org.pantalaimon.control"
         )
 
     def export_keys(self, args):
@@ -130,7 +196,21 @@ class PanCtl:
             user,
             filepath,
             passphrase,
-            dbus_interface="org.pantalaimon.control.export_keys"
+            dbus_interface="org.pantalaimon.control"
+        )
+
+    def accept_sas(self, args):
+        try:
+            pan_user, user, device = args
+        except ValueError:
+            print("Invalid arguments for command")
+            return
+
+        self.devices.accept_sas(
+            pan_user,
+            user,
+            device,
+            dbus_interface="org.pantalaimon.devices"
         )
 
     async def loop(self):
@@ -162,6 +242,13 @@ class PanCtl:
             elif command == "import-keys":
                 args = words[1:]
                 self.import_keys(args)
+
+            elif command == "accept-verification":
+                args = words[1:]
+                self.accept_sas(args)
+
+            else:
+                print(f"Unknown command {command}.")
 
 
 def main():
