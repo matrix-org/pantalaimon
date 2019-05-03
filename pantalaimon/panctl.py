@@ -89,7 +89,8 @@ class PanCtl:
         "list-users",
         "export-keys",
         "import-keys",
-        "accept-verification"
+        "accept-verification",
+        "confirm-verification"
     ]
 
     def __attrs_post_init__(self):
@@ -199,14 +200,14 @@ class PanCtl:
             dbus_interface="org.pantalaimon.control"
         )
 
-    def accept_sas(self, args):
+    def confirm_sas(self, args):
         try:
             pan_user, user, device = args
         except ValueError:
             print("Invalid arguments for command")
             return
 
-        self.devices.accept_sas(
+        self.devices.confirm_sas(
             pan_user,
             user,
             device,
@@ -244,8 +245,11 @@ class PanCtl:
                 self.import_keys(args)
 
             elif command == "accept-verification":
+                pass
+
+            elif command == "confirm-verification":
                 args = words[1:]
-                self.accept_sas(args)
+                self.confirm_sas(args)
 
             else:
                 print(f"Unknown command {command}.")

@@ -70,7 +70,7 @@ class DeviceUnverifyMessage(_VerificationMessage):
 
 
 @attr.s
-class DeviceAcceptSasMessage(_VerificationMessage):
+class DeviceConfirmSasMessage(_VerificationMessage):
     pass
 
 
@@ -135,8 +135,8 @@ class Devices(dbus.service.Object):
 
     @dbus.service.method("org.pantalaimon.devices",
                          in_signature="sss")
-    def accept_sas(self, pan_user, user_id, device_id):
-        message = DeviceAcceptSasMessage(pan_user, user_id, device_id)
+    def confirm_sas(self, pan_user, user_id, device_id):
+        message = DeviceConfirmSasMessage(pan_user, user_id, device_id)
         self.queue.put(message)
         return
 

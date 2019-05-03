@@ -147,7 +147,7 @@ class PanClient(AsyncClient):
         response = await self.to_device(message)
         return message, response
 
-    async def accept_sas(self, message):
+    async def confirm_sas(self, message):
         user_id = message.user_id
         device_id = message.device_id
 
