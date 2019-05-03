@@ -151,19 +151,15 @@ class PanClient(AsyncClient):
         user_id = message.user_id
         device_id = message.device_id
 
-        sas = None
-
-        for s in self.key_verifications.values():
-            device = s.other_olm_device
-            if device.user_id == user_id and device.id == device_id:
-                sas = s
-                break
+        sas = self.get_active_sas(user_id, device_id)
 
         if not sas:
+            self.send_info("No such verification process found.")
             return
 
         await self.accept_short_auth_string(sas.transaction_id)
 
+        device = sas.other_olm_device
         if sas.verified:
             await self.send_info(f"Device {device.id} of user {device.user_id}"
                                  f" succesfully verified.")
