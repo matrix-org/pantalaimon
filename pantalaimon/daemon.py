@@ -273,7 +273,7 @@ class ProxyDaemon:
 
         if token:
             if "Authorization" in headers:
-                headers["Authorization"] = token
+                headers["Authorization"] = f"Bearer {token}"
             if "access_token" in params:
                 params["access_token"] = token
 
