@@ -3,7 +3,7 @@ from pprint import pformat
 from typing import Any, Dict, Optional
 
 from nio import (AsyncClient, ClientConfig, EncryptionError,
-                 GroupEncryptionError, KeysQueryResponse, MegolmEvent,
+                 KeysQueryResponse, MegolmEvent,
                  RoomEncryptedEvent, SyncResponse,
                  KeyVerificationEvent, LocalProtocolError,
                  KeyVerificationStart, KeyVerificationKey, KeyVerificationMac)
@@ -206,21 +206,6 @@ class PanClient(AsyncClient):
 
         self.task.cancel()
         await self.task
-
-    async def encrypt(self, room_id, msgtype, content):
-        try:
-            return super().encrypt(
-                room_id,
-                msgtype,
-                content
-            )
-        except GroupEncryptionError:
-            await self.share_group_session(room_id)
-            return super().encrypt(
-                room_id,
-                msgtype,
-                content
-            )
 
     def pan_decrypt_event(
         self,
