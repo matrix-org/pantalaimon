@@ -293,6 +293,12 @@ class PanClient(AsyncClient):
                 continue
 
             for event in room_dict["timeline"]["events"]:
+                if "type" not in event:
+                    continue
+
+                if event["type"] != "m.room.encrypted":
+                    continue
+
                 self.pan_decrypt_event(event, room_id, ignore_failures)
 
         return body
