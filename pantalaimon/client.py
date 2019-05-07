@@ -157,7 +157,7 @@ class PanClient(AsyncClient):
             self.send_info("No such verification process found.")
             return
 
-        await self.accept_short_auth_string(sas.transaction_id)
+        await self.confirm_short_auth_string(sas.transaction_id)
 
         device = sas.other_olm_device
         if sas.verified:
