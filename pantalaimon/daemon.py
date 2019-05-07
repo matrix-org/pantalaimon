@@ -28,8 +28,7 @@ from pantalaimon.client import PanClient
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
 from pantalaimon.ui import (
-    glib_loop,
-    shutdown_glib_loop,
+    GlibT,
     DeviceVerifyMessage,
     DeviceUnverifyMessage,
     ExportKeysMessage,
@@ -707,7 +706,6 @@ async def init(homeserver, http_proxy, ssl, send_queue, recv_queue):
         web.post("/_matrix/client/r0/user/{user_id}/filter", proxy.filter),
     ])
     app.router.add_route("*", "/" + "{proxyPath:.*}", proxy.router)
-    app.on_shutdown.append(proxy.shutdown)
     return proxy, app
 
 
@@ -904,18 +902,21 @@ def start(
     ))
 
     data_dir = user_data_dir("pantalaimon", "")
+    glib_thread = GlibT(pan_queue.sync_q, ui_queue.sync_q, data_dir)
+
     fut = loop.run_in_executor(
         None,
-        glib_loop,
-        pan_queue.sync_q,
-        ui_queue.sync_q,
-        data_dir
+        glib_thread.run
     )
 
-    kill_glib = partial(shutdown_glib_loop, fut, pan_queue.async_q)
+    async def wait_for_glib(glib_thread, fut, app):
+        glib_thread.stop()
+        await fut
+
+    stop_glib = partial(wait_for_glib, glib_thread, fut)
 
     app.on_shutdown.append(proxy.shutdown)
-    app.on_shutdown.append(kill_glib)
+    app.on_shutdown.append(stop_glib)
 
     home = os.path.expanduser("~")
     os.chdir(home)

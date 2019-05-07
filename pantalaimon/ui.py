@@ -9,18 +9,14 @@ from gi.repository import GLib
 
 from queue import Empty
 
-from nio.store import TrustState
 from pantalaimon.store import PanStore
 from pantalaimon.log import logger
+
+DBusGMainLoop(set_as_default=True)
 
 
 @attr.s
 class Message:
-    pass
-
-
-@attr.s
-class ShutDownMessage(Message):
     pass
 
 
@@ -203,39 +199,47 @@ class Control(dbus.service.Object):
         pass
 
 
-def glib_loop(receive_queue, send_queue, data_dir):
-    DBusGMainLoop(set_as_default=True)
-    loop = GLib.MainLoop()
+@attr.s
+class GlibT:
+    receive_queue = attr.ib()
+    send_queue = attr.ib()
+    data_dir = attr.ib()
 
-    bus_name = dbus.service.BusName("org.pantalaimon",
-                                    bus=dbus.SessionBus(),
-                                    do_not_queue=True)
+    loop = attr.ib(init=False)
+    bus_name = attr.ib(init=False)
+    store = attr.ib(init=False)
+    users = attr.ib(init=False)
+    devices = attr.ib(init=False)
+    control_bus = attr.ib(init=False)
+    device_bus = attr.ib(init=False)
 
-    store = PanStore(data_dir)
-    users = store.load_all_users()
-    devices = store.load_all_devices()
+    def __attrs_post_init__(self):
+        self.loop = None
 
-    control_bus = Control(bus_name, send_queue, users)
-    device_bus = Devices(bus_name, send_queue, devices)
+        self.bus_name = dbus.service.BusName("org.pantalaimon",
+                                             bus=dbus.SessionBus(),
+                                             do_not_queue=True)
 
-    def message_callback():
+        self.store = PanStore(self.data_dir)
+        self.users = self.store.load_all_users()
+        self.devices = self.store.load_all_devices()
+
+        self.control_bus = Control(self.bus_name, self.send_queue, self.users)
+        self.device_bus = Devices(self.bus_name, self.send_queue, self.devices)
+
+    def message_callback(self):
         try:
-            message = receive_queue.get_nowait()
+            message = self.receive_queue.get_nowait()
         except Empty:
             return True
 
         logger.debug(f"UI loop received message {message}")
 
-        if isinstance(message, ShutDownMessage):
-            receive_queue.task_done()
-            loop.quit()
-            return False
-
-        elif isinstance(message, DevicesMessage):
-            device_bus.update_devices(message)
+        if isinstance(message, DevicesMessage):
+            self.device_bus.update_devices(message)
 
         elif isinstance(message, DeviceAuthStringMessage):
-            device_bus.sas_show(
+            self.device_bus.sas_show(
                 message.pan_user,
                 message.user_id,
                 message.device_id,
@@ -243,16 +247,17 @@ def glib_loop(receive_queue, send_queue, data_dir):
             )
 
         elif isinstance(message, InfoMessage):
-            control_bus.info(message.string)
+            self.control_bus.info(message.string)
 
-        receive_queue.task_done()
+        self.receive_queue.task_done()
         return True
 
-    GLib.timeout_add(100, message_callback)
+    def run(self):
+        self.loop = GLib.MainLoop()
+        GLib.timeout_add(100, self.message_callback)
+        self.loop.run()
 
-    loop.run()
-
-
-async def shutdown_glib_loop(future, queue, app):
-    await queue.put(ShutDownMessage())
-    await future
+    def stop(self):
+        if self.loop:
+            self.loop.quit()
+            self.loop = None
