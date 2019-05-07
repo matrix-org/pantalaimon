@@ -244,7 +244,7 @@ class PanClient(AsyncClient):
 
             return False
 
-    def decrypt_messages_body(self, body):
+    def decrypt_messages_body(self, body, ignore_failures=True):
         # type: (Dict[Any, Any]) -> Dict[Any, Any]
         """Go through a messages response and decrypt megolm encrypted events.
 
@@ -267,7 +267,7 @@ class PanClient(AsyncClient):
                              "\n{}".format(pformat(event)))
                 continue
 
-            self.pan_decrypt_event(event)
+            self.pan_decrypt_event(event, ignore_failures=ignore_failures)
 
         return body
 
