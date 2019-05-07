@@ -518,7 +518,7 @@ class ProxyDaemon:
                 pass
 
             if isinstance(sync_filter, dict):
-                sync_filter = self.sanitize_filter(sync_filter)
+                sync_filter = json.dumps(self.sanitize_filter(sync_filter))
 
             query["filter"] = sync_filter
 
