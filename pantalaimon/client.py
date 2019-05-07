@@ -2,7 +2,6 @@ import asyncio
 from pprint import pformat
 from typing import Any, Dict, Optional
 
-from aiohttp.client_exceptions import ClientConnectionError
 from nio import (AsyncClient, ClientConfig, EncryptionError,
                  GroupEncryptionError, KeysQueryResponse, MegolmEvent,
                  RoomEncryptedEvent, SyncResponse,
@@ -34,8 +33,6 @@ class PanClient(AsyncClient):
 
         self.task = None
         self.queue = queue
-        self.loop_stopped = asyncio.Event()
-        self.synced = asyncio.Event()
 
         self.add_to_device_callback(
             self.key_verification_cb,
