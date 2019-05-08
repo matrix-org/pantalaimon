@@ -47,6 +47,7 @@ def parse_url(value):
 
     return value
 
+
 def parse_log_level(value):
     # type: (str) -> logbook
     value = value.lower()
