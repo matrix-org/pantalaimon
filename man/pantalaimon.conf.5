@@ -1,0 +1,118 @@
+.Dd May 08, 2019
+.Dt PANTALAIMON.CONF 5
+.Os
+.\" ---------------------------------------------------------------------------
+.Sh NAME
+.Nm pantalaimon.conf
+.Nd pantalaimon configuration file
+.\" ---------------------------------------------------------------------------
+.Sh DESCRIPTION
+.Xr pantalaimon 1 reads configuration data in the INI file format.
+The configuration file is used to configure
+.Nm pantalaimon
+homeservers.
+.Pp
+The sections inside the configuration file represent a pantalaimon proxy
+instance with the section name enclosed in square brackets representing an user
+chosen instance name.
+.Pp
+The following keys are required in the proxy instance sections:
+.Bl -tag -width 3n
+.It Cm Homeserver
+The URI of the homeserver that the pantalaimon proxy should forward requests to,
+without the matrix API path but including the http(s) schema.
+.El
+.Pp
+The following keys are optional in the proxy instance sections:
+.Bl -tag -width 3n
+.It Cm ListenAddress
+The address where the daemon will listen to client connections for this
+homeserver. Defaults to "localhost".
+.It Cm ListenPort
+The port where the daemon will listen to client connections for this
+homeserver. Note that the listen address/port combination needs to be unique
+between different homeservers. Defaults to "8009".
+.It Cm Proxy
+An URI of a HTTP proxy that the daemon should use when making requests to the
+homeserver.
+.Nm pantalaimon
+only supports HTTP proxies. The default is to make a direct connection to the
+homeserver.
+.It Cm SSL
+A boolean that decides if SSL verification should be enabled for outgoing
+connections to the homeserver. Defaults to "True".
+.El
+.Pp
+Aditional to the homeserver section a special section with the name
+.Cm Default
+can be used to configure the following values for all homeservers:
+.Cm ListenAddress ,
+.Cm ListenPort ,
+.Cm Proxy ,
+.Cm SSL
+.Pp
+The
+.Cm Default
+section has the following keys that globally change the behaviour of the daemon:
+.Bl -tag -width 3n
+.It Cm LogLevel
+Set the log level of the daemon, can be one of
+.Ar error ,
+.Ar warning ,
+.Ar info ,
+.Ar debug .
+Defaults to
+.Ar warning .
+
+.El
+.\" ---------------------------------------------------------------------------
+.Sh FILES
+.Nm pantalaimon
+supports the XDG Base Directory Specification, the default locations can be
+overridden using appropriate environment variables.
+.Pp
+.Bl -tag -width 34 -compact
+.It Pa ~/.config/pantalaimon/pantalaimon.conf
+Default location of the configuration file.
+.El
+.\" ---------------------------------------------------------------------------
+.Sh EXAMPLES
+The following example shows a configured pantalaimon proxy with the name
+.Em Clocktown ,
+the homeserver URL is set to
+.Em https://example.org ,
+the pantalaimon proxy is listening for client connections on the address
+.Em localhost ,
+and port
+.Em 8009 .
+The pantalaimon proxy is making connections to the homeserver through the proxy
+.Em http://localhost:8009 ,
+finally, SSL verification is disabled.
+.Pp
+Aditionally to the
+.Em Clocktown
+section the
+.Em Default
+section is also listed and the default value for SSL verification is set to True
+and the debug level is set to
+.Em Debug .
+.Bd -literal -offset indent
+[Default]
+LogLevel = Debug
+SSL = True
+
+[Clocktown]
+Homeserver = https://localhost:8448
+ListenAddress = localhost
+ListenPort = 8009
+Proxy = http://localhost:8080
+SSL = False
+.Ed
+.\" ---------------------------------------------------------------------------
+.Sh SEE ALSO
+.Xr pantalaimon 1
+.\" ---------------------------------------------------------------------------
+.Sh AUTHORS
+.Nm
+was written by
+.An Damir Jelić Aq Mt poljar@termina.org.uk .
