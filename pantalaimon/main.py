@@ -7,16 +7,28 @@ from urllib.parse import urlparse
 
 import click
 import janus
-import logbook
 
-from appdirs import user_data_dir
+from appdirs import user_data_dir, user_config_dir
 from logbook import StderrHandler
 
 from aiohttp import web
 
 from pantalaimon.ui import GlibT
-from pantalaimon.log import logger
 from pantalaimon.daemon import ProxyDaemon
+from pantalaimon.config import PanConfig, PanConfigError, parse_log_level
+from pantalaimon.log import logger
+
+
+def create_dirs(data_dir, conf_dir):
+    try:
+        os.makedirs(data_dir)
+    except OSError:
+        pass
+
+    try:
+        os.makedirs(conf_dir)
+    except OSError:
+        pass
 
 
 async def init(homeserver, http_proxy, ssl, send_queue, recv_queue):
@@ -84,77 +96,55 @@ class ipaddress(click.ParamType):
 @click.command(
     help=("pantalaimon is a reverse proxy for matrix homeservers that "
           "transparently encrypts and decrypts messages for clients that "
-          "connect to pantalaimon.\n\n"
-          "HOMESERVER - the homeserver that the daemon should connect to.")
+          "connect to pantalaimon.")
 
-)
-@click.option(
-    "--proxy",
-    type=URL(),
-    default=None,
-    help="A proxy that will be used to connect to the homeserver."
-)
-@click.option(
-    "-k",
-    "--ssl-insecure/--no-ssl-insecure",
-    default=False,
-    help="Disable SSL verification for the homeserver connection."
-)
-@click.option(
-    "-l",
-    "--listen-address",
-    type=ipaddress(),
-    default=ip_address("127.0.0.1"),
-    help=("The listening address for incoming client connections "
-          "(default: 127.0.0.1)")
-)
-@click.option(
-    "-p",
-    "--listen-port",
-    type=int,
-    default=8009,
-    help="The listening port for incoming client connections (default: 8009)"
 )
 @click.option("--log-level", type=click.Choice([
     "error",
     "warning",
     "info",
     "debug"
-]), default="error")
-@click.argument(
-    "homeserver",
-    type=URL(),
-)
+]), default=None)
+@click.option("-c", "--config", type=click.Path(exists=True))
+@click.pass_context
 def main(
-    proxy,
-    ssl_insecure,
-    listen_address,
-    listen_port,
+    context,
     log_level,
-    homeserver
+    config
 ):
-    ssl = None if ssl_insecure is False else False
+    conf_dir = user_config_dir("pantalaimon", "")
+    data_dir = user_data_dir("pantalaimon", "")
+    create_dirs(data_dir, conf_dir)
 
-    StderrHandler(level=log_level.upper()).push_application()
+    config = config or os.path.join(conf_dir, "pantalaimon.conf")
 
-    if log_level == "info":
-        logger.level = logbook.INFO
-    elif log_level == "warning":
-        logger.level = logbook.WARNING
-    elif log_level == "error":
-        logger.level = logbook.ERROR
-    elif log_level == "debug":
-        logger.level = logbook.DEBUG
+    if log_level:
+        log_level = parse_log_level(log_level)
+
+    pan_conf = PanConfig(config, log_level)
+
+    try:
+        pan_conf.read()
+    except (OSError, PanConfigError) as e:
+        context.fail(e)
+
+    if not pan_conf.servers:
+        context.fail("Homeserver is not configured.")
+
+    logger.level = pan_conf.log_level
+    StderrHandler().push_application()
 
     loop = asyncio.get_event_loop()
-
     pan_queue = janus.Queue(loop=loop)
     ui_queue = janus.Queue(loop=loop)
 
+    # TODO start the other servers as well
+    server_conf = list(pan_conf.servers.values())[0]
+
     proxy, app = loop.run_until_complete(init(
-        homeserver,
-        proxy.geturl() if proxy else None,
-        ssl,
+        server_conf.homeserver,
+        server_conf.proxy.geturl() if server_conf.proxy else None,
+        server_conf.ssl,
         pan_queue.async_q,
         ui_queue.async_q
     ))
@@ -179,7 +169,11 @@ def main(
     home = os.path.expanduser("~")
     os.chdir(home)
 
-    web.run_app(app, host=str(listen_address), port=listen_port)
+    web.run_app(
+        app,
+        host=str(server_conf.listen_address),
+        port=server_conf.listen_port
+    )
 
 
 if __name__ == "__main__":
