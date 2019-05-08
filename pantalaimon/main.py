@@ -37,7 +37,7 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
         send_queue=send_queue,
         recv_queue=recv_queue,
         proxy=server_conf.proxy.geturl() if server_conf.proxy else None,
-        ssl=False
+        ssl=None if server_conf.ssl is True else False
     )
 
     app = web.Application()
