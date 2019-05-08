@@ -27,7 +27,7 @@ setup(
         "matrix-nio"
     ],
     entry_points={
-        "console_scripts": ["pantalaimon=pantalaimon.main:cli",
+        "console_scripts": ["pantalaimon=pantalaimon.main:main",
                             "panctl=pantalaimon.panctl:main"],
     },
     zip_safe=False
