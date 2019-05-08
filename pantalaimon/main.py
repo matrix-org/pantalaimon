@@ -1,9 +1,6 @@
 import asyncio
 
 import os
-from functools import partial
-from ipaddress import ip_address
-from urllib.parse import urlparse
 
 import click
 import janus
@@ -31,25 +28,20 @@ def create_dirs(data_dir, conf_dir):
         pass
 
 
-async def init(homeserver, http_proxy, ssl, send_queue, recv_queue):
+async def init(data_dir, server_conf, send_queue, recv_queue):
     """Initialize the proxy and the http server."""
-    data_dir = user_data_dir("pantalaimon", "")
-
-    try:
-        os.makedirs(data_dir)
-    except OSError:
-        pass
-
     proxy = ProxyDaemon(
-        homeserver,
+        server_conf.name,
+        server_conf.homeserver,
         data_dir,
         send_queue=send_queue,
         recv_queue=recv_queue,
-        proxy=http_proxy,
-        ssl=ssl,
+        proxy=server_conf.proxy.geturl() if server_conf.proxy else None,
+        ssl=False
     )
 
     app = web.Application()
+
     app.add_routes([
         web.post("/_matrix/client/r0/login", proxy.login),
         web.get("/_matrix/client/r0/sync", proxy.sync),
@@ -61,36 +53,18 @@ async def init(homeserver, http_proxy, ssl, send_queue, recv_queue):
         web.post("/_matrix/client/r0/user/{user_id}/filter", proxy.filter),
     ])
     app.router.add_route("*", "/" + "{proxyPath:.*}", proxy.router)
-    return proxy, app
+    app.on_shutdown.append(proxy.shutdown)
 
+    runner = web.AppRunner(app)
+    await runner.setup()
 
-class URL(click.ParamType):
-    name = 'url'
+    site = web.TCPSite(
+        runner,
+        str(server_conf.listen_address),
+        server_conf.listen_port
+    )
 
-    def convert(self, value, param, ctx):
-        try:
-            value = urlparse(value)
-
-            if value.scheme not in ('http', 'https'):
-                self.fail(f"Invalid URL scheme {value.scheme}. Only HTTP(s) "
-                          "URLs are allowed")
-            value.port
-        except ValueError as e:
-            self.fail(f"Error parsing URL: {e}")
-
-        return value
-
-
-class ipaddress(click.ParamType):
-    name = "ipaddress"
-
-    def convert(self, value, param, ctx):
-        try:
-            value = ip_address(value)
-        except ValueError as e:
-            self.fail(f"Error parsing ip address: {e}")
-
-        return value
+    return proxy, runner, site
 
 
 @click.command(
@@ -138,42 +112,48 @@ def main(
     pan_queue = janus.Queue(loop=loop)
     ui_queue = janus.Queue(loop=loop)
 
-    # TODO start the other servers as well
-    server_conf = list(pan_conf.servers.values())[0]
+    servers = []
 
-    proxy, app = loop.run_until_complete(init(
-        server_conf.homeserver,
-        server_conf.proxy.geturl() if server_conf.proxy else None,
-        server_conf.ssl,
-        pan_queue.async_q,
-        ui_queue.async_q
-    ))
+    for server_conf in pan_conf.servers.values():
+        servers.append(
+            loop.run_until_complete(
+                init(
+                    data_dir,
+                    server_conf,
+                    pan_queue.async_q,
+                    ui_queue.async_q
+                )
+            )
+        )
 
-    data_dir = user_data_dir("pantalaimon", "")
     glib_thread = GlibT(pan_queue.sync_q, ui_queue.sync_q, data_dir)
 
-    fut = loop.run_in_executor(
+    glib_fut = loop.run_in_executor(
         None,
         glib_thread.run
     )
 
-    async def wait_for_glib(glib_thread, fut, app):
+    async def wait_for_glib(glib_thread, fut):
         glib_thread.stop()
         await fut
-
-    stop_glib = partial(wait_for_glib, glib_thread, fut)
-
-    app.on_shutdown.append(proxy.shutdown)
-    app.on_shutdown.append(stop_glib)
 
     home = os.path.expanduser("~")
     os.chdir(home)
 
-    web.run_app(
-        app,
-        host=str(server_conf.listen_address),
-        port=server_conf.listen_port
-    )
+    try:
+        for proxy, _, site in servers:
+            click.echo(f"======== Starting daemon for homserver "
+                       f"{proxy.name} on {site.name} ========")
+            loop.run_until_complete(site.start())
+
+        click.echo("(Press CTRL+C to quit)")
+        loop.run_forever()
+    except KeyboardInterrupt:
+        for _, runner, _ in servers:
+            loop.run_until_complete(runner.cleanup())
+
+        loop.run_until_complete(wait_for_glib(glib_thread, glib_fut))
+        loop.close()
 
 
 if __name__ == "__main__":

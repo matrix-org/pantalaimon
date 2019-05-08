@@ -30,6 +30,7 @@ from pantalaimon.ui import (
 
 @attr.s
 class ProxyDaemon:
+    name = attr.ib()
     homeserver = attr.ib()
     data_dir = attr.ib()
     send_queue = attr.ib()
