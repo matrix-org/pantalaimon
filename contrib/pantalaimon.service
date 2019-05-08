@@ -1,0 +1,8 @@
+[Unit]
+Description=Pantalaimon E2E Matrix reverse proxy
+
+[Service]
+ExecStart=/usr/bin/pantalaimon
+
+[Install]
+WantedBy=default.target
