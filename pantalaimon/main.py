@@ -1,7 +1,6 @@
 import asyncio
 
 import os
-import sys
 from functools import partial
 from ipaddress import ip_address
 from urllib.parse import urlparse
@@ -15,13 +14,9 @@ from logbook import StderrHandler
 
 from aiohttp import web
 
-from nio import EncryptionError
-
 from pantalaimon.ui import GlibT
 from pantalaimon.log import logger
 from pantalaimon.daemon import ProxyDaemon
-from pantalaimon.client import PanClient
-from pantalaimon.store import PanStore
 
 
 async def init(homeserver, http_proxy, ssl, send_queue, recv_queue):
@@ -84,19 +79,6 @@ class ipaddress(click.ParamType):
             self.fail(f"Error parsing ip address: {e}")
 
         return value
-
-
-def _find_device(user):
-    data_dir = user_data_dir("pantalaimon", "")
-    store = PanStore(data_dir)
-    accounts = store.load_all_users()
-
-    for user_id, device in accounts:
-        if user == user_id:
-            return device
-
-    click.echo("No such user/device combination found.")
-    sys.exit()
 
 
 @click.command(
