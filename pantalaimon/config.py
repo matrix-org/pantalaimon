@@ -74,6 +74,7 @@ class ServerConfig:
     """Server configuration.
 
     Args:
+        name (str): A unique user chosen name that identifies the server.
         homeserver (ParseResult): The URL of the Matrix homeserver that we want
             to forward requests to.
         listen_address (str): The local address where pantalaimon will listen
@@ -87,7 +88,8 @@ class ServerConfig:
             pantalaimon and the homeserver.
     """
 
-    homeserver = attr.ib()
+    name = attr.ib(type=str)
+    homeserver = attr.ib(type=ParseResult)
     listen_address = attr.ib(type=Union[IPv4Address, IPv6Address])
     listen_port = attr.ib(type=int)
     proxy = attr.ib(type=str)
@@ -152,6 +154,7 @@ class PanConfig:
                 listen_set.add(listen_tuple)
 
                 server_conf = ServerConfig(
+                    section_name,
                     homeserver,
                     listen_address,
                     listen_port,
