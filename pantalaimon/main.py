@@ -1,6 +1,7 @@
 import asyncio
 
 import os
+import signal
 
 import click
 import janus
@@ -174,6 +175,11 @@ def main(
 
     home = os.path.expanduser("~")
     os.chdir(home)
+
+    def handler(signum, frame):
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, handler)
 
     try:
         for proxy, _, site in servers:
