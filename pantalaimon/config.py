@@ -124,6 +124,8 @@ class PanConfig:
         if self.log_level is None:
             self.log_level = config["Default"].getloglevel("LogLevel")
 
+        listen_set = set()
+
         try:
             for section_name, section in config.items():
 
@@ -131,10 +133,23 @@ class PanConfig:
                     continue
 
                 homeserver = section.geturl("Homeserver")
+
+                if not homeserver:
+                    raise PanConfigError(f"Homserver is not set for "
+                                         f"section {section_name}")
+
                 listen_address = section.getaddress("ListenAddress")
                 listen_port = section.getint("ListenPort")
                 ssl = section.getboolean("SSL")
                 proxy = section.geturl("Proxy")
+
+                listen_tuple = (listen_address, listen_port)
+
+                if listen_tuple in listen_set:
+                    raise PanConfigError(f"The listen address/port combination"
+                                         f" for section {section_name} was "
+                                         f"already defined before.")
+                listen_set.add(listen_tuple)
 
                 server_conf = ServerConfig(
                     homeserver,
