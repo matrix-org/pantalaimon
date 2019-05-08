@@ -43,7 +43,6 @@ class ProxyDaemon:
     store = attr.ib(type=PanStore, init=False)
     homeserver_url = attr.ib(init=False, default=attr.Factory(dict))
     pan_clients = attr.ib(init=False, default=attr.Factory(dict))
-    queue_task = attr.ib(init=False)
     client_info = attr.ib(
         init=False,
         default=attr.Factory(dict),
@@ -89,9 +88,6 @@ class ProxyDaemon:
 
             pan_client.start_loop()
 
-        loop = asyncio.get_event_loop()
-        self.queue_task = loop.create_task(self.queue_loop())
-
     async def _verify_device(self, client, device):
         ret = client.verify_device(device)
 
@@ -123,72 +119,53 @@ class ProxyDaemon:
         message = InfoMessage(string)
         await self.queue.put(message)
 
-    async def queue_loop(self):
-        while True:
-            message = await self.recv_queue.get()
-            logger.debug(f"Daemon got message {message}")
+    async def receive_message(self, message):
+        client = self.pan_clients.get(message.pan_user)
 
-            if isinstance(
-                message,
-                (DeviceVerifyMessage, DeviceUnverifyMessage,
-                 DeviceConfirmSasMessage)
-            ):
-                client = self.pan_clients.get(message.pan_user, None)
+        if isinstance(
+            message,
+            (DeviceVerifyMessage, DeviceUnverifyMessage,
+             DeviceConfirmSasMessage)
+        ):
 
-                if not client:
-                    msg = f"No pan client found for {message.pan_user}."
-                    logger.warn(msg)
-                    self.send_info(msg)
-                    return
+            device = client.device_store[message.user_id].get(
+                message.device_id,
+                None
+            )
 
-                device = client.device_store[message.user_id].get(
-                    message.device_id,
-                    None
-                )
+            if not device:
+                msg = (f"No device found for {message.user_id} and "
+                       f"{message.device_id}")
+                await self.send_info(msg)
+                logger.info(msg)
+                return
 
-                if not device:
-                    msg = (f"No device found for {message.user_id} and "
-                           f"{message.device_id}")
-                    await self.send_info(msg)
-                    logger.info(msg)
-                    return
+            if isinstance(message, DeviceVerifyMessage):
+                await self._verify_device(client, device)
+            elif isinstance(message, DeviceUnverifyMessage):
+                await self._unverify_device(client, device)
+            elif isinstance(message, DeviceConfirmSasMessage):
+                await client.confirm_sas(message)
 
-                if isinstance(message, DeviceVerifyMessage):
-                    await self._verify_device(client, device)
-                elif isinstance(message, DeviceUnverifyMessage):
-                    await self._unverify_device(client, device)
-                elif isinstance(message, DeviceConfirmSasMessage):
-                    await client.confirm_sas(message)
+        elif isinstance(message, ExportKeysMessage):
+            path = os.path.abspath(message.file_path)
+            logger.info(f"Exporting keys to {path}")
 
-            elif isinstance(message, ExportKeysMessage):
-                client = self.pan_clients.get(message.pan_user, None)
+            try:
+                client.export_keys(path, message.passphrase)
+            except OSError as e:
+                logger.warn(f"Error exporting keys for {client.user_id} to"
+                            f" {path} {e}")
 
-                if not client:
-                    return
+        elif isinstance(message, ImportKeysMessage):
+            path = os.path.abspath(message.file_path)
+            logger.info(f"Importing keys from {path}")
 
-                path = os.path.abspath(message.file_path)
-                logger.info(f"Exporting keys to {path}")
-
-                try:
-                    client.export_keys(path, message.passphrase)
-                except OSError as e:
-                    logger.warn(f"Error exporting keys for {client.user_id} to"
-                                f" {path} {e}")
-
-            elif isinstance(message, ImportKeysMessage):
-                client = self.pan_clients.get(message.pan_user, None)
-
-                if not client:
-                    return
-
-                path = os.path.abspath(message.file_path)
-                logger.info(f"Importing keys from {path}")
-
-                try:
-                    client.import_keys(path, message.passphrase)
-                except (OSError, EncryptionError) as e:
-                    logger.warn(f"Error importing keys for {client.user_id} "
-                                f"from {path} {e}")
+            try:
+                client.import_keys(path, message.passphrase)
+            except (OSError, EncryptionError) as e:
+                logger.warn(f"Error importing keys for {client.user_id} "
+                            f"from {path} {e}")
 
     def get_access_token(self, request):
         # type: (aiohttp.web.BaseRequest) -> str
@@ -670,5 +647,3 @@ class ProxyDaemon:
         if self.default_session:
             await self.default_session.close()
             self.default_session = None
-
-        self.queue_task.cancel()

@@ -5,12 +5,14 @@ import os
 import click
 import janus
 
+from typing import Optional
+
 from appdirs import user_data_dir, user_config_dir
 from logbook import StderrHandler
 
 from aiohttp import web
 
-from pantalaimon.ui import GlibT
+from pantalaimon.ui import GlibT, InfoMessage
 from pantalaimon.daemon import ProxyDaemon
 from pantalaimon.config import PanConfig, PanConfigError, parse_log_level
 from pantalaimon.log import logger
@@ -67,6 +69,34 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
     return proxy, runner, site
 
 
+async def message_router(receive_queue, send_queue, proxies):
+    """Find the recipient of a message and forward it to the right proxy."""
+    def find_proxy_by_user(user):
+        # type: (str) -> Optional[ProxyDaemon]
+        for proxy in proxies:
+            if user in proxy.pan_clients:
+                return proxy
+
+        return None
+
+    async def send_info(string):
+        message = InfoMessage(string)
+        await send_queue.put(message)
+
+    while True:
+        message = await receive_queue.get()
+        logger.debug(f"Router got message {message}")
+
+        proxy = find_proxy_by_user(message.pan_user)
+
+        if not proxy:
+            msg = f"No pan client found for {message.pan_user}."
+            logger.warn(msg)
+            send_info(msg)
+
+        await proxy.receive_message(message)
+
+
 @click.command(
     help=("pantalaimon is a reverse proxy for matrix homeservers that "
           "transparently encrypts and decrypts messages for clients that "
@@ -113,18 +143,19 @@ def main(
     ui_queue = janus.Queue(loop=loop)
 
     servers = []
+    proxies = []
 
     for server_conf in pan_conf.servers.values():
-        servers.append(
-            loop.run_until_complete(
-                init(
-                    data_dir,
-                    server_conf,
-                    pan_queue.async_q,
-                    ui_queue.async_q
-                )
+        proxy, runner, site = loop.run_until_complete(
+            init(
+                data_dir,
+                server_conf,
+                pan_queue.async_q,
+                ui_queue.async_q
             )
         )
+        servers.append((proxy, runner, site))
+        proxies.append(proxy)
 
     glib_thread = GlibT(pan_queue.sync_q, ui_queue.sync_q, data_dir)
 
@@ -137,12 +168,16 @@ def main(
         glib_thread.stop()
         await fut
 
+    message_router_task = loop.create_task(
+        message_router(ui_queue.async_q, pan_queue.async_q, proxies)
+    )
+
     home = os.path.expanduser("~")
     os.chdir(home)
 
     try:
         for proxy, _, site in servers:
-            click.echo(f"======== Starting daemon for homserver "
+            click.echo(f"======== Starting daemon for homeserver "
                        f"{proxy.name} on {site.name} ========")
             loop.run_until_complete(site.start())
 
@@ -153,6 +188,8 @@ def main(
             loop.run_until_complete(runner.cleanup())
 
         loop.run_until_complete(wait_for_glib(glib_thread, glib_fut))
+        message_router_task.cancel()
+        loop.run_until_complete(asyncio.wait({message_router_task}))
         loop.close()
 
 
