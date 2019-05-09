@@ -2,6 +2,7 @@ import asyncio
 from pprint import pformat
 from typing import Any, Dict, Optional
 
+from aiohttp.client_exceptions import ClientConnectionError
 from nio import (AsyncClient, ClientConfig, EncryptionError,
                  KeysQueryResponse, MegolmEvent,
                  RoomEncryptedEvent, SyncResponse,
@@ -192,7 +193,10 @@ class PanClient(AsyncClient):
             self.send_info("No such verification process found.")
             return
 
-        await self.confirm_short_auth_string(sas.transaction_id)
+        try:
+            await self.confirm_short_auth_string(sas.transaction_id)
+        except ClientConnectionError as e:
+            await self.send_info(f"Error confirming short auth string: {e}")
 
         device = sas.other_olm_device
         if sas.verified:
