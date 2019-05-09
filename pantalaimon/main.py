@@ -13,7 +13,8 @@ from logbook import StderrHandler
 
 from aiohttp import web
 
-from pantalaimon.ui import GlibT, InfoMessage
+from pantalaimon.ui import GlibT
+from pantalaimon.thread_messages import InfoMessage
 from pantalaimon.daemon import ProxyDaemon
 from pantalaimon.config import PanConfig, PanConfigError, parse_log_level
 from pantalaimon.log import logger

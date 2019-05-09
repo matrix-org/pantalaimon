@@ -10,7 +10,11 @@ from nio import (AsyncClient, ClientConfig, EncryptionError,
 from nio.store import SqliteStore
 
 from pantalaimon.log import logger
-from pantalaimon.ui import DevicesMessage, DeviceAuthStringMessage, InfoMessage
+from pantalaimon.thread_messages import (
+    DevicesMessage,
+    DeviceAuthStringMessage,
+    InfoMessage
+)
 
 
 class PanClient(AsyncClient):

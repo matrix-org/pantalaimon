@@ -18,7 +18,7 @@ from nio import EncryptionError, GroupEncryptionError, LoginResponse
 from pantalaimon.client import PanClient
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
-from pantalaimon.ui import (
+from pantalaimon.thread_messages import (
     DeviceVerifyMessage,
     DeviceUnverifyMessage,
     ExportKeysMessage,
