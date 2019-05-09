@@ -190,7 +190,7 @@ class PanClient(AsyncClient):
         sas = self.get_active_sas(user_id, device_id)
 
         if not sas:
-            self.send_info("No such verification process found.")
+            await self.send_info("No such verification process found.")
             return
 
         try:
