@@ -148,24 +148,38 @@ class ProxyDaemon:
                 await client.confirm_sas(message)
 
         elif isinstance(message, ExportKeysMessage):
-            path = os.path.abspath(message.file_path)
+            path = os.path.abspath(os.path.expanduser(message.file_path))
             logger.info(f"Exporting keys to {path}")
 
             try:
                 client.export_keys(path, message.passphrase)
             except OSError as e:
-                logger.warn(f"Error exporting keys for {client.user_id} to"
+                info_msg = (f"Error exporting keys for {client.user_id} to"
                             f" {path} {e}")
+                logger.info(info_msg)
+                await self.send_info(info_msg)
+            else:
+                info_msg = (f"Succesfully exported keys for {client.user_id} "
+                            f"to {path}")
+                logger.info(info_msg)
+                await self.send_info(info_msg)
 
         elif isinstance(message, ImportKeysMessage):
-            path = os.path.abspath(message.file_path)
+            path = os.path.abspath(os.path.expanduser(message.file_path))
             logger.info(f"Importing keys from {path}")
 
             try:
                 client.import_keys(path, message.passphrase)
             except (OSError, EncryptionError) as e:
-                logger.warn(f"Error importing keys for {client.user_id} "
+                info_msg = (f"Error importing keys for {client.user_id} "
                             f"from {path} {e}")
+                logger.info(info_msg)
+                await self.send_info(info_msg)
+            else:
+                info_msg = (f"Succesfully imported keys for {client.user_id} "
+                            f"from {path}")
+                logger.info(info_msg)
+                await self.send_info(info_msg)
 
     def get_access_token(self, request):
         # type: (aiohttp.web.BaseRequest) -> str
