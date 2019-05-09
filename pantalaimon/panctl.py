@@ -23,18 +23,74 @@ use_asyncio_event_loop()
 @attr.s
 class PanCompleter(Completer):
     """Completer for panctl commands."""
+
     commands = attr.ib(type=List[str])
+    ctl = attr.ib()
+    devices = attr.ib()
 
     def complete_commands(self, last_word):
         """Complete the available commands."""
-        compl_words = []
+        compl_words = self.filter_words(self.commands, last_word)
+        for compl_word in compl_words:
+            yield Completion(compl_word, -len(last_word))
 
-        for command in self.commands:
-            if last_word in command:
-                compl_words.append(command)
+    def complete_users(self, last_word, pan_user):
+        devices = self.devices.list(
+            pan_user,
+            dbus_interface="org.pantalaimon.devices"
+        )
+        users = set(device["user_id"] for device in devices)
+        compl_words = self.filter_words(users, last_word)
 
         for compl_word in compl_words:
             yield Completion(compl_word, -len(last_word))
+
+        return ""
+
+    def complete_devices(self, last_word, pan_user, user_id):
+        devices = self.devices.list_user_devices(
+            pan_user,
+            user_id,
+            dbus_interface="org.pantalaimon.devices"
+        )
+        device_ids = [device["device_id"] for device in devices]
+        compl_words = self.filter_words(device_ids, last_word)
+
+        for compl_word in compl_words:
+            yield Completion(compl_word, -len(last_word))
+
+        return ""
+
+    def filter_words(self, words, last_word):
+        compl_words = []
+
+        for word in words:
+            if last_word in word:
+                compl_words.append(word)
+
+        return compl_words
+
+    def complete_verification(self, command, last_word, words):
+        def complete_pan_users():
+            users = self.ctl.list_users(
+                dbus_interface="org.pantalaimon.control"
+            )
+            compl_words = self.filter_words([i[0] for i in users], last_word)
+
+            for compl_word in compl_words:
+                yield Completion(compl_word, -len(last_word))
+
+        if len(words) == 2:
+            return complete_pan_users()
+        elif len(words) == 3:
+            pan_user = words[1]
+            return self.complete_users(last_word, pan_user)
+        elif len(words) == 4:
+            pan_user = words[1]
+            user_id = words[2]
+            return self.complete_devices(last_word, pan_user, user_id)
+
+        return ""
 
     def get_completions(self, document, complete_event):
         """Build the completions."""
@@ -46,6 +102,19 @@ class PanCompleter(Completer):
 
         if len(words) == 1:
             return self.complete_commands(last_word)
+
+        if len(words) > 1:
+            command = words[0]
+
+            if command in [
+                "start-verification",
+                "accept-verification",
+                "confirm-verification",
+                "cancel-verification",
+                "verify-device",
+                "unverify-device",
+            ]:
+                return self.complete_verification(command, last_word, words)
 
         return ""
 
@@ -60,6 +129,9 @@ class PanCtl:
         "list-users",
         "export-keys",
         "import-keys",
+        "verify-device",
+        "unverify-device",
+        "start-verification",
         "accept-verification",
         "confirm-verification"
     ]
@@ -140,8 +212,8 @@ class PanCtl:
             dbus_interface="org.pantalaimon.control"
         )
         print("pantalaimon users:")
-        for user, devic in users:
-            print(" ", user, devic)
+        for user, device in users:
+            print(" ", user, device)
 
     def import_keys(self, args):
         try:
@@ -187,7 +259,7 @@ class PanCtl:
 
     async def loop(self):
         """Event loop for panctl."""
-        completer = PanCompleter(self.commands)
+        completer = PanCompleter(self.commands, self.ctl, self.devices)
         promptsession = PromptSession("panctl> ", completer=completer)
 
         while True:

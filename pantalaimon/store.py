@@ -219,7 +219,7 @@ class PanStore:
         query = Accounts.select()
 
         for account in query:
-            device_store = []
+            device_store = defaultdict(dict)
 
             for d in account.device_keys:
 
@@ -231,13 +231,13 @@ class PanStore:
                 except IndexError:
                     trust_state = TrustState.unset
 
-                device_store.append({
+                device_store[d.user_id][d.device_id] = {
                     "user_id": d.user_id,
                     "device_id": d.device_id,
                     "fingerprint_key": d.fp_key,
                     "sender_key": d.sender_key,
                     "trust_state": trust_state.name
-                })
+                }
 
             store[account.user_id] = device_store
 

@@ -8,6 +8,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 
 from queue import Empty
+from nio.store import TrustState
 
 from pantalaimon.store import PanStore
 from pantalaimon.thread_messages import (
@@ -32,9 +33,36 @@ class Devices(dbus.service.Object):
         self.queue = queue
 
     @dbus.service.method("org.pantalaimon.devices",
-                         out_signature="a{sa{saa{ss}}}")
-    def list(self):
-        return self.device_list
+                         in_signature="s",
+                         out_signature="aa{ss}")
+    def list(self, pan_user):
+        device_store = self.device_list.get(pan_user, None)
+
+        if not device_store:
+            return []
+
+        device_list = [
+            device for device_list in device_store.values() for device in
+            device_list.values()
+        ]
+
+        return device_list
+
+    @dbus.service.method("org.pantalaimon.devices",
+                         in_signature="ss",
+                         out_signature="aa{ss}")
+    def list_user_devices(self, pan_user, user_id):
+        device_store = self.device_list.get(pan_user, None)
+
+        if not device_store:
+            return []
+
+        device_list = device_store.get(user_id, None)
+
+        if not device_list:
+            return []
+
+        return device_list.values()
 
     @dbus.service.method("org.pantalaimon.devices",
                          in_signature="sss")
@@ -88,21 +116,18 @@ class Devices(dbus.service.Object):
     def update_devices(self, message):
         device_store = self.device_list[message.user_id]
 
-        # TODO the store type got changed to a list, fix adding/removing of
-        # devices.
-
-        # for user_id, device_dict in message.devices.items():
-        #     for device in device_dict.values():
-        #         if device.deleted:
-        #             device_store[user_id].remove(device.id, None)
-        #         else:
-        #             device_store[user_id][device.id] = {
-        #                 "user_id": device.user_id,
-        #                 "device_id": device.id,
-        #                 "fingerprint_key": device.ed25519,
-        #                 "sender_key": device.curve25519,
-        #                 "trust_state": TrustState.unset.name,
-        #             }
+        for user_id, device_dict in message.devices.items():
+            for device in device_dict.values():
+                if device.deleted:
+                    device_store[user_id].remove(device.id, None)
+                else:
+                    device_store[user_id][device.id] = {
+                        "user_id": device.user_id,
+                        "device_id": device.id,
+                        "fingerprint_key": device.ed25519,
+                        "sender_key": device.curve25519,
+                        "trust_state": TrustState.unset.name,
+                    }
 
 
 class Control(dbus.service.Object):
