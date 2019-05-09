@@ -222,6 +222,9 @@ class PanCtl:
                 args = words[1:]
                 self.confirm_sas(args)
 
+            elif not command:
+                continue
+
             else:
                 print(f"Unknown command {command}.")
 
