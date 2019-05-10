@@ -1,11 +1,8 @@
 import attr
 
-import dbus
-import dbus.exceptions
-import dbus.service
-
-from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
+from pydbus import SessionBus
+from pydbus.generic import signal
 
 from queue import Empty
 from nio.store import TrustState
@@ -24,19 +21,100 @@ from pantalaimon.thread_messages import (
 )
 from pantalaimon.log import logger
 
-DBusGMainLoop(set_as_default=True)
+
+class Control:
+    """
+    <node>
+        <interface name='org.pantalaimon1.control'>
+            <method name='ListUsers'>
+                <arg type='a(ss)' name='users' direction='out'/>
+            </method>
+
+            <method name='ExportKeys'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='file_path' direction='in'/>
+                <arg type='s' name='passphrase' direction='in'/>
+            </method>
+
+            <method name='ImportKeys'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='file_path' direction='in'/>
+                <arg type='s' name='passphrase' direction='in'/>
+            </method>
+
+            <signal name="Info">
+                <arg direction="out" type="s" name="message"/>
+            </signal>
+        </interface>
+    </node>
+    """
+
+    def __init__(self, queue, user_list=None):
+        self.users = user_list
+        self.queue = queue
+
+    def ListUsers(self):
+        """Return the list of pan users."""
+        return self.users
+
+    def ExportKeys(self, pan_user, filepath, passphrase):
+        message = ExportKeysMessage(pan_user, filepath, passphrase)
+        self.queue.put(message)
+        return
+
+    def ImportKeys(self, pan_user, filepath, passphrase):
+        message = ImportKeysMessage(pan_user, filepath, passphrase)
+        self.queue.put(message)
+        return
+
+    Info = signal()
 
 
-class Devices(dbus.service.Object):
-    def __init__(self, bus_name, queue, device_list):
-        super().__init__(bus_name, "/org/pantalaimon1/Devices")
+class Devices:
+    """
+    <node>
+        <interface name='org.pantalaimon1.devices'>
+            <method name='List'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='aa{ss}' name='devices' direction='out'/>
+            </method>
+
+            <method name='ListUserDevices'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='user_id' direction='in'/>
+                <arg type='aa{ss}' name='devices' direction='out'/>
+            </method>
+
+            <method name='AcceptKeyVerification'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='user_id' direction='in'/>
+                <arg type='s' name='device_id' direction='in'/>
+            </method>
+
+            <method name='ConfirmKeyVerification'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='user_id' direction='in'/>
+                <arg type='s' name='device_id' direction='in'/>
+            </method>
+
+            <signal name="SasReceived">
+                <arg direction="out" type="s" name="pan_user"/>
+                <arg direction="out" type="s" name="user_id"/>
+                <arg direction="out" type="s" name="device_id"/>
+                <arg direction="out" type="a(ss)" name="emoji"/>
+            </signal>
+
+        </interface>
+    </node>
+    """
+
+    SasReceived = signal()
+
+    def __init__(self, queue, device_list):
         self.device_list = device_list
         self.queue = queue
 
-    @dbus.service.method("org.pantalaimon1.devices",
-                         in_signature="s",
-                         out_signature="aa{ss}")
-    def list(self, pan_user):
+    def List(self, pan_user):
         device_store = self.device_list.get(pan_user, None)
 
         if not device_store:
@@ -49,10 +127,7 @@ class Devices(dbus.service.Object):
 
         return device_list
 
-    @dbus.service.method("org.pantalaimon1.devices",
-                         in_signature="ss",
-                         out_signature="aa{ss}")
-    def list_user_devices(self, pan_user, user_id):
+    def ListUserDevices(self, pan_user, user_id):
         device_store = self.device_list.get(pan_user, None)
 
         if not device_store:
@@ -65,9 +140,7 @@ class Devices(dbus.service.Object):
 
         return device_list.values()
 
-    @dbus.service.method("org.pantalaimon1.devices",
-                         in_signature="sss")
-    def verify(self, pan_user, user_id, device_id):
+    def Verify(self, pan_user, user_id, device_id):
         message = DeviceVerifyMessage(
             pan_user,
             user_id,
@@ -76,9 +149,7 @@ class Devices(dbus.service.Object):
         self.queue.put(message)
         return
 
-    @dbus.service.method("org.pantalaimon1.devices",
-                         in_signature="sss")
-    def unverify(self, pan_user, user_id, device_id):
+    def UnVerify(self, pan_user, user_id, device_id):
         message = DeviceUnverifyMessage(
             pan_user,
             user_id,
@@ -87,9 +158,7 @@ class Devices(dbus.service.Object):
         self.queue.put(message)
         return
 
-    @dbus.service.method("org.pantalaimon1.devices",
-                         in_signature="sss")
-    def start_verify(self, pan_user, user_id, device_id):
+    def StartSas(self, pan_user, user_id, device_id):
         device_store = self.device_list.get(pan_user)
 
         if not device_store:
@@ -100,23 +169,12 @@ class Devices(dbus.service.Object):
         logger.info(f"Verifying device {user_id} {device_id}")
         return
 
-    @dbus.service.signal(
-        dbus_interface="org.pantalaimon1.devices",
-        signature="sssa(ss)"
-    )
-    def sas_show(self, pan_user, user_id, device_id, auth_string):
-        pass
-
-    @dbus.service.method("org.pantalaimon1.devices",
-                         in_signature="sss")
-    def confirm_sas(self, pan_user, user_id, device_id):
+    def ConfirmKeyVerification(self, pan_user, user_id, device_id):
         message = DeviceConfirmSasMessage(pan_user, user_id, device_id)
         self.queue.put(message)
         return
 
-    @dbus.service.method("org.pantalaimon1.devices",
-                         in_signature="sss")
-    def accept_sas(self, pan_user, user_id, device_id):
+    def AcceptKeyVerification(self, pan_user, user_id, device_id):
         message = DeviceAcceptSasMessage(pan_user, user_id, device_id)
         self.queue.put(message)
         return
@@ -138,49 +196,6 @@ class Devices(dbus.service.Object):
                     }
 
 
-class Control(dbus.service.Object):
-    def __init__(self, bus_name, queue, user_list=None):
-        super().__init__(bus_name, "/org/pantalaimon1/Control")
-        self.users = user_list
-        self.queue = queue
-
-    @dbus.service.method("org.pantalaimon1.control",
-                         out_signature="a(ss)")
-    def list_users(self):
-        return self.users
-
-    @dbus.service.method("org.pantalaimon1.control",
-                         in_signature="sss")
-    def export_keys(self, pan_user, filepath, passphrase):
-        message = ExportKeysMessage(
-            pan_user,
-            filepath,
-            passphrase
-        )
-        self.queue.put(message)
-
-        return
-
-    @dbus.service.method("org.pantalaimon1.control",
-                         in_signature="sss")
-    def import_keys(self, pan_user, filepath, passphrase):
-        message = ImportKeysMessage(
-            pan_user,
-            filepath,
-            passphrase
-        )
-        self.queue.put(message)
-
-        return
-
-    @dbus.service.signal(
-        dbus_interface="org.pantalaimon1.control",
-        signature="s"
-    )
-    def info(self, message):
-        pass
-
-
 @attr.s
 class GlibT:
     receive_queue = attr.ib()
@@ -188,26 +203,25 @@ class GlibT:
     data_dir = attr.ib()
 
     loop = attr.ib(init=False)
-    bus_name = attr.ib(init=False)
     store = attr.ib(init=False)
     users = attr.ib(init=False)
     devices = attr.ib(init=False)
-    control_bus = attr.ib(init=False)
-    device_bus = attr.ib(init=False)
+    bus = attr.ib(init=False)
+    control_if = attr.ib(init=False)
+    device_if = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         self.loop = None
-
-        self.bus_name = dbus.service.BusName("org.pantalaimon1",
-                                             bus=dbus.SessionBus(),
-                                             do_not_queue=True)
 
         self.store = PanStore(self.data_dir)
         self.users = self.store.load_all_users()
         self.devices = self.store.load_all_devices()
 
-        self.control_bus = Control(self.bus_name, self.send_queue, self.users)
-        self.device_bus = Devices(self.bus_name, self.send_queue, self.devices)
+        self.control_if = Control(self.send_queue, self.users)
+        self.device_if = Devices(self.send_queue, self.devices)
+
+        self.bus = SessionBus()
+        self.bus.publish("org.pantalaimon1", self.control_if, self.device_if)
 
     def message_callback(self):
         try:
@@ -218,10 +232,10 @@ class GlibT:
         logger.debug(f"UI loop received message {message}")
 
         if isinstance(message, DevicesMessage):
-            self.device_bus.update_devices(message)
+            self.device_if.update_devices(message)
 
         elif isinstance(message, DeviceAuthStringMessage):
-            self.device_bus.sas_show(
+            self.device_if.SasReceived(
                 message.pan_user,
                 message.user_id,
                 message.device_id,
@@ -229,7 +243,7 @@ class GlibT:
             )
 
         elif isinstance(message, InfoMessage):
-            self.control_bus.info(message.string)
+            self.control_if.Info(message.string)
 
         self.receive_queue.task_done()
         return True

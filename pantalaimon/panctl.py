@@ -15,11 +15,8 @@ from prompt_toolkit.completion import Completer, Completion, PathCompleter
 from prompt_toolkit.document import Document
 from prompt_toolkit import print_formatted_text, HTML
 
-import dbus
+from pydbus import SessionBus
 from gi.repository import GLib
-from dbus.mainloop.glib import DBusGMainLoop
-
-DBusGMainLoop(set_as_default=True)
 
 use_asyncio_event_loop()
 
@@ -106,10 +103,7 @@ class PanCompleter(Completer):
             yield Completion(compl_word, -len(last_word))
 
     def complete_users(self, last_word, pan_user):
-        devices = self.devices.list(
-            pan_user,
-            dbus_interface="org.pantalaimon1.devices"
-        )
+        devices = self.devices.List(pan_user)
         users = set(device["user_id"] for device in devices)
         compl_words = self.filter_words(users, last_word)
 
@@ -119,11 +113,7 @@ class PanCompleter(Completer):
         return ""
 
     def complete_devices(self, last_word, pan_user, user_id):
-        devices = self.devices.list_user_devices(
-            pan_user,
-            user_id,
-            dbus_interface="org.pantalaimon1.devices"
-        )
+        devices = self.devices.ListUserDevices(pan_user, user_id)
         device_ids = [device["device_id"] for device in devices]
         compl_words = self.filter_words(device_ids, last_word)
 
@@ -142,9 +132,7 @@ class PanCompleter(Completer):
         return compl_words
 
     def complete_pan_users(self, last_word):
-            users = self.ctl.list_users(
-                dbus_interface="org.pantalaimon1.control"
-            )
+            users = self.ctl.ListUsers()
             compl_words = self.filter_words([i[0] for i in users], last_word)
 
             for compl_word in compl_words:
@@ -282,27 +270,14 @@ class PanCtl:
     ]
 
     def __attrs_post_init__(self):
-        self.bus = dbus.SessionBus()
-        self.ctl = self.bus.get_object(
-            "org.pantalaimon1",
-            "/org/pantalaimon1/Control",
-            introspect=True
-        )
-        self.devices = self.bus.get_object(
-            "org.pantalaimon1",
-            "/org/pantalaimon1/Devices",
-            introspect=True
-        )
-        self.bus.add_signal_receiver(
-            self.show_sas,
-            dbus_interface="org.pantalaimon1.devices",
-            signal_name="sas_show"
-        )
-        self.bus.add_signal_receiver(
-            self.show_info,
-            dbus_interface="org.pantalaimon1.control",
-            signal_name="info"
-        )
+        self.bus = SessionBus()
+        self.pan_bus = self.bus.get("org.pantalaimon1")
+
+        self.ctl = self.pan_bus["org.pantalaimon1.control"]
+        self.devices = self.pan_bus["org.pantalaimon1.devices"]
+
+        self.ctl.Info.connect(self.show_info)
+        self.devices.SasReceived.connect(self.show_sas)
 
     def show_info(self, message):
         print(message)
@@ -353,51 +328,13 @@ class PanCtl:
 
     def list_users(self):
         """List the daemons users."""
-        users = self.ctl.list_users(
-            dbus_interface="org.pantalaimon1.control"
-        )
+        users = self.ctl.ListUsers()
         print("pantalaimon users:")
         for user, device in users:
             print(" ", user, device)
 
-    def import_keys(self, args):
-        self.ctl.import_keys(
-            args.pan_user,
-            args.path,
-            args.passphrase,
-            dbus_interface="org.pantalaimon1.control"
-        )
-
-    def export_keys(self, args):
-        self.ctl.export_keys(
-            args.pan_user,
-            args.path,
-            args.passphrase,
-            dbus_interface="org.pantalaimon1.control"
-        )
-
-    def confirm_sas(self, args):
-        self.devices.confirm_sas(
-            args.pan_user,
-            args.user_id,
-            args.device_id,
-            dbus_interface="org.pantalaimon1.devices"
-        )
-
-    def accept_sas(self, args):
-        self.devices.accept_sas(
-            args.pan_user,
-            args.user_id,
-            args.device_id,
-            dbus_interface="org.pantalaimon1.devices"
-        )
-
     def list_devices(self, args):
-        devices = self.devices.list_user_devices(
-            args.pan_user,
-            args.user_id,
-            dbus_interface="org.pantalaimon1.devices"
-        )
+        devices = self.devices.ListUserDevices(args.pan_user, args.user_id)
 
         print_formatted_text(
             HTML(f"Devices for user <b>{args.user_id}</b>:")
@@ -431,29 +368,37 @@ class PanCtl:
             parser = PanctlParser()
 
             try:
-                parsed_args = parser.parse_args(result.split())
+                args = parser.parse_args(result.split())
             except ParseError:
                 continue
 
-            command = parsed_args.subcommand
+            command = args.subcommand
 
             if command == "list-users":
                 self.list_users()
 
-            elif command == "export-keys":
-                self.export_keys(parsed_args)
-
             elif command == "import-keys":
-                self.import_keys(parsed_args)
+                self.ctl.ImportKeys(args.pan_user, args.path, args.passphrase)
 
-            elif command == "accept-verification":
-                self.accept_sas(parsed_args)
+            elif command == "export-keys":
+                self.ctl.ExportKeys(args.pan_user, args.path, args.passphrase)
 
             elif command == "list-devices":
-                self.list_devices(parsed_args)
+                self.list_devices(args)
+
+            elif command == "accept-verification":
+                self.devices.AcceptKeyVerification(
+                    args.pan_user,
+                    args.user_id,
+                    args.device_id
+                )
 
             elif command == "confirm-verification":
-                self.confirm_sas(parsed_args)
+                self.devices.ConfirmKeyVerification(
+                    args.pan_user,
+                    args.user_id,
+                    args.device_id
+                )
 
 
 def main():
@@ -462,8 +407,8 @@ def main():
 
     try:
         panctl = PanCtl()
-    except dbus.exceptions.DBusException:
-        print("Error, no pantalaimon bus found")
+    except GLib.Error as e:
+        print(f"Error, {e}")
         sys.exit(-1)
 
     fut = loop.run_in_executor(
