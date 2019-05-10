@@ -404,7 +404,7 @@ class PanCtl:
         )
 
         for device in devices:
-            key = partition_key(device["fingerprint_key"])
+            key = partition_key(device["ed25519"])
             color = get_color(device["device_id"])
             print_formatted_text(HTML(
                 f" - Device id:    "

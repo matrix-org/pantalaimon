@@ -234,8 +234,8 @@ class PanStore:
                 device_store[d.user_id][d.device_id] = {
                     "user_id": d.user_id,
                     "device_id": d.device_id,
-                    "fingerprint_key": d.fp_key,
-                    "sender_key": d.sender_key,
+                    "ed25519": d.fp_key,
+                    "curve25519": d.sender_key,
                     "trust_state": trust_state.name
                 }
 

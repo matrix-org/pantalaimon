@@ -132,8 +132,8 @@ class Devices(dbus.service.Object):
                     device_store[user_id][device.id] = {
                         "user_id": device.user_id,
                         "device_id": device.id,
-                        "fingerprint_key": device.ed25519,
-                        "sender_key": device.curve25519,
+                        "e225519": device.ed25519,
+                        "curve25519": device.curve25519,
                         "trust_state": TrustState.unset.name,
                     }
 
