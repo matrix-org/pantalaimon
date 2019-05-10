@@ -6,12 +6,14 @@ import argparse
 import sys
 
 from typing import List
+from itertools import zip_longest
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.completion import Completer, Completion, PathCompleter
 from prompt_toolkit.document import Document
+from prompt_toolkit import print_formatted_text, HTML
 
 import dbus
 from gi.repository import GLib
@@ -44,6 +46,10 @@ class PanctlParser():
         self.parser = PanctlArgParse()
         subparsers = self.parser.add_subparsers(dest="subcommand")
         subparsers.add_parser("list-users")
+
+        list_devices = subparsers.add_parser("list-devices")
+        list_devices.add_argument("pan_user", type=str)
+        list_devices.add_argument("user_id", type=str)
 
         start = subparsers.add_parser("start-verification")
         start.add_argument("pan_user", type=str)
@@ -167,11 +173,20 @@ class PanCompleter(Completer):
     ):
         if len(words) == 2:
             return self.complete_pan_users(last_word)
-        if len(words) == 3:
+        elif len(words) == 3:
             return self.path_completer.get_completions(
                 Document(last_word),
                 complete_event
             )
+
+        return ""
+
+    def complete_list_devices(self, last_word, words):
+        if len(words) == 2:
+            return self.complete_pan_users(last_word)
+        elif len(words) == 3:
+            pan_user = words[1]
+            return self.complete_users(last_word, pan_user)
 
         return ""
 
@@ -211,7 +226,41 @@ class PanCompleter(Completer):
                     words
                 )
 
+            elif command == "list-devices":
+                return self.complete_list_devices(last_word, words)
+
         return ""
+
+
+def grouper(iterable, n, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
+    args = [iter(iterable)] * n
+    return zip_longest(*args, fillvalue=fillvalue)
+
+
+def partition_key(key):
+    groups = grouper(key, 4, " ")
+    return ' '.join(''.join(g) for g in groups)
+
+
+def get_color(string):
+    def djb2(string):
+        hash = 5381
+        for x in string:
+            hash = ((hash << 5) + hash) + ord(x)
+        return hash & 0xFFFFFFFF
+
+    colors = [
+        "ansiblue",
+        "ansigreen",
+        "ansired",
+        "ansiyellow",
+        "ansicyan",
+        "ansimagenta",
+    ]
+
+    return colors[djb2(string) % 5]
 
 
 @attr.s
@@ -222,6 +271,7 @@ class PanCtl:
 
     commands = [
         "list-users",
+        "list-devices",
         "export-keys",
         "import-keys",
         "verify-device",
@@ -334,6 +384,27 @@ class PanCtl:
             dbus_interface="org.pantalaimon.devices"
         )
 
+    def list_devices(self, args):
+        devices = self.devices.list_user_devices(
+            args.pan_user,
+            args.user_id,
+            dbus_interface="org.pantalaimon.devices"
+        )
+
+        print_formatted_text(
+            HTML(f"Devices for user <b>{args.user_id}</b>:")
+        )
+
+        for device in devices:
+            key = partition_key(device["fingerprint_key"])
+            color = get_color(device["device_id"])
+            print_formatted_text(HTML(
+                f" - Device id:    "
+                f"<{color}>{device['device_id']}</{color}>\n"
+                f"   - Device key: "
+                f"<ansiyellow>{key}</ansiyellow>"
+            ))
+
     async def loop(self):
         """Event loop for panctl."""
         completer = PanCompleter(self.commands, self.ctl, self.devices)
@@ -369,6 +440,9 @@ class PanCtl:
 
             elif command == "accept-verification":
                 pass
+
+            elif command == "list-devices":
+                self.list_devices(parsed_args)
 
             elif command == "confirm-verification":
                 self.confirm_sas(parsed_args)
