@@ -108,7 +108,7 @@ class PanCompleter(Completer):
     def complete_users(self, last_word, pan_user):
         devices = self.devices.list(
             pan_user,
-            dbus_interface="org.pantalaimon.devices"
+            dbus_interface="org.pantalaimon1.devices"
         )
         users = set(device["user_id"] for device in devices)
         compl_words = self.filter_words(users, last_word)
@@ -122,7 +122,7 @@ class PanCompleter(Completer):
         devices = self.devices.list_user_devices(
             pan_user,
             user_id,
-            dbus_interface="org.pantalaimon.devices"
+            dbus_interface="org.pantalaimon1.devices"
         )
         device_ids = [device["device_id"] for device in devices]
         compl_words = self.filter_words(device_ids, last_word)
@@ -143,7 +143,7 @@ class PanCompleter(Completer):
 
     def complete_pan_users(self, last_word):
             users = self.ctl.list_users(
-                dbus_interface="org.pantalaimon.control"
+                dbus_interface="org.pantalaimon1.control"
             )
             compl_words = self.filter_words([i[0] for i in users], last_word)
 
@@ -284,23 +284,23 @@ class PanCtl:
     def __attrs_post_init__(self):
         self.bus = dbus.SessionBus()
         self.ctl = self.bus.get_object(
-            "org.pantalaimon",
-            "/org/pantalaimon/Control",
+            "org.pantalaimon1",
+            "/org/pantalaimon1/Control",
             introspect=True
         )
         self.devices = self.bus.get_object(
-            "org.pantalaimon",
-            "/org/pantalaimon/Devices",
+            "org.pantalaimon1",
+            "/org/pantalaimon1/Devices",
             introspect=True
         )
         self.bus.add_signal_receiver(
             self.show_sas,
-            dbus_interface="org.pantalaimon.devices",
+            dbus_interface="org.pantalaimon1.devices",
             signal_name="sas_show"
         )
         self.bus.add_signal_receiver(
             self.show_info,
-            dbus_interface="org.pantalaimon.control",
+            dbus_interface="org.pantalaimon1.control",
             signal_name="info"
         )
 
@@ -354,7 +354,7 @@ class PanCtl:
     def list_users(self):
         """List the daemons users."""
         users = self.ctl.list_users(
-            dbus_interface="org.pantalaimon.control"
+            dbus_interface="org.pantalaimon1.control"
         )
         print("pantalaimon users:")
         for user, device in users:
@@ -365,7 +365,7 @@ class PanCtl:
             args.pan_user,
             args.path,
             args.passphrase,
-            dbus_interface="org.pantalaimon.control"
+            dbus_interface="org.pantalaimon1.control"
         )
 
     def export_keys(self, args):
@@ -373,7 +373,7 @@ class PanCtl:
             args.pan_user,
             args.path,
             args.passphrase,
-            dbus_interface="org.pantalaimon.control"
+            dbus_interface="org.pantalaimon1.control"
         )
 
     def confirm_sas(self, args):
@@ -381,7 +381,7 @@ class PanCtl:
             args.pan_user,
             args.user_id,
             args.device_id,
-            dbus_interface="org.pantalaimon.devices"
+            dbus_interface="org.pantalaimon1.devices"
         )
 
     def accept_sas(self, args):
@@ -389,14 +389,14 @@ class PanCtl:
             args.pan_user,
             args.user_id,
             args.device_id,
-            dbus_interface="org.pantalaimon.devices"
+            dbus_interface="org.pantalaimon1.devices"
         )
 
     def list_devices(self, args):
         devices = self.devices.list_user_devices(
             args.pan_user,
             args.user_id,
-            dbus_interface="org.pantalaimon.devices"
+            dbus_interface="org.pantalaimon1.devices"
         )
 
         print_formatted_text(
