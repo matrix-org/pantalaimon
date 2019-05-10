@@ -384,6 +384,14 @@ class PanCtl:
             dbus_interface="org.pantalaimon.devices"
         )
 
+    def accept_sas(self, args):
+        self.devices.accept_sas(
+            args.pan_user,
+            args.user_id,
+            args.device_id,
+            dbus_interface="org.pantalaimon.devices"
+        )
+
     def list_devices(self, args):
         devices = self.devices.list_user_devices(
             args.pan_user,
@@ -439,7 +447,7 @@ class PanCtl:
                 self.import_keys(parsed_args)
 
             elif command == "accept-verification":
-                pass
+                self.accept_sas(parsed_args)
 
             elif command == "list-devices":
                 self.list_devices(parsed_args)

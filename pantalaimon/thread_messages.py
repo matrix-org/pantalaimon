@@ -52,6 +52,16 @@ class DeviceUnverifyMessage(_VerificationMessage):
 
 
 @attr.s
+class DeviceStartSasMessage(_VerificationMessage):
+    pass
+
+
+@attr.s
+class DeviceAcceptSasMessage(_VerificationMessage):
+    pass
+
+
+@attr.s
 class DeviceConfirmSasMessage(_VerificationMessage):
     pass
 

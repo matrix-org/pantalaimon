@@ -24,6 +24,7 @@ from pantalaimon.thread_messages import (
     ExportKeysMessage,
     ImportKeysMessage,
     DeviceConfirmSasMessage,
+    DeviceAcceptSasMessage,
     InfoMessage
 )
 
@@ -125,7 +126,7 @@ class ProxyDaemon:
         if isinstance(
             message,
             (DeviceVerifyMessage, DeviceUnverifyMessage,
-             DeviceConfirmSasMessage)
+             DeviceConfirmSasMessage, DeviceAcceptSasMessage)
         ):
 
             device = client.device_store[message.user_id].get(
@@ -144,6 +145,8 @@ class ProxyDaemon:
                 await self._verify_device(client, device)
             elif isinstance(message, DeviceUnverifyMessage):
                 await self._unverify_device(client, device)
+            elif isinstance(message, DeviceAcceptSasMessage):
+                await client.accept_sas(message)
             elif isinstance(message, DeviceConfirmSasMessage):
                 await client.confirm_sas(message)
 

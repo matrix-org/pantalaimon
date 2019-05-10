@@ -16,6 +16,7 @@ from pantalaimon.thread_messages import (
     DeviceUnverifyMessage,
     DevicesMessage,
     InfoMessage,
+    DeviceAcceptSasMessage,
     DeviceConfirmSasMessage,
     DeviceAuthStringMessage,
     ImportKeysMessage,
@@ -110,6 +111,13 @@ class Devices(dbus.service.Object):
                          in_signature="sss")
     def confirm_sas(self, pan_user, user_id, device_id):
         message = DeviceConfirmSasMessage(pan_user, user_id, device_id)
+        self.queue.put(message)
+        return
+
+    @dbus.service.method("org.pantalaimon.devices",
+                         in_signature="sss")
+    def accept_sas(self, pan_user, user_id, device_id):
+        message = DeviceAcceptSasMessage(pan_user, user_id, device_id)
         self.queue.put(message)
         return
 

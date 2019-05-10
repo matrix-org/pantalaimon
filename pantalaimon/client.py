@@ -122,8 +122,17 @@ class PanClient(AsyncClient):
         loop = asyncio.get_event_loop()
 
         if isinstance(event, KeyVerificationStart):
+            logger.info(f"{event.sender} via {event.from_device} has started "
+                        f"a key verification process.")
+
+            message = DeviceStartSasMessage(
+                self.user_id,
+                event.sender,
+                event.from_device
+            )
+
             task = loop.create_task(
-                self.accept_key_verification(event.transaction_id)
+                self.queue.put(message)
             )
             self.key_verificatins_tasks.append(task)
 
@@ -182,6 +191,21 @@ class PanClient(AsyncClient):
         task = loop.create_task(self.sync_forever(timeout, sync_filter))
         self.task = task
         return task
+
+    async def accept_sas(self, message):
+        user_id = message.user_id
+        device_id = message.device_id
+
+        sas = self.get_active_sas(user_id, device_id)
+
+        if not sas:
+            await self.send_info("No such verification process found.")
+            return
+
+        try:
+            await self.accept_key_verification(sas.transaction_id)
+        except (LocalProtocolError, ClientConnectionError) as e:
+            await self.send_info(f"Error accepting key verification: {e}")
 
     async def confirm_sas(self, message):
         user_id = message.user_id
