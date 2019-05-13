@@ -20,7 +20,7 @@ setup(
         "keyring",
         "logbook",
         "peewee",
-        "dbus-python",
+        "pydbus",
         "janus",
         "prompt_toolkit",
         "typing;python_version<'3.5'",
