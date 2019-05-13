@@ -24,8 +24,9 @@ from pantalaimon.thread_messages import (
     ExportKeysMessage,
     ImportKeysMessage,
     DeviceConfirmSasMessage,
-    DeviceAcceptSasMessage,
-    InfoMessage
+    SasMessage,
+    AcceptSasMessage,
+    DaemonResponse
 )
 
 
@@ -89,7 +90,7 @@ class ProxyDaemon:
 
             pan_client.start_loop()
 
-    async def _verify_device(self, client, device):
+    async def _verify_device(self, message_id, client, device):
         ret = client.verify_device(device)
 
         if ret:
@@ -100,9 +101,9 @@ class ProxyDaemon:
                    f"{device.user_id} already verified")
 
         logger.info(msg)
-        await self.send_info(msg)
+        await self.send_response(message_id, client.user_id, "m.ok", msg)
 
-    async def _unverify_device(self, client, device):
+    async def _unverify_device(self, message_id, client, device):
         ret = client.unverify_device(device)
 
         if ret:
@@ -113,11 +114,11 @@ class ProxyDaemon:
                    f"{device.user_id} already unverified")
 
         logger.info(msg)
-        await self.send_info(msg)
+        await self.send_response(message_id, client.user_id, "m.ok", msg)
 
-    async def send_info(self, string):
-        """Send a info message to the UI thread."""
-        message = InfoMessage(string)
+    async def send_response(self, message_id, pan_user, code, message):
+        """Send a thread response message to the UI thread."""
+        message = DaemonResponse(message_id, pan_user, code, message)
         await self.send_queue.put(message)
 
     async def receive_message(self, message):
@@ -125,8 +126,7 @@ class ProxyDaemon:
 
         if isinstance(
             message,
-            (DeviceVerifyMessage, DeviceUnverifyMessage,
-             DeviceConfirmSasMessage, DeviceAcceptSasMessage)
+            (DeviceVerifyMessage, DeviceUnverifyMessage)
         ):
 
             device = client.device_store[message.user_id].get(
@@ -137,15 +137,22 @@ class ProxyDaemon:
             if not device:
                 msg = (f"No device found for {message.user_id} and "
                        f"{message.device_id}")
-                await self.send_info(msg)
+                await self.send_response(
+                    message.message_id,
+                    message.pan_user,
+                    "m.unknown_device",
+                    msg
+                )
                 logger.info(msg)
                 return
 
             if isinstance(message, DeviceVerifyMessage):
-                await self._verify_device(client, device)
+                await self._verify_device(message.message_id, client, device)
             elif isinstance(message, DeviceUnverifyMessage):
-                await self._unverify_device(client, device)
-            elif isinstance(message, DeviceAcceptSasMessage):
+                await self._unverify_device(message.message_id, client, device)
+
+        elif isinstance(message, SasMessage):
+            if isinstance(message, AcceptSasMessage):
                 await client.accept_sas(message)
             elif isinstance(message, DeviceConfirmSasMessage):
                 await client.confirm_sas(message)
@@ -160,12 +167,23 @@ class ProxyDaemon:
                 info_msg = (f"Error exporting keys for {client.user_id} to"
                             f" {path} {e}")
                 logger.info(info_msg)
-                await self.send_info(info_msg)
+                await self.send_response(
+                    message.message_id,
+                    client.user_id,
+                    "m.os_error",
+                    str(e)
+                )
+
             else:
                 info_msg = (f"Succesfully exported keys for {client.user_id} "
                             f"to {path}")
                 logger.info(info_msg)
-                await self.send_info(info_msg)
+                await self.send_response(
+                    message.message_id,
+                    client.user_id,
+                    "m.ok",
+                    info_msg
+                )
 
         elif isinstance(message, ImportKeysMessage):
             path = os.path.abspath(os.path.expanduser(message.file_path))
@@ -177,12 +195,22 @@ class ProxyDaemon:
                 info_msg = (f"Error importing keys for {client.user_id} "
                             f"from {path} {e}")
                 logger.info(info_msg)
-                await self.send_info(info_msg)
+                await self.send_response(
+                    message.message_id,
+                    client.user_id,
+                    "m.os_error",
+                    str(e)
+                )
             else:
                 info_msg = (f"Succesfully imported keys for {client.user_id} "
                             f"from {path}")
                 logger.info(info_msg)
-                await self.send_info(info_msg)
+                await self.send_response(
+                    message.message_id,
+                    client.user_id,
+                    "m.ok",
+                    info_msg
+                )
 
     def get_access_token(self, request):
         # type: (aiohttp.web.BaseRequest) -> str

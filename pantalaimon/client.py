@@ -9,12 +9,15 @@ from nio import (AsyncClient, ClientConfig, EncryptionError,
                  KeyVerificationEvent, LocalProtocolError,
                  KeyVerificationStart, KeyVerificationKey, KeyVerificationMac)
 from nio.store import SqliteStore
+from nio.crypto import Sas
 
 from pantalaimon.log import logger
 from pantalaimon.thread_messages import (
     DevicesMessage,
-    DeviceAuthStringMessage,
-    InfoMessage
+    InviteSasSignal,
+    ShowSasSignal,
+    SasDoneSignal,
+    DaemonResponse
 )
 
 
@@ -72,9 +75,8 @@ class PanClient(AsyncClient):
             }
         }
 
-    async def send_info(self, string):
-        """Send a info message to the UI thread."""
-        message = InfoMessage(string)
+    async def send_message(self, message):
+        """Send a thread message to the UI thread."""
         await self.queue.put(message)
 
     async def sync_tasks(self, response):
@@ -125,10 +127,11 @@ class PanClient(AsyncClient):
             logger.info(f"{event.sender} via {event.from_device} has started "
                         f"a key verification process.")
 
-            message = DeviceStartSasMessage(
+            message = InviteSasSignal(
                 self.user_id,
                 event.sender,
-                event.from_device
+                event.from_device,
+                event.transaction_id
             )
 
             task = loop.create_task(
@@ -144,10 +147,11 @@ class PanClient(AsyncClient):
             device = sas.other_olm_device
             emoji = sas.get_emoji()
 
-            message = DeviceAuthStringMessage(
+            message = ShowSasSignal(
                 self.user_id,
                 device.user_id,
                 device.id,
+                sas.transaction_id,
                 emoji
             )
 
@@ -163,11 +167,14 @@ class PanClient(AsyncClient):
             device = sas.other_olm_device
 
             if sas.verified:
-                task = loop.create_task(
-                    self.send_info(f"Device {device.id} of user "
-                                   f"{device.user_id} succesfully "
-                                   f"verified.")
-                )
+                task = loop.create_task(self.send_message(
+                    SasDoneSignal(
+                        self.user_id,
+                        device.user_id,
+                        device.id,
+                        sas.transaction_id
+                    )
+                ))
                 self.key_verificatins_tasks.append(task)
 
     def start_loop(self):
@@ -199,13 +206,42 @@ class PanClient(AsyncClient):
         sas = self.get_active_sas(user_id, device_id)
 
         if not sas:
-            await self.send_info("No such verification process found.")
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    Sas._txid_error[0],
+                    Sas._txid_error[1]
+                )
+
+            )
             return
 
         try:
             await self.accept_key_verification(sas.transaction_id)
-        except (LocalProtocolError, ClientConnectionError) as e:
-            await self.send_info(f"Error accepting key verification: {e}")
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    "m.ok",
+                    "Successfully accepted the key verification request"
+                    ))
+        except LocalProtocolError as e:
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    Sas._unexpected_message_error[0],
+                    e
+                ))
+        except ClientConnectionError as e:
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    "m.connection_error",
+                    e
+                ))
 
     async def confirm_sas(self, message):
         user_id = message.user_id
@@ -214,20 +250,49 @@ class PanClient(AsyncClient):
         sas = self.get_active_sas(user_id, device_id)
 
         if not sas:
-            await self.send_info("No such verification process found.")
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    Sas._txid_error[0],
+                    Sas._txid_error[1]
+                )
+
+            )
             return
 
         try:
             await self.confirm_short_auth_string(sas.transaction_id)
         except ClientConnectionError as e:
-            await self.send_info(f"Error confirming short auth string: {e}")
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    "m.connection_error",
+                    e
+                ))
+
+            return
 
         device = sas.other_olm_device
+
         if sas.verified:
-            await self.send_info(f"Device {device.id} of user {device.user_id}"
-                                 f" succesfully verified.")
+            await self.send_message(
+                SasDoneSignal(
+                    self.user_id,
+                    device.user_id,
+                    device.id,
+                    sas.transaction_id
+                )
+            )
         else:
-            await self.send_info(f"Waiting for {device.user_id} to confirm...")
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    "m.ok",
+                    f"Waiting for {device.user_id} to confirm."
+                    ))
 
     async def loop_stop(self):
         """Stop the client loop."""

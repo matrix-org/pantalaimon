@@ -276,15 +276,34 @@ class PanCtl:
         self.ctl = self.pan_bus["org.pantalaimon1.control"]
         self.devices = self.pan_bus["org.pantalaimon1.devices"]
 
-        self.ctl.Info.connect(self.show_info)
-        self.devices.SasReceived.connect(self.show_sas)
+        self.own_message_ids = []
 
-    def show_info(self, message):
-        print(message)
+        self.ctl.Response.connect(self.show_response)
+        self.devices.VerificationInvite.connect(self.show_sas_invite)
+        self.devices.VerificationString.connect(self.show_sas)
+        self.devices.VerificationDone.connect(self.sas_done)
+
+    def show_response(self, response_id, pan_user, message):
+        if response_id not in self.own_message_ids:
+            return
+
+        self.own_message_ids.remove(response_id)
+
+        print(message["message"])
+
+    def sas_done(self, pan_user, user_id, device_id, _):
+        print(f"Device {device_id} of user {user_id}"
+              f" succesfully verified for pan user {pan_user}.")
+
+    def show_sas_invite(self, pan_user, user_id, device_id, _):
+        print(f"{user_id} has started an interactive device "
+              f"verification for his device {device_id} with pan user "
+              f"{pan_user}\n"
+              f"Accept the invitation with the accept-verification command.")
 
     # The emoji printing logic was taken from weechat-matrix and was written by
     # dkasak.
-    def show_sas(self, pan_user, user_id, device_id, emoji):
+    def show_sas(self, pan_user, user_id, device_id, _, emoji):
         emojis = [x[0] for x in emoji]
         descriptions = [x[1] for x in emoji]
 
@@ -378,27 +397,39 @@ class PanCtl:
                 self.list_users()
 
             elif command == "import-keys":
-                self.ctl.ImportKeys(args.pan_user, args.path, args.passphrase)
+                self.own_message_ids.append(
+                    self.ctl.ImportKeys(
+                        args.pan_user,
+                        args.path,
+                        args.passphrase
+                    ))
 
             elif command == "export-keys":
-                self.ctl.ExportKeys(args.pan_user, args.path, args.passphrase)
+                self.own_message_ids.append(
+                    self.ctl.ExportKeys(
+                        args.pan_user,
+                        args.path,
+                        args.passphrase
+                    ))
 
             elif command == "list-devices":
                 self.list_devices(args)
 
             elif command == "accept-verification":
-                self.devices.AcceptKeyVerification(
-                    args.pan_user,
-                    args.user_id,
-                    args.device_id
-                )
+                self.own_message_ids.append(
+                    self.devices.AcceptKeyVerification(
+                        args.pan_user,
+                        args.user_id,
+                        args.device_id
+                    ))
 
             elif command == "confirm-verification":
-                self.devices.ConfirmKeyVerification(
-                    args.pan_user,
-                    args.user_id,
-                    args.device_id
-                )
+                self.own_message_ids.append(
+                    self.devices.ConfirmKeyVerification(
+                        args.pan_user,
+                        args.user_id,
+                        args.device_id
+                    ))
 
 
 def main():

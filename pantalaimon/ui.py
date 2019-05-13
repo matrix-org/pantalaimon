@@ -12,14 +12,29 @@ from pantalaimon.thread_messages import (
     DeviceVerifyMessage,
     DeviceUnverifyMessage,
     DevicesMessage,
-    InfoMessage,
-    DeviceAcceptSasMessage,
+    AcceptSasMessage,
     DeviceConfirmSasMessage,
-    DeviceAuthStringMessage,
     ImportKeysMessage,
     ExportKeysMessage,
+    StartSasSignal,
+    ShowSasSignal,
+    InviteSasSignal,
+    SasDoneSignal,
+    DaemonResponse
 )
 from pantalaimon.log import logger
+
+
+class IdCounter:
+    def __init__(self):
+        self._message_id = 0
+
+    @property
+    def message_id(self):
+        ret = self._message_id
+        self._message_id += 1
+
+        return ret
 
 
 class Control:
@@ -34,40 +49,59 @@ class Control:
                 <arg type='s' name='pan_user' direction='in'/>
                 <arg type='s' name='file_path' direction='in'/>
                 <arg type='s' name='passphrase' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
             </method>
 
             <method name='ImportKeys'>
                 <arg type='s' name='pan_user' direction='in'/>
                 <arg type='s' name='file_path' direction='in'/>
                 <arg type='s' name='passphrase' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
             </method>
 
-            <signal name="Info">
-                <arg direction="out" type="s" name="message"/>
+            <signal name="Response">
+                <arg direction="out" type="i" name="id"/>
+                <arg direction="out" type="s" name="pan_user"/>
+                <arg direction="out" type="a{ss}" name="message"/>
             </signal>
         </interface>
     </node>
     """
 
-    def __init__(self, queue, user_list=None):
+    Response = signal()
+
+    def __init__(self, queue, user_list, id_counter):
         self.users = user_list
         self.queue = queue
+        self.id_counter = id_counter
+
+    @property
+    def message_id(self):
+        return self.id_counter.message_id
 
     def ListUsers(self):
         """Return the list of pan users."""
         return self.users
 
     def ExportKeys(self, pan_user, filepath, passphrase):
-        message = ExportKeysMessage(pan_user, filepath, passphrase)
+        message = ExportKeysMessage(
+            self.message_id,
+            pan_user,
+            filepath,
+            passphrase
+        )
         self.queue.put(message)
-        return
+        return message.message_id
 
     def ImportKeys(self, pan_user, filepath, passphrase):
-        message = ImportKeysMessage(pan_user, filepath, passphrase)
+        message = ImportKeysMessage(
+            self.message_id,
+            pan_user,
+            filepath,
+            passphrase
+        )
         self.queue.put(message)
-        return
-
-    Info = signal()
+        return message.message_id
 
 
 class Devices:
@@ -89,30 +123,64 @@ class Devices:
                 <arg type='s' name='pan_user' direction='in'/>
                 <arg type='s' name='user_id' direction='in'/>
                 <arg type='s' name='device_id' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
             </method>
 
             <method name='ConfirmKeyVerification'>
                 <arg type='s' name='pan_user' direction='in'/>
                 <arg type='s' name='user_id' direction='in'/>
                 <arg type='s' name='device_id' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
             </method>
 
-            <signal name="SasReceived">
+            <signal name="VerificationInvite">
                 <arg direction="out" type="s" name="pan_user"/>
                 <arg direction="out" type="s" name="user_id"/>
                 <arg direction="out" type="s" name="device_id"/>
+                <arg direction="out" type="s" name="transaction_id"/>
+            </signal>
+
+            <signal name="VerificationString">
+                <arg direction="out" type="s" name="pan_user"/>
+                <arg direction="out" type="s" name="user_id"/>
+                <arg direction="out" type="s" name="device_id"/>
+                <arg direction="out" type="s" name="transaction_id"/>
                 <arg direction="out" type="a(ss)" name="emoji"/>
+            </signal>
+
+            <signal name="VerificationCancel">
+                <arg direction="out" type="s" name="pan_user"/>
+                <arg direction="out" type="s" name="user_id"/>
+                <arg direction="out" type="s" name="device_id"/>
+                <arg direction="out" type="s" name="transaction_id"/>
+                <arg direction="out" type="s" name="reason"/>
+                <arg direction="out" type="s" name="code"/>
+            </signal>
+
+            <signal name="VerificationDone">
+                <arg direction="out" type="s" name="pan_user"/>
+                <arg direction="out" type="s" name="user_id"/>
+                <arg direction="out" type="s" name="device_id"/>
+                <arg direction="out" type="s" name="transaction_id"/>
             </signal>
 
         </interface>
     </node>
     """
 
-    SasReceived = signal()
+    VerificationInvite = signal()
+    VerificationCancel = signal()
+    VerificationString = signal()
+    VerificationDone = signal()
 
-    def __init__(self, queue, device_list):
+    def __init__(self, queue, device_list, id_counter):
         self.device_list = device_list
         self.queue = queue
+        self.id_counter = id_counter
+
+    @property
+    def message_id(self):
+        return self.id_counter.message_id
 
     def List(self, pan_user):
         device_store = self.device_list.get(pan_user, None)
@@ -170,14 +238,25 @@ class Devices:
         return
 
     def ConfirmKeyVerification(self, pan_user, user_id, device_id):
-        message = DeviceConfirmSasMessage(pan_user, user_id, device_id)
+        message = DeviceConfirmSasMessage(
+            self.message_id,
+            pan_user,
+            user_id,
+            device_id
+        )
+        print("HEEEELOOO {}".format(message.message_id))
         self.queue.put(message)
-        return
+        return message.message_id
 
     def AcceptKeyVerification(self, pan_user, user_id, device_id):
-        message = DeviceAcceptSasMessage(pan_user, user_id, device_id)
+        message = AcceptSasMessage(
+            self.message_id,
+            pan_user,
+            user_id,
+            device_id
+        )
         self.queue.put(message)
-        return
+        return message.message_id
 
     def update_devices(self, message):
         device_store = self.device_list[message.user_id]
@@ -217,8 +296,10 @@ class GlibT:
         self.users = self.store.load_all_users()
         self.devices = self.store.load_all_devices()
 
-        self.control_if = Control(self.send_queue, self.users)
-        self.device_if = Devices(self.send_queue, self.devices)
+        id_counter = IdCounter()
+
+        self.control_if = Control(self.send_queue, self.users, id_counter)
+        self.device_if = Devices(self.send_queue, self.devices, id_counter)
 
         self.bus = SessionBus()
         self.bus.publish("org.pantalaimon1", self.control_if, self.device_if)
@@ -234,16 +315,40 @@ class GlibT:
         if isinstance(message, DevicesMessage):
             self.device_if.update_devices(message)
 
-        elif isinstance(message, DeviceAuthStringMessage):
-            self.device_if.SasReceived(
+        elif isinstance(message, InviteSasSignal):
+            self.device_if.VerificationInvite(
                 message.pan_user,
                 message.user_id,
                 message.device_id,
-                message.short_string
+                message.transaction_id
             )
 
-        elif isinstance(message, InfoMessage):
-            self.control_if.Info(message.string)
+        elif isinstance(message, ShowSasSignal):
+            self.device_if.VerificationString(
+                message.pan_user,
+                message.user_id,
+                message.device_id,
+                message.transaction_id,
+                message.emoji,
+            )
+
+        elif isinstance(message, SasDoneSignal):
+            self.device_if.VerificationDone(
+                message.pan_user,
+                message.user_id,
+                message.device_id,
+                message.transaction_id,
+            )
+
+        elif isinstance(message, DaemonResponse):
+            self.control_if.Response(
+                message.message_id,
+                message.pan_user,
+                {
+                    "code": message.code,
+                    "message": message.message
+                }
+            )
 
         self.receive_queue.task_done()
         return True

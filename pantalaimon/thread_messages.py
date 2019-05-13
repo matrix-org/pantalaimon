@@ -7,8 +7,11 @@ class Message:
 
 
 @attr.s
-class InfoMessage(Message):
-    string = attr.ib()
+class DaemonResponse(Message):
+    message_id = attr.ib()
+    pan_user = attr.ib()
+    code = attr.ib()
+    message = attr.ib()
 
 
 @attr.s
@@ -19,6 +22,7 @@ class DevicesMessage(Message):
 
 @attr.s
 class _KeysOperation(Message):
+    message_id = attr.ib()
     pan_user = attr.ib()
     file_path = attr.ib()
     passphrase = attr.ib()
@@ -36,6 +40,7 @@ class ExportKeysMessage(_KeysOperation):
 
 @attr.s
 class _VerificationMessage(Message):
+    message_id = attr.ib()
     pan_user = attr.ib()
     user_id = attr.ib()
     device_id = attr.ib()
@@ -52,20 +57,43 @@ class DeviceUnverifyMessage(_VerificationMessage):
 
 
 @attr.s
-class DeviceStartSasMessage(_VerificationMessage):
+class SasMessage(_VerificationMessage):
     pass
 
 
 @attr.s
-class DeviceAcceptSasMessage(_VerificationMessage):
+class DeviceConfirmSasMessage(SasMessage):
     pass
 
 
 @attr.s
-class DeviceConfirmSasMessage(_VerificationMessage):
+class AcceptSasMessage(SasMessage):
     pass
 
 
 @attr.s
-class DeviceAuthStringMessage(_VerificationMessage):
-    short_string = attr.ib()
+class _SasSignal:
+    pan_user = attr.ib()
+    user_id = attr.ib()
+    device_id = attr.ib()
+    transaction_id = attr.ib()
+
+
+@attr.s
+class StartSasSignal(_SasSignal):
+    pass
+
+
+@attr.s
+class InviteSasSignal(_SasSignal):
+    pass
+
+
+@attr.s
+class ShowSasSignal(_SasSignal):
+    emoji = attr.ib()
+
+
+@attr.s
+class SasDoneSignal(_SasSignal):
+    pass

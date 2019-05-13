@@ -14,7 +14,7 @@ from logbook import StderrHandler
 from aiohttp import web
 
 from pantalaimon.ui import GlibT
-from pantalaimon.thread_messages import InfoMessage
+from pantalaimon.thread_messages import DaemonResponse
 from pantalaimon.daemon import ProxyDaemon
 from pantalaimon.config import PanConfig, PanConfigError, parse_log_level
 from pantalaimon.log import logger
@@ -81,8 +81,8 @@ async def message_router(receive_queue, send_queue, proxies):
 
         return None
 
-    async def send_info(string):
-        message = InfoMessage(string)
+    async def send_info(message_id, pan_user, code, string):
+        message = DaemonResponse(message_id, pan_user, code, string)
         await send_queue.put(message)
 
     while True:
@@ -94,7 +94,12 @@ async def message_router(receive_queue, send_queue, proxies):
         if not proxy:
             msg = f"No pan client found for {message.pan_user}."
             logger.warn(msg)
-            send_info(msg)
+            await send_info(
+                message.message_id,
+                message.pan_user,
+                "m.unknown_client",
+                msg
+            )
 
         await proxy.receive_message(message)
 
