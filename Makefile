@@ -11,3 +11,6 @@ typecheck:
 
 run-local:
 	python -m pantalaimon.main --log-level debug --config ./contrib/pantalaimon.conf
+
+isort:
+	isort -y -p pantalaimon
