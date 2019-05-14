@@ -14,7 +14,7 @@ from aiohttp.client_exceptions import (ContentTypeError,
                                        ClientConnectionError)
 from multidict import CIMultiDict
 from nio import (EncryptionError, GroupEncryptionError, LoginResponse,
-                 MembersSyncError)
+                 SendRetryError)
 
 from pantalaimon.client import PanClient
 from pantalaimon.log import logger
@@ -29,10 +29,6 @@ from pantalaimon.thread_messages import (
     AcceptSasMessage,
     DaemonResponse,
 )
-
-
-class SendError(Exception):
-    pass
 
 
 @attr.s
@@ -620,24 +616,6 @@ class ProxyDaemon:
             body=await response.read()
         )
 
-    async def _send_message(self, client, room_id, msgtype, content, txnid):
-        """Send a room message, fetch room members and share group sessions."""
-        retries = 5
-
-        for i in range(retries):
-            try:
-                return await client.room_send(room_id, msgtype, content, txnid)
-            except GroupEncryptionError:
-                await client.share_group_session(room_id)
-            except MembersSyncError:
-                await client.joined_members(room_id)
-
-                if client.should_query_keys:
-                    keys_query_response = await client.keys_query()
-                    await client.keys_query_cb(keys_query_response)
-
-        raise SendError("Service Unavailable")
-
     async def send_message(self, request):
         access_token = self.get_access_token(request)
 
@@ -672,11 +650,10 @@ class ProxyDaemon:
             return self._not_json
 
         try:
-            response = await self._send_message(client, room_id, msgtype,
-                                                content, txnid)
+            response = await client.room_send(room_id, msgtype, content, txnid)
         except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
-        except SendError as e:
+        except SendRetryError as e:
             return web.Response(status=503, text=str(e))
 
         return web.Response(
