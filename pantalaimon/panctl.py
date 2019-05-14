@@ -132,11 +132,11 @@ class PanCompleter(Completer):
         return compl_words
 
     def complete_pan_users(self, last_word):
-            users = self.ctl.ListUsers()
-            compl_words = self.filter_words([i[0] for i in users], last_word)
+        users = self.ctl.ListUsers()
+        compl_words = self.filter_words([i[0] for i in users], last_word)
 
-            for compl_word in compl_words:
-                yield Completion(compl_word, -len(last_word))
+        for compl_word in compl_words:
+            yield Completion(compl_word, -len(last_word))
 
     def complete_verification(self, command, last_word, words):
         if len(words) == 2:

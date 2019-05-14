@@ -16,7 +16,6 @@ from pantalaimon.thread_messages import (
     DeviceConfirmSasMessage,
     ImportKeysMessage,
     ExportKeysMessage,
-    StartSasSignal,
     ShowSasSignal,
     InviteSasSignal,
     SasDoneSignal,
