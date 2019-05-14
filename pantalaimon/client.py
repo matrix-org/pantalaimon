@@ -54,7 +54,7 @@ class PanClient(AsyncClient):
         self.key_request_tasks = []
 
         self.add_response_callback(
-            self.verify_devices,
+            self.keys_query_cb,
             KeysQueryResponse
         )
 
@@ -90,8 +90,7 @@ class PanClient(AsyncClient):
         self.key_verificatins_tasks = []
         self.key_request_tasks = []
 
-    async def verify_devices(self, response):
-        # Verify new devices automatically for now.
+    async def keys_query_cb(self, response):
         changed_devices = response.changed
 
         for user_id, device_dict in changed_devices.items():
