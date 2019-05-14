@@ -162,7 +162,7 @@ class ProxyDaemon:
             logger.info(f"Exporting keys to {path}")
 
             try:
-                client.export_keys(path, message.passphrase)
+                await client.export_keys(path, message.passphrase)
             except OSError as e:
                 info_msg = (f"Error exporting keys for {client.user_id} to"
                             f" {path} {e}")
@@ -190,7 +190,7 @@ class ProxyDaemon:
             logger.info(f"Importing keys from {path}")
 
             try:
-                client.import_keys(path, message.passphrase)
+                await client.import_keys(path, message.passphrase)
             except (OSError, EncryptionError) as e:
                 info_msg = (f"Error importing keys for {client.user_id} "
                             f"from {path} {e}")
