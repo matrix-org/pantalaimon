@@ -341,7 +341,7 @@ class PanClient(AsyncClient):
             return False
 
     def decrypt_messages_body(self, body, ignore_failures=True):
-        # type: (Dict[Any, Any]) -> Dict[Any, Any]
+        # type: (Dict[Any, Any], bool) -> Dict[Any, Any]
         """Go through a messages response and decrypt megolm encrypted events.
 
         Args:
@@ -368,7 +368,7 @@ class PanClient(AsyncClient):
         return body
 
     def decrypt_sync_body(self, body, ignore_failures=True):
-        # type: (Dict[Any, Any]) -> Dict[Any, Any]
+        # type: (Dict[Any, Any], bool) -> Dict[Any, Any]
         """Go through a json sync response and decrypt megolm encrypted events.
 
         Args:
