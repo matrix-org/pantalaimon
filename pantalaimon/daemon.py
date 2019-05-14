@@ -13,8 +13,7 @@ from aiohttp import ClientSession, web
 from aiohttp.client_exceptions import (ContentTypeError,
                                        ClientConnectionError)
 from multidict import CIMultiDict
-from nio import (EncryptionError, GroupEncryptionError, LoginResponse,
-                 SendRetryError)
+from nio import (EncryptionError, LoginResponse, SendRetryError)
 
 from pantalaimon.client import PanClient
 from pantalaimon.log import logger
