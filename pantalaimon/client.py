@@ -3,22 +3,17 @@ from pprint import pformat
 from typing import Any, Dict, Optional
 
 from aiohttp.client_exceptions import ClientConnectionError
-from nio import (AsyncClient, ClientConfig, EncryptionError,
-                 KeysQueryResponse, MegolmEvent,
-                 RoomEncryptedEvent, SyncResponse,
-                 KeyVerificationEvent, LocalProtocolError,
-                 KeyVerificationStart, KeyVerificationKey, KeyVerificationMac)
-from nio.store import SqliteStore
+from nio import (AsyncClient, ClientConfig, EncryptionError, KeysQueryResponse,
+                 KeyVerificationEvent, KeyVerificationKey, KeyVerificationMac,
+                 KeyVerificationStart, LocalProtocolError, MegolmEvent,
+                 RoomEncryptedEvent, SyncResponse)
 from nio.crypto import Sas
+from nio.store import SqliteStore
 
 from pantalaimon.log import logger
-from pantalaimon.thread_messages import (
-    DevicesMessage,
-    InviteSasSignal,
-    ShowSasSignal,
-    SasDoneSignal,
-    DaemonResponse
-)
+from pantalaimon.thread_messages import (DaemonResponse, DevicesMessage,
+                                         InviteSasSignal, SasDoneSignal,
+                                         ShowSasSignal)
 
 
 class PanClient(AsyncClient):

@@ -1,22 +1,19 @@
 """Cli utility to control pantalaimon."""
 
-import attr
-import asyncio
 import argparse
+import asyncio
 import sys
-
-from typing import List
 from itertools import zip_longest
+from typing import List
 
-from prompt_toolkit import PromptSession
-from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
-from prompt_toolkit.patch_stdout import patch_stdout
+import attr
+from gi.repository import GLib
+from prompt_toolkit import HTML, PromptSession, print_formatted_text
 from prompt_toolkit.completion import Completer, Completion, PathCompleter
 from prompt_toolkit.document import Document
-from prompt_toolkit import print_formatted_text, HTML
-
+from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
+from prompt_toolkit.patch_stdout import patch_stdout
 from pydbus import SessionBus
-from gi.repository import GLib
 
 use_asyncio_event_loop()
 

@@ -1,23 +1,19 @@
 import asyncio
-
 import os
 import signal
+from typing import Optional
 
 import click
 import janus
-
-from typing import Optional
-
-from appdirs import user_data_dir, user_config_dir
+from aiohttp import web
+from appdirs import user_config_dir, user_data_dir
 from logbook import StderrHandler
 
-from aiohttp import web
-
-from pantalaimon.ui import GlibT
-from pantalaimon.thread_messages import DaemonResponse
-from pantalaimon.daemon import ProxyDaemon
 from pantalaimon.config import PanConfig, PanConfigError, parse_log_level
+from pantalaimon.daemon import ProxyDaemon
 from pantalaimon.log import logger
+from pantalaimon.thread_messages import DaemonResponse
+from pantalaimon.ui import GlibT
 
 
 def create_dirs(data_dir, conf_dir):

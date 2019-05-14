@@ -1,13 +1,11 @@
 import configparser
 import os
-
+from ipaddress import IPv4Address, IPv6Address, ip_address
 from typing import Union
+from urllib.parse import ParseResult, urlparse
 
-from ipaddress import ip_address, IPv4Address, IPv6Address
-from urllib.parse import urlparse, ParseResult
-
-import logbook
 import attr
+import logbook
 
 
 class PanConfigParser(configparser.ConfigParser):

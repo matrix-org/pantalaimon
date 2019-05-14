@@ -1,27 +1,20 @@
-import attr
+from queue import Empty
 
+import attr
 from gi.repository import GLib
+from nio.store import TrustState
 from pydbus import SessionBus
 from pydbus.generic import signal
 
-from queue import Empty
-from nio.store import TrustState
-
-from pantalaimon.store import PanStore
-from pantalaimon.thread_messages import (
-    DeviceVerifyMessage,
-    DeviceUnverifyMessage,
-    DevicesMessage,
-    AcceptSasMessage,
-    DeviceConfirmSasMessage,
-    ImportKeysMessage,
-    ExportKeysMessage,
-    ShowSasSignal,
-    InviteSasSignal,
-    SasDoneSignal,
-    DaemonResponse
-)
 from pantalaimon.log import logger
+from pantalaimon.store import PanStore
+from pantalaimon.thread_messages import (AcceptSasMessage, DaemonResponse,
+                                         DeviceConfirmSasMessage,
+                                         DevicesMessage, DeviceUnverifyMessage,
+                                         DeviceVerifyMessage,
+                                         ExportKeysMessage, ImportKeysMessage,
+                                         InviteSasSignal, SasDoneSignal,
+                                         ShowSasSignal)
 
 
 class IdCounter:
