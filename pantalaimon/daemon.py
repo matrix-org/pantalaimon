@@ -18,11 +18,12 @@ from pantalaimon.client import PanClient
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
 from pantalaimon.thread_messages import (AcceptSasMessage, DaemonResponse,
-                                         DeviceConfirmSasMessage,
+                                         ConfirmSasMessage,
                                          DeviceUnverifyMessage,
                                          DeviceVerifyMessage,
                                          ExportKeysMessage, ImportKeysMessage,
-                                         SasMessage)
+                                         SasMessage, StartSasMessage,
+                                         CancelSasMessage)
 
 
 @attr.s
@@ -121,7 +122,7 @@ class ProxyDaemon:
 
         if isinstance(
             message,
-            (DeviceVerifyMessage, DeviceUnverifyMessage)
+            (DeviceVerifyMessage, DeviceUnverifyMessage, StartSasMessage)
         ):
 
             device = client.device_store[message.user_id].get(
@@ -145,12 +146,16 @@ class ProxyDaemon:
                 await self._verify_device(message.message_id, client, device)
             elif isinstance(message, DeviceUnverifyMessage):
                 await self._unverify_device(message.message_id, client, device)
+            elif isinstance(message, StartSasMessage):
+                await client.start_sas(message, device)
 
         elif isinstance(message, SasMessage):
             if isinstance(message, AcceptSasMessage):
                 await client.accept_sas(message)
-            elif isinstance(message, DeviceConfirmSasMessage):
+            elif isinstance(message, ConfirmSasMessage):
                 await client.confirm_sas(message)
+            elif isinstance(message, CancelSasMessage):
+                await client.cancel_sas(message)
 
         elif isinstance(message, ExportKeysMessage):
             path = os.path.abspath(os.path.expanduser(message.file_path))

@@ -193,6 +193,25 @@ class PanClient(AsyncClient):
         self.task = task
         return task
 
+    async def start_sas(self, message, device):
+        try:
+            await self.start_key_verification(device)
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    "m.ok",
+                    "Successfully started the key verification request"
+                    ))
+        except ClientConnectionError as e:
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    "m.connection_error",
+                    e
+                ))
+
     async def accept_sas(self, message):
         user_id = message.user_id
         device_id = message.device_id
@@ -236,6 +255,43 @@ class PanClient(AsyncClient):
                     "m.connection_error",
                     e
                 ))
+
+    async def cancel_sas(self, message):
+        user_id = message.user_id
+        device_id = message.device_id
+
+        sas = self.get_active_sas(user_id, device_id)
+
+        if not sas:
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    Sas._txid_error[0],
+                    Sas._txid_error[1]
+                )
+
+            )
+            return
+
+        try:
+            await self.cancel_key_verification(sas.transaction_id)
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    "m.ok",
+                    "Successfully canceled the key verification request"
+                    ))
+        except ClientConnectionError as e:
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    "m.connection_error",
+                    e
+                ))
+
 
     async def confirm_sas(self, message):
         user_id = message.user_id

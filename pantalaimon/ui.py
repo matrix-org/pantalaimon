@@ -9,12 +9,13 @@ from pydbus.generic import signal
 from pantalaimon.log import logger
 from pantalaimon.store import PanStore
 from pantalaimon.thread_messages import (AcceptSasMessage, DaemonResponse,
-                                         DeviceConfirmSasMessage,
+                                         ConfirmSasMessage,
                                          DevicesMessage, DeviceUnverifyMessage,
                                          DeviceVerifyMessage,
                                          ExportKeysMessage, ImportKeysMessage,
                                          InviteSasSignal, SasDoneSignal,
-                                         ShowSasSignal)
+                                         ShowSasSignal, StartSasMessage,
+                                         CancelSasMessage)
 
 
 class IdCounter:
@@ -111,6 +112,20 @@ class Devices:
                 <arg type='aa{ss}' name='devices' direction='out'/>
             </method>
 
+            <method name='StartKeyVerification'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='user_id' direction='in'/>
+                <arg type='s' name='device_id' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
+            </method>
+
+            <method name='CancelKeyVerification'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='user_id' direction='in'/>
+                <arg type='s' name='device_id' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
+            </method>
+
             <method name='AcceptKeyVerification'>
                 <arg type='s' name='pan_user' direction='in'/>
                 <arg type='s' name='user_id' direction='in'/>
@@ -202,41 +217,51 @@ class Devices:
 
     def Verify(self, pan_user, user_id, device_id):
         message = DeviceVerifyMessage(
-            pan_user,
-            user_id,
-            device_id
-        )
-        self.queue.put(message)
-        return
-
-    def UnVerify(self, pan_user, user_id, device_id):
-        message = DeviceUnverifyMessage(
-            pan_user,
-            user_id,
-            device_id
-        )
-        self.queue.put(message)
-        return
-
-    def StartSas(self, pan_user, user_id, device_id):
-        device_store = self.device_list.get(pan_user)
-
-        if not device_store:
-            logger.info(f"Not verifying device, no store found for user "
-                        f"{user_id}")
-            return
-
-        logger.info(f"Verifying device {user_id} {device_id}")
-        return
-
-    def ConfirmKeyVerification(self, pan_user, user_id, device_id):
-        message = DeviceConfirmSasMessage(
             self.message_id,
             pan_user,
             user_id,
             device_id
         )
-        print("HEEEELOOO {}".format(message.message_id))
+        self.queue.put(message)
+        return message.message_id
+
+    def UnVerify(self, pan_user, user_id, device_id):
+        message = DeviceUnverifyMessage(
+            self.message_id,
+            pan_user,
+            user_id,
+            device_id
+        )
+        self.queue.put(message)
+        return message.message_id
+
+    def StartKeyVerification(self, pan_user, user_id, device_id):
+        message = StartSasMessage(
+            self.message_id,
+            pan_user,
+            user_id,
+            device_id
+        )
+        self.queue.put(message)
+        return message.message_id
+
+    def CancelKeyVerification(self, pan_user, user_id, device_id):
+        message = CancelSasMessage(
+            self.message_id,
+            pan_user,
+            user_id,
+            device_id
+        )
+        self.queue.put(message)
+        return message.message_id
+
+    def ConfirmKeyVerification(self, pan_user, user_id, device_id):
+        message = ConfirmSasMessage(
+            self.message_id,
+            pan_user,
+            user_id,
+            device_id
+        )
         self.queue.put(message)
         return message.message_id
 

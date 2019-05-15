@@ -50,6 +50,11 @@ class PanctlParser():
         start.add_argument("user_id", type=str)
         start.add_argument("device_id", type=str)
 
+        cancel = subparsers.add_parser("cancel-verification")
+        cancel.add_argument("pan_user", type=str)
+        cancel.add_argument("user_id", type=str)
+        cancel.add_argument("device_id", type=str)
+
         accept = subparsers.add_parser("accept-verification")
         accept.add_argument("pan_user", type=str)
         accept.add_argument("user_id", type=str)
@@ -262,6 +267,7 @@ class PanCtl:
         "verify-device",
         "unverify-device",
         "start-verification",
+        "cancel-verification",
         "accept-verification",
         "confirm-verification"
     ]
@@ -411,6 +417,22 @@ class PanCtl:
 
             elif command == "list-devices":
                 self.list_devices(args)
+
+            elif command == "start-verification":
+                self.own_message_ids.append(
+                    self.devices.StartKeyVerification(
+                        args.pan_user,
+                        args.user_id,
+                        args.device_id
+                    ))
+
+            elif command == "cancel-verification":
+                self.own_message_ids.append(
+                    self.devices.CancelKeyVerification(
+                        args.pan_user,
+                        args.user_id,
+                        args.device_id
+                    ))
 
             elif command == "accept-verification":
                 self.own_message_ids.append(

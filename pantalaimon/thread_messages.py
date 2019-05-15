@@ -62,7 +62,17 @@ class SasMessage(_VerificationMessage):
 
 
 @attr.s
-class DeviceConfirmSasMessage(SasMessage):
+class StartSasMessage(SasMessage):
+    pass
+
+
+@attr.s
+class CancelSasMessage(SasMessage):
+    pass
+
+
+@attr.s
+class ConfirmSasMessage(SasMessage):
     pass
 
 
@@ -77,11 +87,6 @@ class _SasSignal:
     user_id = attr.ib()
     device_id = attr.ib()
     transaction_id = attr.ib()
-
-
-@attr.s
-class StartSasSignal(_SasSignal):
-    pass
 
 
 @attr.s
