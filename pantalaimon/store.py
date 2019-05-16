@@ -231,12 +231,15 @@ class PanStore:
                 except IndexError:
                     trust_state = TrustState.unset
 
+                keys = {k.key_type: k.key for k in d.keys}
+
                 device_store[d.user_id][d.device_id] = {
                     "user_id": d.user_id,
                     "device_id": d.device_id,
-                    "ed25519": d.fp_key,
-                    "curve25519": d.sender_key,
-                    "trust_state": trust_state.name
+                    "ed25519": keys["ed25519"],
+                    "curve25519": keys["curve25519"],
+                    "trust_state": trust_state.name,
+                    "device_display_name": d.display_name
                 }
 
             store[account.user_id] = device_store

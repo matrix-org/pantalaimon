@@ -366,6 +366,8 @@ class PanCtl:
             key = partition_key(device["ed25519"])
             color = get_color(device["device_id"])
             print_formatted_text(HTML(
+                f" - Display name: "
+                f"{device['device_display_name']}\n"
                 f" - Device id:    "
                 f"<{color}>{device['device_id']}</{color}>\n"
                 f"   - Device key: "
