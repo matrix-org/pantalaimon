@@ -24,7 +24,7 @@ setup(
         "janus",
         "prompt_toolkit",
         "typing;python_version<'3.5'",
-        "matrix-nio"
+        "matrix-nio[e2e]"
     ],
     entry_points={
         "console_scripts": ["pantalaimon=pantalaimon.main:main",
