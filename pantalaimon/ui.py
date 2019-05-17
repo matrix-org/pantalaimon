@@ -37,8 +37,8 @@ class Control:
     """
     <node>
         <interface name='org.pantalaimon1.control'>
-            <method name='ListUsers'>
-                <arg type='a(ss)' name='users' direction='out'/>
+            <method name='ListServers'>
+                <arg type='a{sa(ss)}' name='servers' direction='out'/>
             </method>
 
             <method name='ExportKeys'>
@@ -66,16 +66,25 @@ class Control:
 
     Response = signal()
 
-    def __init__(self, queue, user_list, id_counter):
-        self.users = user_list
+    def __init__(self, queue, store, server_list, id_counter):
+        self.server_list = server_list
+        self.store = store
         self.queue = queue
         self.id_counter = id_counter
+        self.users = defaultdict(list)
+        self.update_users()
+
+    def update_users(self):
+        for server in self.server_list:
+            self.users[server.name] = self.store.load_users(
+                server.homeserver.hostname
+            )
 
     @property
     def message_id(self):
         return self.id_counter.message_id
 
-    def ListUsers(self):
+    def ListServers(self):
         """Return the list of pan users."""
         return self.users
 
@@ -230,7 +239,7 @@ class Devices:
         self.queue.put(message)
         return message.message_id
 
-    def UnVerify(self, pan_user, user_id, device_id):
+    def Unverify(self, pan_user, user_id, device_id):
         message = DeviceUnverifyMessage(
             self.message_id,
             pan_user,
@@ -289,6 +298,7 @@ class GlibT:
     receive_queue = attr.ib()
     send_queue = attr.ib()
     data_dir = attr.ib()
+    server_list = attr.ib()
 
     loop = attr.ib(init=False)
     store = attr.ib(init=False)
@@ -306,7 +316,8 @@ class GlibT:
 
         id_counter = IdCounter()
 
-        self.control_if = Control(self.send_queue, self.users, id_counter)
+        self.control_if = Control(self.send_queue, self.store,
+                                  self.server_list, id_counter)
         self.device_if = Devices(self.send_queue, self.store, id_counter)
 
         self.bus = SessionBus()
@@ -322,6 +333,9 @@ class GlibT:
 
         if isinstance(message, UpdateDevicesMessage):
             self.device_if.update_devices()
+
+        if isinstance(message, UpdateUsersMessage):
+            self.control_if.update_users()
 
         elif isinstance(message, InviteSasSignal):
             self.device_if.VerificationInvite(

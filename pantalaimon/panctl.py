@@ -39,7 +39,7 @@ class PanctlParser():
     def __init__(self):
         self.parser = PanctlArgParse()
         subparsers = self.parser.add_subparsers(dest="subcommand")
-        subparsers.add_parser("list-users")
+        subparsers.add_parser("list-servers")
 
         list_devices = subparsers.add_parser("list-devices")
         list_devices.add_argument("pan_user", type=str)
@@ -134,8 +134,9 @@ class PanCompleter(Completer):
         return compl_words
 
     def complete_pan_users(self, last_word):
-        users = self.ctl.ListUsers()
-        compl_words = self.filter_words([i[0] for i in users], last_word)
+        servers = self.ctl.ListServers()
+        users = [item[0] for sublist in servers.values() for item in sublist]
+        compl_words = self.filter_words(users, last_word)
 
         for compl_word in compl_words:
             yield Completion(compl_word, -len(last_word))
@@ -260,7 +261,7 @@ class PanCtl:
     devices = attr.ib(init=False)
 
     commands = [
-        "list-users",
+        "list-servers",
         "list-devices",
         "export-keys",
         "import-keys",
@@ -348,12 +349,34 @@ class PanCtl:
               f"user {pan_user} from {user_id} via "
               f"{device_id}:\n{short_string}")
 
-    def list_users(self):
+    def list_servers(self):
         """List the daemons users."""
-        users = self.ctl.ListUsers()
-        print("pantalaimon users:")
-        for user, device in users:
-            print(" ", user, device)
+        servers = self.ctl.ListServers()
+
+        print("pantalaimon servers:")
+
+        for server, server_users in servers.items():
+            server_c = get_color(server)
+
+            server_list = []
+
+            print_formatted_text(HTML(
+                f" - Name: <{server_c}>{server}</{server_c}>"
+            ))
+
+            user_list = []
+
+            for user, device in server_users:
+                user_c = get_color(user)
+                device_c = get_color(device)
+
+                user_list.append(f"   - <{user_c}>{user}</{user_c}> "
+                                 f"<{device_c}>{device}</{device_c}>")
+
+            if user_list:
+                print(f" - Pan users:")
+                user_string = "\n".join(user_list)
+                print_formatted_text(HTML(user_string))
 
     def list_devices(self, args):
         devices = self.devices.ListUserDevices(args.pan_user, args.user_id)
@@ -398,8 +421,8 @@ class PanCtl:
 
             command = args.subcommand
 
-            if command == "list-users":
-                self.list_users()
+            if command == "list-servers":
+                self.list_servers()
 
             elif command == "import-keys":
                 self.own_message_ids.append(

@@ -411,6 +411,8 @@ class ProxyDaemon:
         logger.info(f"Succesfully started new background sync client for "
                     f"{user_id}")
 
+        await self.send_queue.put(UpdateUsersMessage())
+
         self.pan_clients[user_id] = pan_client
 
         keyring.set_password(
