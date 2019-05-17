@@ -1,21 +1,24 @@
+from collections import defaultdict
 from queue import Empty
 
 import attr
 from gi.repository import GLib
-from nio.store import TrustState
 from pydbus import SessionBus
 from pydbus.generic import signal
 
 from pantalaimon.log import logger
 from pantalaimon.store import PanStore
-from pantalaimon.thread_messages import (AcceptSasMessage, DaemonResponse,
-                                         ConfirmSasMessage,
-                                         DevicesMessage, DeviceUnverifyMessage,
+from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
+                                         ConfirmSasMessage, DaemonResponse,
+                                         DeviceBlacklistMessage,
+                                         DeviceUnblacklistMessage,
+                                         DeviceUnverifyMessage,
                                          DeviceVerifyMessage,
                                          ExportKeysMessage, ImportKeysMessage,
                                          InviteSasSignal, SasDoneSignal,
                                          ShowSasSignal, StartSasMessage,
-                                         CancelSasMessage)
+                                         UpdateDevicesMessage,
+                                         UpdateUsersMessage)
 
 
 class IdCounter:
@@ -180,10 +183,12 @@ class Devices:
     VerificationString = signal()
     VerificationDone = signal()
 
-    def __init__(self, queue, device_list, id_counter):
-        self.device_list = device_list
+    def __init__(self, queue, store, id_counter):
+        self.store = store
+        self.device_list = None
         self.queue = queue
         self.id_counter = id_counter
+        self.update_devices()
 
     @property
     def message_id(self):
@@ -275,21 +280,8 @@ class Devices:
         self.queue.put(message)
         return message.message_id
 
-    def update_devices(self, message):
-        device_store = self.device_list[message.user_id]
-
-        for user_id, device_dict in message.devices.items():
-            for device in device_dict.values():
-                if device.deleted:
-                    device_store[user_id].remove(device.id, None)
-                else:
-                    device_store[user_id][device.id] = {
-                        "user_id": device.user_id,
-                        "device_id": device.id,
-                        "e225519": device.ed25519,
-                        "curve25519": device.curve25519,
-                        "trust_state": TrustState.unset.name,
-                    }
+    def update_devices(self):
+        self.device_list = self.store.load_all_devices()
 
 
 @attr.s
@@ -311,12 +303,11 @@ class GlibT:
 
         self.store = PanStore(self.data_dir)
         self.users = self.store.load_all_users()
-        self.devices = self.store.load_all_devices()
 
         id_counter = IdCounter()
 
         self.control_if = Control(self.send_queue, self.users, id_counter)
-        self.device_if = Devices(self.send_queue, self.devices, id_counter)
+        self.device_if = Devices(self.send_queue, self.store, id_counter)
 
         self.bus = SessionBus()
         self.bus.publish("org.pantalaimon1", self.control_if, self.device_if)
@@ -329,8 +320,8 @@ class GlibT:
 
         logger.debug(f"UI loop received message {message}")
 
-        if isinstance(message, DevicesMessage):
-            self.device_if.update_devices(message)
+        if isinstance(message, UpdateDevicesMessage):
+            self.device_if.update_devices()
 
         elif isinstance(message, InviteSasSignal):
             self.device_if.VerificationInvite(

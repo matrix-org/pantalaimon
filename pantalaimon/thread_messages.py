@@ -15,9 +15,13 @@ class DaemonResponse(Message):
 
 
 @attr.s
-class DevicesMessage(Message):
-    user_id = attr.ib()
-    devices = attr.ib()
+class UpdateUsersMessage(Message):
+    pass
+
+
+@attr.s
+class UpdateDevicesMessage(Message):
+    pass
 
 
 @attr.s

@@ -17,13 +17,16 @@ from nio import EncryptionError, LoginResponse, SendRetryError
 from pantalaimon.client import PanClient
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
-from pantalaimon.thread_messages import (AcceptSasMessage, DaemonResponse,
-                                         ConfirmSasMessage,
+from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
+                                         ConfirmSasMessage, DaemonResponse,
+                                         DeviceBlacklistMessage,
+                                         DeviceUnblacklistMessage,
                                          DeviceUnverifyMessage,
                                          DeviceVerifyMessage,
                                          ExportKeysMessage, ImportKeysMessage,
                                          SasMessage, StartSasMessage,
-                                         CancelSasMessage)
+                                         UpdateDevicesMessage,
+                                         UpdateUsersMessage)
 
 
 @attr.s
@@ -91,10 +94,11 @@ class ProxyDaemon:
 
         if ret:
             msg = (f"Device {device.id} of user "
-                   f"{device.user_id} succesfully verified")
+                   f"{device.user_id} succesfully verified.")
+            await self.send_update_devcies()
         else:
             msg = (f"Device {device.id} of user "
-                   f"{device.user_id} already verified")
+                   f"{device.user_id} already verified.")
 
         logger.info(msg)
         await self.send_response(message_id, client.user_id, "m.ok", msg)
@@ -104,7 +108,8 @@ class ProxyDaemon:
 
         if ret:
             msg = (f"Device {device.id} of user "
-                   f"{device.user_id} succesfully unverified")
+                   f"{device.user_id} succesfully unverified.")
+            await self.send_update_devcies()
         else:
             msg = (f"Device {device.id} of user "
                    f"{device.user_id} already unverified")
@@ -115,6 +120,10 @@ class ProxyDaemon:
     async def send_response(self, message_id, pan_user, code, message):
         """Send a thread response message to the UI thread."""
         message = DaemonResponse(message_id, pan_user, code, message)
+        await self.send_queue.put(message)
+
+    async def send_update_devcies(self):
+        message = UpdateDevicesMessage()
         await self.send_queue.put(message)
 
     async def receive_message(self, message):

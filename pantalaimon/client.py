@@ -11,9 +11,9 @@ from nio.crypto import Sas
 from nio.store import SqliteStore
 
 from pantalaimon.log import logger
-from pantalaimon.thread_messages import (DaemonResponse, DevicesMessage,
-                                         InviteSasSignal, SasDoneSignal,
-                                         ShowSasSignal)
+from pantalaimon.thread_messages import (DaemonResponse, InviteSasSignal,
+                                         SasDoneSignal, ShowSasSignal,
+                                         UpdateDevicesMessage)
 
 
 class PanClient(AsyncClient):
@@ -74,6 +74,10 @@ class PanClient(AsyncClient):
         """Send a thread message to the UI thread."""
         await self.queue.put(message)
 
+    async def send_update_devcies(self):
+        message = UpdateDevicesMessage()
+        await self.queue.put(message)
+
     async def sync_tasks(self, response):
         try:
             await asyncio.gather(*self.key_verificatins_tasks)
@@ -97,8 +101,7 @@ class PanClient(AsyncClient):
                             "user {}".format(device.id, user_id))
                 self.verify_device(device)
 
-        message = DevicesMessage(self.user_id, response.changed)
-        await self.queue.put(message)
+        await self.send_update_devcies()
 
     def undecrypted_event_cb(self, room, event):
         loop = asyncio.get_event_loop()
@@ -169,6 +172,8 @@ class PanClient(AsyncClient):
                         sas.transaction_id
                     )
                 ))
+                self.key_verificatins_tasks.append(task)
+                task = loop.create_task(self.send_update_devcies())
                 self.key_verificatins_tasks.append(task)
 
     def start_loop(self):
@@ -327,6 +332,7 @@ class PanClient(AsyncClient):
         device = sas.other_olm_device
 
         if sas.verified:
+            await self.send_update_devcies()
             await self.send_message(
                 SasDoneSignal(
                     self.user_id,
