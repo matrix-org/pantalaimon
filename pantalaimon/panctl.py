@@ -75,6 +75,16 @@ class PanctlParser():
         unverify.add_argument("user_id", type=str)
         unverify.add_argument("device_id", type=str)
 
+        blacklist = subparsers.add_parser("blacklist-device")
+        blacklist.add_argument("pan_user", type=str)
+        blacklist.add_argument("user_id", type=str)
+        blacklist.add_argument("device_id", type=str)
+
+        unblacklist = subparsers.add_parser("unblacklist-device")
+        unblacklist.add_argument("pan_user", type=str)
+        unblacklist.add_argument("user_id", type=str)
+        unblacklist.add_argument("device_id", type=str)
+
         import_keys = subparsers.add_parser("import-keys")
         import_keys.add_argument("pan_user", type=str)
         import_keys.add_argument("path", type=str)
@@ -202,6 +212,8 @@ class PanCompleter(Completer):
                 "cancel-verification",
                 "verify-device",
                 "unverify-device",
+                "blacklist-device",
+                "unblacklist-device",
             ]:
                 return self.complete_verification(command, last_word, words)
 
@@ -267,6 +279,8 @@ class PanCtl:
         "import-keys",
         "verify-device",
         "unverify-device",
+        "blacklist-device",
+        "unblacklist-device",
         "start-verification",
         "cancel-verification",
         "accept-verification",
@@ -442,6 +456,38 @@ class PanCtl:
 
             elif command == "list-devices":
                 self.list_devices(args)
+
+            elif command == "verify-device":
+                self.own_message_ids.append(
+                    self.devices.Verify(
+                        args.pan_user,
+                        args.user_id,
+                        args.device_id
+                    ))
+
+            elif command == "unverify-device":
+                self.own_message_ids.append(
+                    self.devices.Unverify(
+                        args.pan_user,
+                        args.user_id,
+                        args.device_id
+                    ))
+
+            elif command == "blacklist-device":
+                self.own_message_ids.append(
+                    self.devices.Blacklist(
+                        args.pan_user,
+                        args.user_id,
+                        args.device_id
+                    ))
+
+            elif command == "unblacklist-device":
+                self.own_message_ids.append(
+                    self.devices.Unblacklist(
+                        args.pan_user,
+                        args.user_id,
+                        args.device_id
+                    ))
 
             elif command == "start-verification":
                 self.own_message_ids.append(

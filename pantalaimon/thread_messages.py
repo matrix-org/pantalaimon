@@ -61,6 +61,16 @@ class DeviceUnverifyMessage(_VerificationMessage):
 
 
 @attr.s
+class DeviceBlacklistMessage(_VerificationMessage):
+    pass
+
+
+@attr.s
+class DeviceUnblacklistMessage(_VerificationMessage):
+    pass
+
+
+@attr.s
 class SasMessage(_VerificationMessage):
     pass
 

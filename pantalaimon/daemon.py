@@ -112,7 +112,35 @@ class ProxyDaemon:
             await self.send_update_devcies()
         else:
             msg = (f"Device {device.id} of user "
-                   f"{device.user_id} already unverified")
+                   f"{device.user_id} already unverified.")
+
+        logger.info(msg)
+        await self.send_response(message_id, client.user_id, "m.ok", msg)
+
+    async def _blacklist_device(self, message_id, client, device):
+        ret = client.blacklist_device(device)
+
+        if ret:
+            msg = (f"Device {device.id} of user "
+                   f"{device.user_id} succesfully blacklisted.")
+            await self.send_update_devcies()
+        else:
+            msg = (f"Device {device.id} of user "
+                   f"{device.user_id} already blacklisted.")
+
+        logger.info(msg)
+        await self.send_response(message_id, client.user_id, "m.ok", msg)
+
+    async def _unblacklist_device(self, message_id, client, device):
+        ret = client.unblacklist_device(device)
+
+        if ret:
+            msg = (f"Device {device.id} of user "
+                   f"{device.user_id} succesfully unblacklisted.")
+            await self.send_update_devcies()
+        else:
+            msg = (f"Device {device.id} of user "
+                   f"{device.user_id} already unblacklisted.")
 
         logger.info(msg)
         await self.send_response(message_id, client.user_id, "m.ok", msg)
@@ -131,7 +159,8 @@ class ProxyDaemon:
 
         if isinstance(
             message,
-            (DeviceVerifyMessage, DeviceUnverifyMessage, StartSasMessage)
+            (DeviceVerifyMessage, DeviceUnverifyMessage, StartSasMessage,
+             DeviceBlacklistMessage, DeviceUnblacklistMessage)
         ):
 
             device = client.device_store[message.user_id].get(
@@ -155,6 +184,12 @@ class ProxyDaemon:
                 await self._verify_device(message.message_id, client, device)
             elif isinstance(message, DeviceUnverifyMessage):
                 await self._unverify_device(message.message_id, client, device)
+            elif isinstance(message, DeviceBlacklistMessage):
+                await self._blacklist_device(message.message_id, client,
+                                             device)
+            elif isinstance(message, DeviceUnblacklistMessage):
+                await self._unblacklist_device(message.message_id, client,
+                                               device)
             elif isinstance(message, StartSasMessage):
                 await client.start_sas(message, device)
 

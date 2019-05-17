@@ -124,6 +124,34 @@ class Devices:
                 <arg type='aa{ss}' name='devices' direction='out'/>
             </method>
 
+            <method name='Verify'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='user_id' direction='in'/>
+                <arg type='s' name='device_id' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
+            </method>
+
+            <method name='Unverify'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='user_id' direction='in'/>
+                <arg type='s' name='device_id' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
+            </method>
+
+            <method name='Blacklist'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='user_id' direction='in'/>
+                <arg type='s' name='device_id' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
+            </method>
+
+            <method name='Unblacklist'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='user_id' direction='in'/>
+                <arg type='s' name='device_id' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
+            </method>
+
             <method name='StartKeyVerification'>
                 <arg type='s' name='pan_user' direction='in'/>
                 <arg type='s' name='user_id' direction='in'/>
@@ -241,6 +269,26 @@ class Devices:
 
     def Unverify(self, pan_user, user_id, device_id):
         message = DeviceUnverifyMessage(
+            self.message_id,
+            pan_user,
+            user_id,
+            device_id
+        )
+        self.queue.put(message)
+        return message.message_id
+
+    def Blacklist(self, pan_user, user_id, device_id):
+        message = DeviceBlacklistMessage(
+            self.message_id,
+            pan_user,
+            user_id,
+            device_id
+        )
+        self.queue.put(message)
+        return message.message_id
+
+    def Unblacklist(self, pan_user, user_id, device_id):
+        message = DeviceUnblacklistMessage(
             self.message_id,
             pan_user,
             user_id,
