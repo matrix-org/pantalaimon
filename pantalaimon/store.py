@@ -20,10 +20,10 @@ class AccessTokens(Model):
 
 
 class Servers(Model):
-    hostname = TextField()
+    name = TextField()
 
     class Meta:
-        constraints = [SQL("UNIQUE(hostname)")]
+        constraints = [SQL("UNIQUE(name)")]
 
 
 class ServerUsers(Model):
@@ -116,9 +116,9 @@ class PanStore:
             return None
 
     @use_database
-    def save_server_user(self, homeserver, user_id):
+    def save_server_user(self, server_name, user_id):
         # type: (ClientInfo) -> None
-        server, _ = Servers.get_or_create(hostname=homeserver)
+        server, _ = Servers.get_or_create(name=server_name)
 
         ServerUsers.replace(
             user_id=user_id,
@@ -140,11 +140,11 @@ class PanStore:
         return users
 
     @use_database
-    def load_users(self, homeserver):
+    def load_users(self, server_name):
         # type: () -> List[Tuple[str, str]]
         users = []
 
-        server = Servers.get_or_none(Servers.hostname == homeserver)
+        server = Servers.get_or_none(Servers.name == server_name)
 
         if not server:
             return []
@@ -188,9 +188,9 @@ class PanStore:
             return None
 
     @use_database
-    def save_client(self, homeserver, client):
+    def save_client(self, server_name, client):
         # type: (ClientInfo) -> None
-        server, _ = Servers.get_or_create(hostname=homeserver)
+        server, _ = Servers.get_or_create(name=server_name)
 
         Clients.replace(
             user_id=client.user_id,
@@ -199,11 +199,11 @@ class PanStore:
         ).execute()
 
     @use_database
-    def load_clients(self, homeserver):
+    def load_clients(self, server_name):
         # type: () -> Dict[str, ClientInfo]
         clients = dict()
 
-        server, _ = Servers.get_or_create(hostname=homeserver)
+        server, _ = Servers.get_or_create(name=server_name)
 
         for c in server.clients:
             client = ClientInfo(c.user_id, c.token)

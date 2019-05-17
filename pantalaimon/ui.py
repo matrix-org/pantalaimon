@@ -76,9 +76,7 @@ class Control:
 
     def update_users(self):
         for server in self.server_list:
-            self.users[server.name] = self.store.load_users(
-                server.homeserver.hostname
-            )
+            self.users[server.name] = self.store.load_users(server.name)
 
     @property
     def message_id(self):

@@ -56,9 +56,9 @@ class ProxyDaemon:
         self.homeserver_url = self.homeserver.geturl()
         self.hostname = self.homeserver.hostname
         self.store = PanStore(self.data_dir)
-        accounts = self.store.load_users(self.hostname)
+        accounts = self.store.load_users(self.name)
 
-        self.client_info = self.store.load_clients(self.hostname)
+        self.client_info = self.store.load_clients(self.name)
 
         for user_id, device_id in accounts:
             token = keyring.get_password(
@@ -421,8 +421,8 @@ class ProxyDaemon:
     async def start_pan_client(self, access_token, user, user_id, password):
         client = ClientInfo(user_id, access_token)
         self.client_info[access_token] = client
-        self.store.save_client(self.hostname, client)
-        self.store.save_server_user(self.hostname, user_id)
+        self.store.save_client(self.name, client)
+        self.store.save_server_user(self.name, user_id)
 
         if user_id in self.pan_clients:
             logger.info(f"Background sync client already exists for {user_id},"
