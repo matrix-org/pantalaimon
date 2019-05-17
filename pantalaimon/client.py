@@ -209,7 +209,7 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     "m.connection_error",
-                    e
+                    str(e)
                 ))
 
     async def accept_sas(self, message):
@@ -245,7 +245,7 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     Sas._unexpected_message_error[0],
-                    e
+                    str(e)
                 ))
         except ClientConnectionError as e:
             await self.send_message(
@@ -253,7 +253,7 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     "m.connection_error",
-                    e
+                    str(e)
                 ))
 
     async def cancel_sas(self, message):
@@ -289,7 +289,7 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     "m.connection_error",
-                    e
+                    str(e)
                 ))
 
 
@@ -319,7 +319,7 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     "m.connection_error",
-                    e
+                    str(e)
                 ))
 
             return
