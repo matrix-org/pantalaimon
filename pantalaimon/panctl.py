@@ -70,7 +70,7 @@ class PanctlParser():
         verify.add_argument("user_id", type=str)
         verify.add_argument("device_id", type=str)
 
-        unverify = subparsers.add_parser("verify-device")
+        unverify = subparsers.add_parser("unverify-device")
         unverify.add_argument("pan_user", type=str)
         unverify.add_argument("user_id", type=str)
         unverify.add_argument("device_id", type=str)
