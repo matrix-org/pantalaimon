@@ -400,15 +400,24 @@ class PanCtl:
         )
 
         for device in devices:
+            if device["trust_state"] == "verified":
+                trust_state = f"<ansigreen>Verified</ansigreen>"
+            elif device["trust_state"] == "blacklisted":
+                trust_state = f"<ansired>Blacklisted</ansired>"
+            else:
+                trust_state = "Unset"
+
             key = partition_key(device["ed25519"])
             color = get_color(device["device_id"])
             print_formatted_text(HTML(
-                f" - Display name: "
+                f" - Display name:  "
                 f"{device['device_display_name']}\n"
-                f" - Device id:    "
+                f"   - Device id:   "
                 f"<{color}>{device['device_id']}</{color}>\n"
-                f"   - Device key: "
-                f"<ansiyellow>{key}</ansiyellow>"
+                f"   - Device key:  "
+                f"<ansiyellow>{key}</ansiyellow>\n"
+                f"   - Trust state: "
+                f"{trust_state}"
             ))
 
     async def loop(self):
