@@ -404,6 +404,8 @@ class PanCtl:
                 trust_state = f"<ansigreen>Verified</ansigreen>"
             elif device["trust_state"] == "blacklisted":
                 trust_state = f"<ansired>Blacklisted</ansired>"
+            elif device["trust_state"] == "ignored":
+                trust_state = f"Ignored"
             else:
                 trust_state = "Unset"
 
