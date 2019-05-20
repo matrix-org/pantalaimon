@@ -470,12 +470,12 @@ class ProxyDaemon:
             # Return 500 here for now since quaternion doesn't work otherwise.
             # After aiohttp 4.0 gets replace this with a 400 M_NOT_JSON
             # response.
-            return web.Response(
-                status=500,
-                text=json.dumps({
+            return web.json_response(
+                {
                     "errcode": "M_NOT_JSON",
                     "error": "Request did not contain valid JSON."
-                })
+                },
+                status=500,
             )
 
         user = self._get_login_user(body)
@@ -512,32 +512,32 @@ class ProxyDaemon:
 
     @property
     def _missing_token(self):
-        return web.Response(
-            status=401,
-            text=json.dumps({
+        return web.json_response(
+            {
                 "errcode": "M_MISSING_TOKEN",
                 "error": "Missing access token."
-            })
+            },
+            status=401,
         )
 
     @property
     def _unknown_token(self):
-        return web.Response(
-                status=401,
-                text=json.dumps({
+        return web.json_response(
+                {
                     "errcode": "M_UNKNOWN_TOKEN",
                     "error": "Unrecognised access token."
-                })
+                },
+                status=401,
         )
 
     @property
     def _not_json(self):
-        return web.Response(
-            status=400,
-            text=json.dumps({
+        return web.json_response(
+            {
                 "errcode": "M_NOT_JSON",
                 "error": "Request did not contain valid JSON."
-            })
+            },
+            status=400,
         )
 
     async def decrypt_body(self, client, body, sync=True):
@@ -609,9 +609,9 @@ class ProxyDaemon:
                 json_response = await response.json()
                 json_response = await self.decrypt_body(client, json_response)
 
-                return web.Response(
+                return web.json_response(
+                    json_response,
                     status=response.status,
-                    text=json.dumps(json_response)
                 )
             except (JSONDecodeError, ContentTypeError):
                 pass
@@ -648,9 +648,9 @@ class ProxyDaemon:
                     sync=False
                 )
 
-                return web.Response(
+                return web.json_response(
+                    json_response,
                     status=response.status,
-                    text=json.dumps(json_response)
                 )
             except (JSONDecodeError, ContentTypeError):
                 pass
