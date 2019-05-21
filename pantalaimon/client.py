@@ -94,17 +94,6 @@ class PanClient(AsyncClient):
         self.key_request_tasks = []
 
     async def keys_query_cb(self, response):
-        changed_devices = response.changed
-
-        for user_id, device_dict in changed_devices.items():
-            for device in device_dict.values():
-                if device.deleted:
-                    continue
-
-                logger.info("Automatically verifying device {} of "
-                            "user {}".format(device.id, user_id))
-                self.verify_device(device)
-
         await self.send_update_devcies()
 
     def undecrypted_event_cb(self, room, event):
