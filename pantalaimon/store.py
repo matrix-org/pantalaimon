@@ -14,7 +14,7 @@
 
 import os
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import attr
 from nio.store import (Accounts, DeviceKeys, DeviceTrustState, TrustState,
@@ -53,20 +53,6 @@ class ServerUsers(Model):
         constraints = [SQL("UNIQUE(user_id,server_id)")]
 
 
-class Clients(Model):
-    user_id = TextField()
-    token = TextField()
-    server = ForeignKeyField(
-        model=Servers,
-        column_name="server_id",
-        backref="clients",
-        on_delete="CASCADE"
-    )
-
-    class Meta:
-        constraints = [SQL("UNIQUE(user_id,token,server_id)")]
-
-
 @attr.s
 class ClientInfo:
     user_id = attr.ib(type=str)
@@ -91,7 +77,6 @@ class PanStore:
     models = [
         Accounts,
         AccessTokens,
-        Clients,
         Servers,
         ServerUsers,
         DeviceKeys,
@@ -200,30 +185,6 @@ class PanStore:
             return account.access_token[0].token
         except IndexError:
             return None
-
-    @use_database
-    def save_client(self, server_name, client):
-        # type: (ClientInfo) -> None
-        server, _ = Servers.get_or_create(name=server_name)
-
-        Clients.replace(
-            user_id=client.user_id,
-            token=client.access_token,
-            server=server.id
-        ).execute()
-
-    @use_database
-    def load_clients(self, server_name):
-        # type: () -> Dict[str, ClientInfo]
-        clients = dict()
-
-        server, _ = Servers.get_or_create(name=server_name)
-
-        for c in server.clients:
-            client = ClientInfo(c.user_id, c.token)
-            clients[c.token] = client
-
-        return clients
 
     @use_database
     def load_all_devices(self):

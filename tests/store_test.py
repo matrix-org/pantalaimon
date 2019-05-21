@@ -19,21 +19,6 @@ class TestClass(object):
         token = panstore.load_access_token(user_id, device_id)
         access_token == token
 
-    def test_child_clinets_storing(self, panstore, client):
-        server = faker.hostname()
-        clients = panstore.load_clients(server)
-        assert not clients
-
-        panstore.save_client(server, client)
-
-        clients = panstore.load_clients(server)
-        assert clients
-
-        client2 = faker.client()
-        panstore.save_client(server, client2)
-        clients = panstore.load_clients(server)
-        assert len(clients) == 2
-
     def test_server_account_storing(self, panstore):
         accounts = panstore.load_all_users()
 
