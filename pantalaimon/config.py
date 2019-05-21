@@ -92,7 +92,7 @@ class ServerConfig:
     homeserver = attr.ib(type=ParseResult)
     listen_address = attr.ib(type=Union[IPv4Address, IPv6Address])
     listen_port = attr.ib(type=int)
-    proxy = attr.ib(type=str)
+    proxy = attr.ib(type=str, default="")
     ssl = attr.ib(type=bool, default=True)
     ignore_verification = attr.ib(type=bool, default=False)
 
