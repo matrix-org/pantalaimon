@@ -816,7 +816,7 @@ class ProxyDaemon:
                         status=503,
                         text=(f"Room contains unverified devices and no "
                               f"action was taken for "
-                              f"{self.unverifiedsend_timeout} seconds, "
+                              f"{self.unverified_send_timeout} seconds, "
                               f"request timed out")
                     )
 
