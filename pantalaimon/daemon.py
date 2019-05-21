@@ -26,7 +26,8 @@ from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
                                          ExportKeysMessage, ImportKeysMessage,
                                          SasMessage, StartSasMessage,
                                          UpdateDevicesMessage,
-                                         UpdateUsersMessage)
+                                         UpdateUsersMessage,
+                                         UnverifiedDevicesSignal)
 
 
 @attr.s
@@ -678,7 +679,8 @@ class ProxyDaemon:
 
         # The room is not in the joined rooms list, just forward it.
         try:
-            encrypt = client.rooms[room_id].encrypted
+            room = client.rooms[room_id]
+            encrypt = room.encrypted
         except KeyError:
             return await self.forward_to_web(
                 request,
@@ -727,7 +729,11 @@ class ProxyDaemon:
                 # the UI thread about this and wait for a response.
                 queue = asyncio.Queue()
 
-                message = UnverifiedDevicesSignal(client.user_id, room_id)
+                message = UnverifiedDevicesSignal(
+                    client.user_id,
+                    room_id,
+                    room.display_name
+                )
                 await self.send_queue.put(message)
 
                 # TODO allow dbus clients to answer us here.

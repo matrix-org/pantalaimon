@@ -10,6 +10,7 @@ class Message:
 class UnverifiedDevicesSignal(Message):
     pan_user = attr.ib()
     room_id = attr.ib()
+    room_display_name = attr.ib()
 
 
 @attr.s

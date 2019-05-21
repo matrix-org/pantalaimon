@@ -56,6 +56,16 @@ class Control:
                 <arg type='u' name='id' direction='out'/>
             </method>
 
+            <method name='SendAnyways'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='room_id' direction='in'/>
+            </method>
+
+            <method name='CancelSending'>
+                <arg type='s' name='pan_user' direction='in'/>
+                <arg type='s' name='room_id' direction='in'/>
+            </method>
+
             <signal name="Response">
                 <arg direction="out" type="i" name="id"/>
                 <arg direction="out" type="s" name="pan_user"/>
@@ -65,6 +75,7 @@ class Control:
             <signal name="UnverifiedDevices">
                 <arg direction="out" type="s" name="pan_user"/>
                 <arg direction="out" type="s" name="room_id"/>
+                <arg direction="out" type="s" name="room_display_name"/>
             </signal>
 
         </interface>
@@ -113,6 +124,12 @@ class Control:
         )
         self.queue.put(message)
         return message.message_id
+
+    def SendAnyways(self, pan_user, room_id):
+        pass
+
+    def CancelSending(self, pan_user, room_id):
+        pass
 
 
 class Devices:
@@ -394,7 +411,8 @@ class GlibT:
         elif isinstance(message, UnverifiedDevicesSignal):
             self.control_if.UnverifiedDevices(
                 message.pan_user,
-                message.room_id
+                message.room_id,
+                message.room_display_name
             )
 
         elif isinstance(message, InviteSasSignal):
