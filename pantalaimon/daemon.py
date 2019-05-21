@@ -34,6 +34,7 @@ from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
 class ProxyDaemon:
     name = attr.ib()
     homeserver = attr.ib()
+    conf = attr.ib()
     data_dir = attr.ib()
     send_queue = attr.ib()
     recv_queue = attr.ib()

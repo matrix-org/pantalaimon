@@ -33,6 +33,7 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
     proxy = ProxyDaemon(
         server_conf.name,
         server_conf.homeserver,
+        server_conf,
         data_dir,
         send_queue=send_queue,
         recv_queue=recv_queue,
