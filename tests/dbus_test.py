@@ -2,8 +2,8 @@ import pytest
 from janus import Queue
 
 from conftest import faker
-from pantalaimon.ui import Control, IdCounter
 from pantalaimon.config import ServerConfig
+from pantalaimon.ui import Control, IdCounter
 
 
 class TestClass(object):

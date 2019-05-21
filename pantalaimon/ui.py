@@ -31,9 +31,9 @@ from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
                                          ExportKeysMessage, ImportKeysMessage,
                                          InviteSasSignal, SasDoneSignal,
                                          ShowSasSignal, StartSasMessage,
+                                         UnverifiedDevicesSignal,
                                          UpdateDevicesMessage,
-                                         UpdateUsersMessage,
-                                         UnverifiedDevicesSignal)
+                                         UpdateUsersMessage)
 
 
 class IdCounter:

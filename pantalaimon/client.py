@@ -13,9 +13,9 @@
 # limitations under the License.
 
 import asyncio
+from collections import defaultdict
 from pprint import pformat
 from typing import Any, Dict, Optional
-from collections import defaultdict
 
 from aiohttp.client_exceptions import ClientConnectionError
 from nio import (AsyncClient, ClientConfig, EncryptionError, KeysQueryResponse,

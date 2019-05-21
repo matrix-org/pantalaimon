@@ -17,9 +17,9 @@
 import argparse
 import asyncio
 import sys
+from collections import defaultdict
 from itertools import zip_longest
 from typing import List
-from collections import defaultdict
 
 import attr
 from gi.repository import GLib

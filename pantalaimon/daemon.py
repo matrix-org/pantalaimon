@@ -24,8 +24,8 @@ import keyring
 from aiohttp import ClientSession, web
 from aiohttp.client_exceptions import ClientConnectionError, ContentTypeError
 from multidict import CIMultiDict
-from nio import (EncryptionError, LoginResponse, SendRetryError, OlmTrustError,
-                 Api)
+from nio import (Api, EncryptionError, LoginResponse, OlmTrustError,
+                 SendRetryError)
 
 from pantalaimon.client import PanClient
 from pantalaimon.log import logger
@@ -38,9 +38,9 @@ from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
                                          DeviceVerifyMessage,
                                          ExportKeysMessage, ImportKeysMessage,
                                          SasMessage, StartSasMessage,
+                                         UnverifiedDevicesSignal,
                                          UpdateDevicesMessage,
-                                         UpdateUsersMessage,
-                                         UnverifiedDevicesSignal)
+                                         UpdateUsersMessage)
 
 
 @attr.s
