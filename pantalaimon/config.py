@@ -14,6 +14,7 @@ class PanConfigParser(configparser.ConfigParser):
             default_section="Default",
             defaults={
                 "SSL": "True",
+                "IgnoreVerification": "False",
                 "ListenAddress": "localhost",
                 "ListenPort": "8009",
                 "LogLevel": "warnig",
@@ -93,6 +94,7 @@ class ServerConfig:
     listen_port = attr.ib(type=int)
     proxy = attr.ib(type=str)
     ssl = attr.ib(type=bool, default=True)
+    ignore_verification = attr.ib(type=bool, default=False)
 
 
 @attr.s
@@ -142,6 +144,7 @@ class PanConfig:
                 listen_address = section.getaddress("ListenAddress")
                 listen_port = section.getint("ListenPort")
                 ssl = section.getboolean("SSL")
+                ignore_verification = section.getboolean("IgnoreVerification")
                 proxy = section.geturl("Proxy")
 
                 listen_tuple = (listen_address, listen_port)
@@ -158,7 +161,8 @@ class PanConfig:
                     listen_address,
                     listen_port,
                     proxy,
-                    ssl
+                    ssl,
+                    ignore_verification
                 )
 
                 self.servers[section_name] = server_conf

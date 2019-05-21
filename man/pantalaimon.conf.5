@@ -41,6 +41,11 @@ homeserver.
 .It Cm SSL
 A boolean that decides if SSL verification should be enabled for outgoing
 connections to the homeserver. Defaults to "True".
+.It Cm IgnoreVerification
+A boolean that decides if device verification should be enabled. If this is True
+devices will be marked as ignored automatically and encryption keys will be
+shared with them, if this is False the user needs to verify, blacklist or ignore
+devices manually before messages can be sent to a room. Defaults to "False".
 .El
 .Pp
 Aditional to the homeserver section a special section with the name
@@ -50,6 +55,7 @@ can be used to configure the following values for all homeservers:
 .Cm ListenPort ,
 .Cm Proxy ,
 .Cm SSL
+.Cm IgnoreVerification
 .Pp
 The
 .Cm Default

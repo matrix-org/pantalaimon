@@ -724,7 +724,7 @@ class ProxyDaemon:
 
         async with sem:
             try:
-                return await _send()
+                return await _send(self.conf.ignore_verification)
             except OlmTrustError as e:
                 # There are unverified/unblocked devices in the room, notify
                 # the UI thread about this and wait for a response.
