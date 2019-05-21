@@ -5,6 +5,7 @@ import asyncio
 import sys
 from itertools import zip_longest
 from typing import List
+from collections import defaultdict
 
 import attr
 from gi.repository import GLib
@@ -95,6 +96,14 @@ class PanctlParser():
         export_keys.add_argument("path", type=str)
         export_keys.add_argument("passphrase", type=str)
 
+        send_anyways = subparsers.add_parser("send-anyways")
+        send_anyways.add_argument("pan_user", type=str)
+        send_anyways.add_argument("room_id", type=str)
+
+        cancel_sending = subparsers.add_parser("cancel-sending")
+        cancel_sending.add_argument("pan_user", type=str)
+        cancel_sending.add_argument("room_id", type=str)
+
     def parse_args(self, argv):
         return self.parser.parse_args(argv)
 
@@ -106,6 +115,7 @@ class PanCompleter(Completer):
     commands = attr.ib(type=List[str])
     ctl = attr.ib()
     devices = attr.ib()
+    rooms = attr.ib(init=False, default=attr.Factory(lambda: defaultdict(set)))
     path_completer = PathCompleter(expanduser=True)
 
     def complete_commands(self, last_word):
@@ -182,6 +192,24 @@ class PanCompleter(Completer):
 
         return ""
 
+    def complete_rooms(self, pan_user, last_word, words):
+        rooms = self.rooms[pan_user]
+        compl_words = self.filter_words(list(rooms), last_word)
+
+        for compl_word in compl_words:
+            yield Completion(compl_word, -len(last_word))
+
+        return ""
+
+    def complete_send_cmds(self, last_word, words):
+        if len(words) == 2:
+            return self.complete_pan_users(last_word)
+        elif len(words) == 3:
+            pan_user = words[1]
+            return self.complete_rooms(pan_user, last_word, words)
+
+        return ""
+
     def complete_list_devices(self, last_word, words):
         if len(words) == 2:
             return self.complete_pan_users(last_word)
@@ -228,6 +256,9 @@ class PanCompleter(Completer):
                     last_word,
                     words
                 )
+
+            elif command in ["send-anyways", "cancel-sending"]:
+                return self.complete_send_cmds(last_word, words)
 
             elif command == "list-devices":
                 return self.complete_list_devices(last_word, words)
@@ -284,7 +315,9 @@ class PanCtl:
         "start-verification",
         "cancel-verification",
         "accept-verification",
-        "confirm-verification"
+        "confirm-verification",
+        "send-anyways",
+        "cancel-sending",
     ]
 
     def __attrs_post_init__(self):
@@ -297,14 +330,20 @@ class PanCtl:
         self.own_message_ids = []
 
         self.ctl.Response.connect(self.show_response)
+        self.ctl.UnverifiedDevices.connect(self.unverified_devices)
+
+        self.completer = PanCompleter(self.commands, self.ctl, self.devices)
+
         self.devices.VerificationInvite.connect(self.show_sas_invite)
         self.devices.VerificationString.connect(self.show_sas)
         self.devices.VerificationDone.connect(self.sas_done)
-        self.devices.UnverifiedDevices.connect(self.unverified_devices)
 
-    def unverified_devices(self, pan_user, room_id):
+    def unverified_devices(self, pan_user, room_id, display_name):
+        self.completer.rooms[pan_user].add(room_id)
         print(f"Error sending message for user {pan_user}, "
-              f"there are unverified devices in the room {room_id}")
+              f"there are unverified devices in the room {display_name} "
+              f"({room_id}). Use the send-anyways or cancel-sending commands "
+              f"to ignore the devices or cancel the sending.")
 
     def show_response(self, response_id, pan_user, message):
         if response_id not in self.own_message_ids:
@@ -429,8 +468,7 @@ class PanCtl:
 
     async def loop(self):
         """Event loop for panctl."""
-        completer = PanCompleter(self.commands, self.ctl, self.devices)
-        promptsession = PromptSession("panctl> ", completer=completer)
+        promptsession = PromptSession("panctl> ", completer=self.completer)
 
         while True:
             with patch_stdout():
@@ -468,6 +506,20 @@ class PanCtl:
                         args.pan_user,
                         args.path,
                         args.passphrase
+                    ))
+
+            elif command == "send-anyways":
+                self.own_message_ids.append(
+                    self.ctl.SendAnyways(
+                        args.pan_user,
+                        args.room_id,
+                    ))
+
+            elif command == "cancel-sending":
+                self.own_message_ids.append(
+                    self.ctl.CancelSending(
+                        args.pan_user,
+                        args.room_id,
                     ))
 
             elif command == "list-devices":
