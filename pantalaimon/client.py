@@ -1,6 +1,7 @@
 import asyncio
 from pprint import pformat
 from typing import Any, Dict, Optional
+from collections import defaultdict
 
 from aiohttp.client_exceptions import ClientConnectionError
 from nio import (AsyncClient, ClientConfig, EncryptionError, KeysQueryResponse,
@@ -36,6 +37,9 @@ class PanClient(AsyncClient):
 
         self.task = None
         self.queue = queue
+
+        self.send_semaphores = defaultdict(asyncio.Semaphore)
+        self.send_decision_queues = dict()  # type: asyncio.Queue
 
         self.add_to_device_callback(
             self.key_verification_cb,

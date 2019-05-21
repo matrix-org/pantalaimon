@@ -300,6 +300,11 @@ class PanCtl:
         self.devices.VerificationInvite.connect(self.show_sas_invite)
         self.devices.VerificationString.connect(self.show_sas)
         self.devices.VerificationDone.connect(self.sas_done)
+        self.devices.UnverifiedDevices.connect(self.unverified_devices)
+
+    def unverified_devices(self, pan_user, room_id):
+        print(f"Error sending message for user {pan_user}, "
+              f"there are unverified devices in the room {room_id}")
 
     def show_response(self, response_id, pan_user, message):
         if response_id not in self.own_message_ids:

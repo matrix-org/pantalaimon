@@ -7,6 +7,12 @@ class Message:
 
 
 @attr.s
+class UnverifiedDevicesSignal(Message):
+    pan_user = attr.ib()
+    room_id = attr.ib()
+
+
+@attr.s
 class DaemonResponse(Message):
     message_id = attr.ib()
     pan_user = attr.ib()

@@ -18,7 +18,8 @@ from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
                                          InviteSasSignal, SasDoneSignal,
                                          ShowSasSignal, StartSasMessage,
                                          UpdateDevicesMessage,
-                                         UpdateUsersMessage)
+                                         UpdateUsersMessage,
+                                         UnverifiedDevicesSignal)
 
 
 class IdCounter:
@@ -60,11 +61,18 @@ class Control:
                 <arg direction="out" type="s" name="pan_user"/>
                 <arg direction="out" type="a{ss}" name="message"/>
             </signal>
+
+            <signal name="UnverifiedDevices">
+                <arg direction="out" type="s" name="pan_user"/>
+                <arg direction="out" type="s" name="room_id"/>
+            </signal>
+
         </interface>
     </node>
     """
 
     Response = signal()
+    UnverifiedDevices = signal()
 
     def __init__(self, queue, store, server_list, id_counter):
         self.server_list = server_list
@@ -380,8 +388,14 @@ class GlibT:
         if isinstance(message, UpdateDevicesMessage):
             self.device_if.update_devices()
 
-        if isinstance(message, UpdateUsersMessage):
+        elif isinstance(message, UpdateUsersMessage):
             self.control_if.update_users()
+
+        elif isinstance(message, UnverifiedDevicesSignal):
+            self.control_if.UnverifiedDevices(
+                message.pan_user,
+                message.room_id
+            )
 
         elif isinstance(message, InviteSasSignal):
             self.device_if.VerificationInvite(
