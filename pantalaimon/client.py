@@ -304,7 +304,6 @@ class PanClient(AsyncClient):
                     str(e)
                 ))
 
-
     async def confirm_sas(self, message):
         user_id = message.user_id
         device_id = message.device_id

@@ -430,8 +430,6 @@ class PanCtl:
         for server, server_users in servers.items():
             server_c = get_color(server)
 
-            server_list = []
-
             print_formatted_text(HTML(
                 f" - Name: <{server_c}>{server}</{server_c}>"
             ))
