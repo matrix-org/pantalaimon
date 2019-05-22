@@ -23,6 +23,7 @@ setup(
         "pydbus",
         "janus",
         "prompt_toolkit",
+        "notify2",
         "typing;python_version<'3.5'",
         "matrix-nio[e2e]"
     ],

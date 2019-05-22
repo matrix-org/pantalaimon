@@ -16,6 +16,8 @@ from collections import defaultdict
 from queue import Empty
 
 import attr
+import notify2
+import dbus
 from gi.repository import GLib
 from pydbus import SessionBus
 from pydbus.generic import signal
@@ -408,6 +410,7 @@ class GlibT:
     bus = attr.ib(init=False)
     control_if = attr.ib(init=False)
     device_if = attr.ib(init=False)
+    notifications = attr.ib(type=bool, default=False, init=False)
 
     def __attrs_post_init__(self):
         self.loop = None
@@ -423,6 +426,138 @@ class GlibT:
 
         self.bus = SessionBus()
         self.bus.publish("org.pantalaimon1", self.control_if, self.device_if)
+
+    def unverified_notification(self, message):
+        notificaton = notify2.Notification(
+            "Unverified devices.",
+            message=(f"There are unverified devices in the room "
+                     f"{message.room_display_name}.")
+        )
+        notificaton.set_category("im")
+
+        def send_cb(notification, action_key, user_data):
+            message = user_data
+            self.control_if.SendAnyways(
+                message.pan_user,
+                message.room_id
+            )
+
+        def cancel_cb(notification, action_key, user_data):
+            message = user_data
+            self.control_if.CancelSending(
+                message.pan_user,
+                message.room_id
+            )
+
+        if "actions" in notify2.get_server_caps():
+            notificaton.add_action(
+                "send",
+                "Send anyways",
+                send_cb,
+                message
+            )
+            notificaton.add_action(
+                "cancel",
+                "Cancel sending",
+                cancel_cb,
+                message
+            )
+
+        notificaton.show()
+
+    def sas_invite_notification(self, message):
+        notificaton = notify2.Notification(
+            "Key verification invite",
+            message=(f"{message.user_id} via {message.device_id} has started "
+                     f"a key verification process.")
+        )
+        notificaton.set_category("im")
+
+        def accept_cb(notification, action_key, user_data):
+            message = user_data
+            self.device_if.AcceptKeyVerification(
+                message.pan_user,
+                message.user_id,
+                message.device_id
+            )
+
+        def cancel_cb(notification, action_key, user_data):
+            message = user_data
+            self.device_if.CancelKeyVerification(
+                message.pan_user,
+                message.user_id,
+                message.device_id,
+            )
+
+        if "actions" in notify2.get_server_caps():
+            notificaton.add_action(
+                "accept",
+                "Accept",
+                accept_cb,
+                message
+            )
+            notificaton.add_action(
+                "cancel",
+                "Cancel",
+                cancel_cb,
+                message
+            )
+
+        notificaton.show()
+
+    def sas_show_notification(self, message):
+        emojis = [x[0] for x in message.emoji]
+
+        emoji_str = u"   ".join(emojis)
+
+        notificaton = notify2.Notification(
+            "Short authentication string",
+            message=(f"Short authentication string for the key verification of"
+                     f" {message.user_id} via {message.device_id}:\n"
+                     f"{emoji_str}")
+        )
+        notificaton.set_category("im")
+
+        def confirm_cb(notification, action_key, user_data):
+            message = user_data
+            self.device_if.ConfirmKeyVerification(
+                message.pan_user,
+                message.user_id,
+                message.device_id
+            )
+
+        def cancel_cb(notification, action_key, user_data):
+            message = user_data
+            self.device_if.CancelKeyVerification(
+                message.pan_user,
+                message.user_id,
+                message.device_id,
+            )
+
+        if "actions" in notify2.get_server_caps():
+            notificaton.add_action(
+                "confirm",
+                "Confirm",
+                confirm_cb,
+                message
+            )
+            notificaton.add_action(
+                "cancel",
+                "Cancel",
+                cancel_cb,
+                message
+            )
+
+        notificaton.show()
+
+    def sas_done_notification(self, message):
+        notificaton = notify2.Notification(
+            "Device successfully verified.",
+            message=(f"Device {message.device_id} of user {message.user_id} "
+                     f"successfully verified.")
+        )
+        notificaton.set_category("im")
+        notificaton.show()
 
     def message_callback(self):
         try:
@@ -445,6 +580,9 @@ class GlibT:
                 message.room_display_name
             )
 
+            if self.notifications:
+                self.unverified_notification(message)
+
         elif isinstance(message, InviteSasSignal):
             self.device_if.VerificationInvite(
                 message.pan_user,
@@ -452,6 +590,9 @@ class GlibT:
                 message.device_id,
                 message.transaction_id
             )
+
+            if self.notifications:
+                self.sas_invite_notification(message)
 
         elif isinstance(message, ShowSasSignal):
             self.device_if.VerificationString(
@@ -462,6 +603,9 @@ class GlibT:
                 message.emoji,
             )
 
+            if self.notifications:
+                self.sas_show_notification(message)
+
         elif isinstance(message, SasDoneSignal):
             self.device_if.VerificationDone(
                 message.pan_user,
@@ -469,6 +613,9 @@ class GlibT:
                 message.device_id,
                 message.transaction_id,
             )
+
+            if self.notifications:
+                self.sas_done_notification(message)
 
         elif isinstance(message, DaemonResponse):
             self.control_if.Response(
@@ -485,6 +632,13 @@ class GlibT:
 
     def run(self):
         self.loop = GLib.MainLoop()
+
+        try:
+            notify2.init("pantalaimon", mainloop=self.loop)
+            self.notifications = True
+        except dbus.DBusException:
+            self.notifications = False
+
         GLib.timeout_add(100, self.message_callback)
         self.loop.run()
 
