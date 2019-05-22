@@ -31,14 +31,17 @@ from pantalaimon.client import PanClient
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
 from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
+                                         CancelSendingMessage,
                                          ConfirmSasMessage, DaemonResponse,
                                          DeviceBlacklistMessage,
                                          DeviceUnblacklistMessage,
                                          DeviceUnverifyMessage,
                                          DeviceVerifyMessage,
                                          ExportKeysMessage, ImportKeysMessage,
-                                         SasMessage, StartSasMessage,
+                                         SasMessage, SendAnywaysMessage,
+                                         StartSasMessage,
                                          UnverifiedDevicesSignal,
+                                         UnverifiedResponse,
                                          UpdateDevicesMessage,
                                          UpdateUsersMessage)
 
@@ -55,7 +58,7 @@ class ProxyDaemon:
     ssl = attr.ib(default=None)
 
     decryption_timeout = 10
-    unverified_send_timeout = 10
+    unverified_send_timeout = 60
 
     store = attr.ib(type=PanStore, init=False)
     homeserver_url = attr.ib(init=False, default=attr.Factory(dict))
@@ -313,6 +316,23 @@ class ProxyDaemon:
                     "m.ok",
                     info_msg
                 )
+
+        elif isinstance(message, UnverifiedResponse):
+            client = self.pan_clients[message.pan_user]
+
+            if message.room_id not in client.send_decision_queues:
+                msg = (f"No send request found for user {message.pan_user} "
+                       f"and room {message.room_id}.")
+                await self.send_response(
+                    message.message_id,
+                    message.pan_user,
+                    "m.unknown_request",
+                    msg
+                )
+                return
+
+            queue = client.send_decision_queues[message.room_id]
+            await queue.put(message)
 
     def get_access_token(self, request):
         # type: (aiohttp.web.BaseRequest) -> str
@@ -777,15 +797,15 @@ class ProxyDaemon:
                 # There are unverified/unblocked devices in the room, notify
                 # the UI thread about this and wait for a response.
                 queue = asyncio.Queue()
+                client.send_decision_queues[room_id] = queue
 
                 message = UnverifiedDevicesSignal(
                     client.user_id,
                     room_id,
                     room.display_name
                 )
-                await self.send_queue.put(message)
 
-                # TODO allow dbus clients to answer us here.
+                await self.send_queue.put(message)
 
                 try:
                     response = await asyncio.wait_for(
@@ -793,12 +813,34 @@ class ProxyDaemon:
                         self.unverified_send_timeout
                     )
 
-                    if response == "cancel":
+                    if isinstance(response, CancelSendingMessage):
                         # The send was canceled notify the client that sent the
                         # request about this.
+                        info_msg = (f"Canceled message sending for room "
+                                    f"{room.display_name} ({room_id}).")
+                        logger.info(info_msg)
+                        await self.send_response(
+                            response.message_id,
+                            client.user_id,
+                            "m.ok",
+                            info_msg
+                        )
+
                         return web.Response(status=503, text=str(e))
-                    elif response == "send-anyways":
+
+                    elif isinstance(response, SendAnywaysMessage):
                         # We are sending and ignoring devices along the way.
+                        info_msg = (f"Ignoring unverified devices and sending "
+                                    f"message to room "
+                                    f"{room.display_name} ({room_id}).")
+                        logger.info(info_msg)
+                        await self.send_response(
+                            response.message_id,
+                            client.user_id,
+                            "m.ok",
+                            info_msg
+                        )
+
                         ret = await _send(True)
                         await self.send_update_devcies()
                         return ret
@@ -806,11 +848,6 @@ class ProxyDaemon:
                 except asyncio.TimeoutError:
                     # We didn't get a response to our signal, send out an error
                     # response.
-
-                    ret = await _send(True)
-                    await self.send_update_devcies()
-
-                    return ret
 
                     return web.Response(
                         status=503,
@@ -821,8 +858,7 @@ class ProxyDaemon:
                     )
 
                 finally:
-                    # Clear up the queue
-                    pass
+                    client.send_decision_queues.pop(room_id)
 
     async def filter(self, request):
         access_token = self.get_access_token(request)

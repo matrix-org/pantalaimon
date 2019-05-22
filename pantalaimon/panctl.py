@@ -356,7 +356,7 @@ class PanCtl:
         self.completer.rooms[pan_user].add(room_id)
         print(f"Error sending message for user {pan_user}, "
               f"there are unverified devices in the room {display_name} "
-              f"({room_id}). Use the send-anyways or cancel-sending commands "
+              f"({room_id}).\nUse the send-anyways or cancel-sending commands "
               f"to ignore the devices or cancel the sending.")
 
     def show_response(self, response_id, pan_user, message):

@@ -23,6 +23,7 @@ from pydbus.generic import signal
 from pantalaimon.log import logger
 from pantalaimon.store import PanStore
 from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
+                                         CancelSendingMessage,
                                          ConfirmSasMessage, DaemonResponse,
                                          DeviceBlacklistMessage,
                                          DeviceUnblacklistMessage,
@@ -30,7 +31,8 @@ from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
                                          DeviceVerifyMessage,
                                          ExportKeysMessage, ImportKeysMessage,
                                          InviteSasSignal, SasDoneSignal,
-                                         ShowSasSignal, StartSasMessage,
+                                         SendAnywaysMessage, ShowSasSignal,
+                                         StartSasMessage,
                                          UnverifiedDevicesSignal,
                                          UpdateDevicesMessage,
                                          UpdateUsersMessage)
@@ -73,11 +75,13 @@ class Control:
             <method name='SendAnyways'>
                 <arg type='s' name='pan_user' direction='in'/>
                 <arg type='s' name='room_id' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
             </method>
 
             <method name='CancelSending'>
                 <arg type='s' name='pan_user' direction='in'/>
                 <arg type='s' name='room_id' direction='in'/>
+                <arg type='u' name='id' direction='out'/>
             </method>
 
             <signal name="Response">
@@ -140,10 +144,22 @@ class Control:
         return message.message_id
 
     def SendAnyways(self, pan_user, room_id):
-        pass
+        message = SendAnywaysMessage(
+            self.message_id,
+            pan_user,
+            room_id
+        )
+        self.queue.put(message)
+        return message.message_id
 
     def CancelSending(self, pan_user, room_id):
-        pass
+        message = CancelSendingMessage(
+            self.message_id,
+            pan_user,
+            room_id
+        )
+        self.queue.put(message)
+        return message.message_id
 
 
 class Devices:

@@ -28,6 +28,23 @@ class UnverifiedDevicesSignal(Message):
 
 
 @attr.s
+class UnverifiedResponse(Message):
+    message_id = attr.ib()
+    pan_user = attr.ib()
+    room_id = attr.ib()
+
+
+@attr.s
+class SendAnywaysMessage(UnverifiedResponse):
+    pass
+
+
+@attr.s
+class CancelSendingMessage(UnverifiedResponse):
+    pass
+
+
+@attr.s
 class DaemonResponse(Message):
     message_id = attr.ib()
     pan_user = attr.ib()
