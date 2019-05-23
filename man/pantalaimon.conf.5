@@ -69,6 +69,14 @@ Set the log level of the daemon, can be one of
 .Ar debug .
 Defaults to
 .Ar warning .
+.It Cm Notifications
+The daemon sends out notifications for some actions that require users to
+interfere (unverified devices are in a room, interactive key verification
+events), this option enables or disables OS notifications. Can be one of
+.Ar On ,
+.Ar Off .
+Defaults to
+.Ar On .
 
 .El
 .\" ---------------------------------------------------------------------------
@@ -99,13 +107,14 @@ Additionally to the
 .Em Clocktown
 section the
 .Em Default
-section is also listed and the default value for SSL verification is set to True
-and the debug level is set to
+section is also listed and the default value for SSL verification is set to
+True, OS notifications are enabled and the debug level is set to
 .Em Debug .
 .Bd -literal -offset indent
 [Default]
 LogLevel = Debug
 SSL = True
+Notifications = On
 
 [Clocktown]
 Homeserver = https://localhost:8448
