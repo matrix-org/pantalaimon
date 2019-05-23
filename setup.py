@@ -21,6 +21,7 @@ setup(
         "logbook",
         "peewee",
         "dbus-python",
+        "PyGObject",
         "pydbus",
         "janus",
         "prompt_toolkit",
