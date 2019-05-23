@@ -16,8 +16,8 @@ from collections import defaultdict
 from queue import Empty
 
 import attr
-import notify2
 import dbus
+import notify2
 from gi.repository import GLib
 from pydbus import SessionBus
 from pydbus.generic import signal
