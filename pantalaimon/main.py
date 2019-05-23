@@ -19,6 +19,7 @@ from typing import Optional
 
 import click
 import janus
+import keyring
 from aiohttp import web
 from appdirs import user_config_dir, user_data_dir
 from logbook import StderrHandler
@@ -134,6 +135,8 @@ def main(
     log_level,
     config
 ):
+    loop = asyncio.get_event_loop()
+
     conf_dir = user_config_dir("pantalaimon", "")
     data_dir = user_data_dir("pantalaimon", "")
     create_dirs(data_dir, conf_dir)
@@ -156,24 +159,28 @@ def main(
     logger.level = pan_conf.log_level
     StderrHandler().push_application()
 
-    loop = asyncio.get_event_loop()
     pan_queue = janus.Queue(loop=loop)
     ui_queue = janus.Queue(loop=loop)
 
     servers = []
     proxies = []
 
-    for server_conf in pan_conf.servers.values():
-        proxy, runner, site = loop.run_until_complete(
-            init(
-                data_dir,
-                server_conf,
-                pan_queue.async_q,
-                ui_queue.async_q
+    try:
+
+        for server_conf in pan_conf.servers.values():
+            proxy, runner, site = loop.run_until_complete(
+                init(
+                    data_dir,
+                    server_conf,
+                    pan_queue.async_q,
+                    ui_queue.async_q
+                )
             )
-        )
-        servers.append((proxy, runner, site))
-        proxies.append(proxy)
+            servers.append((proxy, runner, site))
+            proxies.append(proxy)
+
+    except keyring.errors.KeyringError as e:
+        context.fail(f"Error initializing keyring: {e}")
 
     glib_thread = GlibT(pan_queue.sync_q, ui_queue.sync_q, data_dir,
                         pan_conf.servers.values(), pan_conf)
