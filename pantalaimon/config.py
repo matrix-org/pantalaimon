@@ -32,6 +32,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "ListenAddress": "localhost",
                 "ListenPort": "8009",
                 "LogLevel": "warnig",
+                "Notifications": "on",
             },
             converters={
                 "address": parse_address,
@@ -124,6 +125,7 @@ class PanConfig:
     config_file = attr.ib()
 
     log_level = attr.ib(default=None)
+    notifications = attr.ib(default=None)
     servers = attr.ib(init=False, default=attr.Factory(dict))
 
     def read(self):
@@ -140,6 +142,9 @@ class PanConfig:
 
         if self.log_level is None:
             self.log_level = config["Default"].getloglevel("LogLevel")
+
+        if self.notifications is None:
+            self.notifications = config["Default"].getboolean("Notifications")
 
         listen_set = set()
 

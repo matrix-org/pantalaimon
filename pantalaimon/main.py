@@ -176,7 +176,7 @@ def main(
         proxies.append(proxy)
 
     glib_thread = GlibT(pan_queue.sync_q, ui_queue.sync_q, data_dir,
-                        pan_conf.servers.values())
+                        pan_conf.servers.values(), pan_conf)
 
     glib_fut = loop.run_in_executor(
         None,

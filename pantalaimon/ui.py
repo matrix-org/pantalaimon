@@ -402,6 +402,7 @@ class GlibT:
     send_queue = attr.ib()
     data_dir = attr.ib()
     server_list = attr.ib()
+    config = attr.ib()
 
     loop = attr.ib(init=False)
     store = attr.ib(init=False)
@@ -633,11 +634,14 @@ class GlibT:
     def run(self):
         self.loop = GLib.MainLoop()
 
-        try:
-            notify2.init("pantalaimon", mainloop=self.loop)
-            self.notifications = True
-        except dbus.DBusException:
-            self.notifications = False
+        if self.config.notifications:
+            try:
+                notify2.init("pantalaimon", mainloop=self.loop)
+                self.notifications = True
+            except dbus.DBusException:
+                logger.error("Notifications are enabled but no notification "
+                             "server could be found, disabling notifications.")
+                self.notifications = False
 
         GLib.timeout_add(100, self.message_callback)
         self.loop.run()
