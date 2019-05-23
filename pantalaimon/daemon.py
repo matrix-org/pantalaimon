@@ -78,10 +78,13 @@ class ProxyDaemon:
         accounts = self.store.load_users(self.name)
 
         for user_id, device_id in accounts:
-            token = keyring.get_password(
-                "pantalaimon",
-                f"{user_id}-{device_id}-token"
-            )
+            if self.conf.keyring:
+                token = keyring.get_password(
+                    "pantalaimon",
+                    f"{user_id}-{device_id}-token"
+                )
+            else:
+                token = self.store.load_access_token(user_id, device_id)
 
             if not token:
                 logger.warn(f"Not restoring client for {user_id} {device_id}, "
@@ -527,11 +530,18 @@ class ProxyDaemon:
 
         self.pan_clients[user_id] = pan_client
 
-        keyring.set_password(
-            "pantalaimon",
-            f"{user_id}-{pan_client.device_id}-token",
-            pan_client.access_token
-        )
+        if self.conf.keyring:
+            keyring.set_password(
+                "pantalaimon",
+                f"{user_id}-{pan_client.device_id}-token",
+                pan_client.access_token
+            )
+        else:
+            self.store.save_access_token(
+                user_id,
+                pan_client.device_id,
+                pan_client.access_token
+            )
 
         pan_client.start_loop()
 

@@ -46,6 +46,11 @@ A boolean that decides if device verification should be enabled. If this is True
 devices will be marked as ignored automatically and encryption keys will be
 shared with them, if this is False the user needs to verify, blacklist or ignore
 devices manually before messages can be sent to a room. Defaults to "False".
+.It Cm UseKeyring
+This option configures if a proxy instance should use the OS keyring to store
+its own access tokens. The access tokens are required for the daemon to resume
+operation. If this is set to "No", access tokens are stored in the pantalaimon
+database in plaintext. Defaults to "Yes".
 .El
 .Pp
 Aditional to the homeserver section a special section with the name
@@ -56,6 +61,7 @@ can be used to configure the following values for all homeservers:
 .Cm Proxy ,
 .Cm SSL
 .Cm IgnoreVerification
+.Cm UseKeyring
 .Pp
 The
 .Cm Default

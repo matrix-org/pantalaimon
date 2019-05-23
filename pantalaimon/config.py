@@ -33,6 +33,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "ListenPort": "8009",
                 "LogLevel": "warnig",
                 "Notifications": "on",
+                "UseKeyring": "yes",
             },
             converters={
                 "address": parse_address,
@@ -110,6 +111,7 @@ class ServerConfig:
     proxy = attr.ib(type=str, default="")
     ssl = attr.ib(type=bool, default=True)
     ignore_verification = attr.ib(type=bool, default=False)
+    keyring = attr.ib(type=bool, default=True)
 
 
 @attr.s
@@ -164,6 +166,7 @@ class PanConfig:
                 listen_port = section.getint("ListenPort")
                 ssl = section.getboolean("SSL")
                 ignore_verification = section.getboolean("IgnoreVerification")
+                keyring = section.getboolean("UseKeyring")
                 proxy = section.geturl("Proxy")
 
                 listen_tuple = (listen_address, listen_port)
@@ -181,7 +184,8 @@ class PanConfig:
                     listen_port,
                     proxy,
                     ssl,
-                    ignore_verification
+                    ignore_verification,
+                    keyring
                 )
 
                 self.servers[section_name] = server_conf
