@@ -1,0 +1,90 @@
+.Dd May 23, 2019
+.Dt PANTALAIMON 8
+.Os
+.\" ---------------------------------------------------------------------------
+.Sh NAME
+.Nm pantalaimon
+.Nd End-to-end encryption aware Matrix reverse proxy daemon.
+.\" ---------------------------------------------------------------------------
+.Sh SYNOPSIS
+.Nm
+.Op Fl c Ar config
+.Op Fl log-level
+.\" ---------------------------------------------------------------------------
+.Sh DESCRIPTION
+.Nm
+is a daemon that acts as a reverse proxy between a Matrix homeserver and a
+Matrix client. The daemon transparently handles end-to-end encryption tasks on
+behalf of the client.
+.Pp
+.Nm
+is supposed to run as your own user and listen to connections on a
+non-privileged port. A client needs to log in using the standard Matrix HTTP
+calls to register itself to the daemon, such a registered user is called a pan
+user and will have his own sync loop to keep up with the server. Multiple matrix
+clients can connect and use the same pan user.
+.Pp
+If user interaction is required
+.Nm
+will send out OS notifications which the user can react to.
+.Nm
+also provides a D-Bus API that is used for encryption related tasks that
+require user interference (e.g. device verification).
+.Pp
+.Nm
+requires a homeserver to be configured. Multiple homeservers can be configured,
+each configured homeserver needs to listen on a separate port. Each homeserver
+can handle end-to-end encryption for multiple users. The configuration file
+format is specified in
+.Xr pantalaimon 5 ,
+the default location of the configuration file can be found in the
+.Sx FILES
+section.
+.\" ---------------------------------------------------------------------------
+.Ss Options
+The command line flags to change the behaviour of
+.Nm
+are as follows:
+.Bl -tag -width Ds
+.It Fl c , Fl -config Ar file
+Use the supplied
+.Ar file
+as the configuration file instead of the default one.
+.It Fl -log-level Ar level
+Set the log level of the daemon, can be one of
+.Ar error ,
+.Ar warning ,
+.Ar info ,
+.Ar debug .
+Defaults to
+.Ar warning .
+.El
+.\" ---------------------------------------------------------------------------
+.Sh FILES
+.Nm
+supports the XDG Base Directory Specification, the default locations can be
+overridden using appropriate environment variables.
+.Pp
+.Bl -tag -width DS -compact
+.It Pa ~/.config/pantalaimon/pantalaimon.conf
+Default location of the configuration file.
+The format of the configuration file is described in
+.Xr pantalaimon 5 .
+.Pp
+.It Pa ~/.local/share/pantalaimon/pan.db
+Default location of the pantalaimon database.
+This file is used to store a sqlite database holding daemon state and encryption
+keys.
+.El
+.\" ---------------------------------------------------------------------------
+.Sh EXIT STATUS
+.Ex -std
+.\" ---------------------------------------------------------------------------
+.Sh SEE ALSO
+.Xr panctl 1
+.Xr pantalaimon 5
+.\" ---------------------------------------------------------------------------
+.Sh AUTHORS
+.Nm
+was written by
+.An Damir Jelić Aq Mt poljar@termina.org.uk .
