@@ -1,0 +1,73 @@
+.Dd May 23, 2019
+.Dt PANCTL 1
+.Os
+.\" ---------------------------------------------------------------------------
+.Sh NAME
+.Nm panctl
+.Nd Control the Matrix reverse proxy daemon pantalaimon.
+.\" ---------------------------------------------------------------------------
+.Sh DESCRIPTION
+.Nm
+is a small utility to control and introspect the state of pantalaimon.
+.Pp
+.Ss Commands
+The commands accepted by
+.Nm
+are as follows:
+.Bl -tag -width 3n
+.It Cm list-servers
+List the configured homeservers and pan users on each homeserver.
+.It Cm list-devices Ar pan-user Ar user-id
+List the devices of a user that are known to the
+.Ar pan-user .
+.It Cm start-verification Ar pan-user Ar user-id
+Start an interactive key verification between the given pan-user and user.
+.It Cm accept-verification Ar pan-user Ar user-id
+Accept an interactive key verification that the given user has started with our
+given pan-user.
+.It Cm cancel-verification Ar pan-user Ar user-id
+Cancel an interactive key verification between the given pan-user and user.
+.It Cm confirm-verification Ar pan-user Ar user-id
+Confirm that the short authentication string of the interactive key verification
+with the given pan-user and user is matching.
+.It Cm verify-device Ar pan-user Ar user-id Ar device-id
+Manually mark the given device as verified. The device will be marked as verified
+only for the given pan-user.
+.It Cm unverify-device Ar pan-user Ar user-id Ar device-id
+Mark a previously verified device of the given user as unverified.
+.It Cm blacklist-device Ar pan-user Ar user-id Ar device-id
+Manually mark the given device of the given user as blacklisted.
+.It Cm unblacklist-device Ar pan-user Ar user-id Ar device-id
+Mark a previously blacklisted device of the given user as unblacklisted.
+.It Cm send-anyways Ar pan-user Ar room-id
+If a encrypted room contains unverified devices and a connected Matrix client
+tries to send an message to such a room
+.Nm pantalaimon
+will send a notification that the room contains unverified users. Using this
+command the user can choose to mark all unverified devices as ignored. Ignored
+devices will receive encryption keys but will be left marked as unverified.
+The message will be sent away after all devices are marked as ignored.
+.It Cm cancel-sending Ar pan-user Ar room-id
+In contrast to the
+.Cm send-anyways
+command this command cancels the sending of a message to an encrypted room with
+unverified devices and gives the user the oportunity to verify or blacklist
+devices as they see fit.
+.It Cm import-keys Ar pan-user Ar file Ar passphrase
+Import end-to-end encryption keys from the given file for the given pan-user.
+.It Cm export-keys Ar pan-user Ar file Ar passphrase
+Export end-to-end encryption keys to the given file for the given pan-user. The
+provided passphrase is used to encrypt the file containing the keys.
+.El
+.\" ---------------------------------------------------------------------------
+.Sh EXIT STATUS
+.Ex -std
+.\" ---------------------------------------------------------------------------
+.Sh SEE ALSO
+.Xr pantalaimon 8
+.Xr pantalaimon 5
+.\" ---------------------------------------------------------------------------
+.Sh AUTHORS
+.Nm
+was written by
+.An Damir Jelić Aq Mt poljar@termina.org.uk .
