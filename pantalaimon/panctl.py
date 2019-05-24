@@ -22,6 +22,7 @@ from itertools import zip_longest
 from typing import List
 
 import attr
+import click
 from gi.repository import GLib
 from prompt_toolkit import HTML, PromptSession, print_formatted_text
 from prompt_toolkit.completion import Completer, Completion, PathCompleter
@@ -654,6 +655,11 @@ class PanCtl:
                     ))
 
 
+@click.command(
+    help=("panctl is a small interactive repl to introspect and control"
+          "the pantalaimon daemon.")
+)
+@click.version_option(version=0.1, prog_name="panctl")
 def main():
     loop = asyncio.get_event_loop()
     glib_loop = GLib.MainLoop()
