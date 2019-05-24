@@ -30,6 +30,19 @@ Pantalaimon can also be found on pypi:
 
 Do note that man pages can't be installed with pip.
 
+### macOS installation
+
+For instance, on macOS, this means:
+
+```bash
+git clone https://gitlab.matrix.org/matrix-org/olm
+(cd olm; make)
+git clone https://github.com/matrix-org/pantalaimon
+brew install dbus
+(cd pantalaimon; CFLAGS=-I../olm/include LDFLAGS=-L../olm/build/ python3 setup.py install)
+DYLD_LIBRARY_PATH=../olm/build/ pantalaimon
+```
+
 Usage
 =====
 
