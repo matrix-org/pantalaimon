@@ -51,10 +51,14 @@ class PanctlArgParse(argparse.ArgumentParser):
 
 
 class PanctlParser():
-    def __init__(self):
+    def __init__(self, commands):
+        self.commands = commands
         self.parser = PanctlArgParse()
         subparsers = self.parser.add_subparsers(dest="subcommand")
         subparsers.add_parser("list-servers")
+
+        help = subparsers.add_parser("help")
+        help.add_argument("command", choices=self.commands)
 
         list_devices = subparsers.add_parser("list-devices")
         list_devices.add_argument("pan_user", type=str)
@@ -277,6 +281,12 @@ class PanCompleter(Completer):
             elif command == "list-devices":
                 return self.complete_list_devices(last_word, words)
 
+            elif command == "help":
+                if len(words) == 2:
+                    return self.complete_commands(last_word)
+                else:
+                    return ""
+
         return ""
 
 
@@ -317,7 +327,43 @@ class PanCtl:
     ctl = attr.ib(init=False)
     devices = attr.ib(init=False)
 
+    command_help = {
+        "help": "Display help about commands.",
+        "list-servers": ("List the configured homeservers and pan users on "
+                         "each homeserver."),
+        "list-devices": ("List the devices of a user that are known to the "
+                         "pan-user."),
+        "start-verification": ("Start an interactive key verification between "
+                               "the given pan-user and user."),
+        "accept-verification": ("Accept an interactive key verification that "
+                                "the given user has started with our given "
+                                "pan-user."),
+        "cancel-verification": ("Cancel an interactive key verification "
+                                "between the given pan-user and user."),
+        "confirm-verification": ("Confirm that the short authentication "
+                                 "string of the interactive key verification "
+                                 "with the given pan-user and user is "
+                                 "matching."),
+        "verify-device": ("Manually mark the given device as verified."),
+        "unverify-device": ("Mark a previously verified device of the given "
+                            "user as unverified."),
+        "blacklist-device": ("Manually mark the given device of the given "
+                             "user as blacklisted."),
+        "unblacklist-device": ("Mark a previously blacklisted device of the "
+                               "given user as unblacklisted."),
+        "send-anyways": ("Send a room message despite having unverified "
+                         "devices in the room and mark the devices as "
+                         "ignored."),
+        "cancel-sending": ("Cancel the send of a room message in a room that "
+                           "contains unverified devices"),
+        "import-keys": ("Import end-to-end encryption keys from the given "
+                        "file for the given pan-user."),
+        "export-keys": ("Export end-to-end encryption keys to the given file "
+                        "for the given pan-user."),
+    }
+
     commands = [
+        "help",
         "list-servers",
         "list-devices",
         "export-keys",
@@ -351,6 +397,9 @@ class PanCtl:
         self.devices.VerificationInvite.connect(self.show_sas_invite)
         self.devices.VerificationString.connect(self.show_sas)
         self.devices.VerificationDone.connect(self.sas_done)
+
+    def show_help(self, command):
+        print(self.command_help[command])
 
     def unverified_devices(self, pan_user, room_id, display_name):
         self.completer.rooms[pan_user].add(room_id)
@@ -492,7 +541,7 @@ class PanCtl:
             if not result:
                 continue
 
-            parser = PanctlParser()
+            parser = PanctlParser(self.commands)
 
             try:
                 args = parser.parse_args(result.split())
@@ -503,6 +552,9 @@ class PanCtl:
 
             if command == "list-servers":
                 self.list_servers()
+
+            if command == "help":
+                self.show_help(args.command)
 
             elif command == "import-keys":
                 self.own_message_ids.append(
