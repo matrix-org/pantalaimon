@@ -31,6 +31,36 @@ Pantalaimon can also be found on pypi:
 
 Do note that man pages can't be installed with pip.
 
+### macOS installation
+
+For instance, on macOS, this means:
+
+```bash
+brew install dbus
+perl -pi -e's#(<auth>EXTERNAL</auth>)#<!--$1-->#' $(brew --prefix dbus)/share/dbus-1/session.conf
+brew services start dbus
+# it may be necessary to restart now to get the whole OS to pick up the
+# existence of the dbus daemon
+
+git clone https://gitlab.matrix.org/matrix-org/olm
+(cd olm; make)
+git clone https://github.com/matrix-org/pantalaimon
+(cd pantalaimon; CFLAGS=-I../olm/include LDFLAGS=-L../olm/build/ python3 setup.py install)
+
+export DBUS_SESSION_BUS_ADDRESS=unix:path=$(launchctl getenv DBUS_LAUNCHD_SESSION_BUS_SOCKET)
+cd pantalaimon
+DYLD_LIBRARY_PATH=../olm/build/ pantalaimon -c contrib/pantalaimon.conf
+
+# for notification center:
+git clone https://github.com/fakechris/notification-daemon-mac-py
+# if you have django's `foundation` library installed and your filesystem
+# is case insensitive (the default) then you will need to `pip uninstall foundation`
+# or install PyObjC in a venv...
+pip install PyObjC daemon glib dbus-python
+cd notification-daemon-mac-py
+./notify.py
+```
+
 Usage
 =====
 
