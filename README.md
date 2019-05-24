@@ -7,6 +7,7 @@ Pantalaimon acts as a good man in the midle that handles the encryption for you.
 Messages are transparently encrypted and decrypted for clients inside of
 pantalaimon.
 
+![Pantalaimon in action](docs/pan.gif)
 
 Installation
 ============
