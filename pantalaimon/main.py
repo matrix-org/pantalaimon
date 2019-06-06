@@ -67,6 +67,7 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
             proxy.send_message
         ),
         web.post("/_matrix/client/r0/user/{user_id}/filter", proxy.filter),
+        web.post("/_matrix/client/r0/search", proxy.search),
     ])
     app.router.add_route("*", "/" + "{proxyPath:.*}", proxy.router)
     app.on_shutdown.append(proxy.shutdown)
@@ -174,7 +175,7 @@ def main(
                     data_dir,
                     server_conf,
                     pan_queue.async_q,
-                    ui_queue.async_q
+                    ui_queue.async_q,
                 )
             )
             servers.append((proxy, runner, site))

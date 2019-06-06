@@ -12,15 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
+import json
 import os
 from collections import defaultdict
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import attr
 from nio.store import (Accounts, DeviceKeys, DeviceTrustState, TrustState,
                        use_database)
-from peewee import (SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase,
-                    TextField)
+from peewee import (SQL, DateTimeField, DoesNotExist, ForeignKeyField, Model,
+                    SqliteDatabase, TextField)
+
+
+class DictField(TextField):
+    def python_value(self, value):  # pragma: no cover
+        return json.loads(value)
+
+    def db_value(self, value):  # pragma: no cover
+        return json.dumps(value)
 
 
 class AccessTokens(Model):
@@ -53,19 +63,45 @@ class ServerUsers(Model):
         constraints = [SQL("UNIQUE(user_id,server_id)")]
 
 
+class Profile(Model):
+    user_id = TextField()
+    avatar_url = TextField(null=True)
+    display_name = TextField(null=True)
+
+    class Meta:
+        constraints = [SQL("UNIQUE(user_id,avatar_url,display_name)")]
+
+
+class Event(Model):
+    event_id = TextField()
+    sender = TextField()
+    date = DateTimeField()
+    room_id = TextField()
+
+    source = DictField()
+
+    profile = ForeignKeyField(
+        model=Profile,
+        column_name="profile_id",
+    )
+
+    class Meta:
+        constraints = [SQL("UNIQUE(event_id, room_id, sender, profile_id)")]
+
+
+class UserMessages(Model):
+    user = ForeignKeyField(
+        model=ServerUsers,
+        column_name="user_id")
+    event = ForeignKeyField(
+        model=Event,
+        column_name="event_id")
+
+
 @attr.s
 class ClientInfo:
     user_id = attr.ib(type=str)
     access_token = attr.ib(type=str)
-
-
-@attr.s
-class OlmDevice:
-    user_id = attr.ib()
-    id = attr.ib()
-    fp_key = attr.ib()
-    sender_key = attr.ib()
-    trust_state = attr.ib()
 
 
 @attr.s
@@ -81,6 +117,9 @@ class PanStore:
         ServerUsers,
         DeviceKeys,
         DeviceTrustState,
+        Profile,
+        Event,
+        UserMessages,
     ]
 
     def __attrs_post_init__(self):
@@ -108,29 +147,107 @@ class PanStore:
     def _get_account(self, user_id, device_id):
         try:
             return Accounts.get(
-                    Accounts.user_id == user_id,
-                    Accounts.device_id == device_id,
+                Accounts.user_id == user_id,
+                Accounts.device_id == device_id,
             )
         except DoesNotExist:
             return None
 
     @use_database
+    def save_event(self, server, pan_user, event, room_id, display_name,
+                   avatar_url):
+        # type (str, str, str, RoomMessage, str, str, str) -> Optional[int]
+        """Save an event to the store.
+
+        Returns the database id of the event.
+        """
+        server = Servers.get(name=server)
+        user = ServerUsers.get(server=server, user_id=pan_user)
+
+        profile_id, _ = Profile.get_or_create(
+            user_id=event.sender,
+            display_name=display_name,
+            avatar_url=avatar_url
+        )
+
+        event_source = event.source
+        event_source["room_id"] = room_id
+
+        event_id = Event.insert(
+            event_id=event.event_id,
+            sender=event.sender,
+            date=datetime.datetime.fromtimestamp(
+                event.server_timestamp / 1000
+            ),
+            room_id=room_id,
+            source=event_source,
+            profile=profile_id
+        ).on_conflict_ignore().execute()
+
+        # TODO why do we get a 0 on conflict here, the test show that we get the
+        # existing event id.
+        if event_id <= 0:
+            return None
+
+        _, created = UserMessages.get_or_create(
+            user=user,
+            event=event_id,
+        )
+
+        if created:
+            return event_id
+
+        return None
+
+    @use_database
+    def load_event_by_columns(
+            self,
+            server,                # type: str
+            pan_user,              # type: str
+            column,                # type: List[int]
+            include_profile=False  # type: bool
+    ):
+        # type: (...) -> Union[List[Dict[Any, Any]], List[Tuple[Dict, Dict]]]
+        server = Servers.get(name=server)
+        user = ServerUsers.get(server=server, user_id=pan_user)
+
+        message = UserMessages.get_or_none(user=user, event=column)
+
+        if not message:
+            return None
+
+        event = message.event
+        event_profile = event.profile
+
+        profile = {
+            event_profile.user_id: {
+                "display_name": event_profile.display_name,
+                "avatar_url": event_profile.avatar_url,
+            }
+        }
+
+        if include_profile:
+            return event.source, profile
+
+        return event.source
+
+    @use_database
     def save_server_user(self, server_name, user_id):
-        # type: (ClientInfo) -> None
+        # type: (str, str) -> None
         server, _ = Servers.get_or_create(name=server_name)
 
-        ServerUsers.replace(
+        ServerUsers.insert(
             user_id=user_id,
             server=server
-        ).execute()
+        ).on_conflict_ignore().execute()
 
     @use_database
     def load_all_users(self):
         users = []
 
         query = Accounts.select(
-                Accounts.user_id,
-                Accounts.device_id,
+            Accounts.user_id,
+            Accounts.device_id,
         )
 
         for account in query:
@@ -140,7 +257,7 @@ class PanStore:
 
     @use_database
     def load_users(self, server_name):
-        # type: () -> List[Tuple[str, str]]
+        # type: (str) -> List[Tuple[str, str]]
         users = []
 
         server = Servers.get_or_none(Servers.name == server_name)
@@ -154,8 +271,8 @@ class PanStore:
             server_users.append(u.user_id)
 
         query = Accounts.select(
-                Accounts.user_id,
-                Accounts.device_id,
+            Accounts.user_id,
+            Accounts.device_id,
         ).where(Accounts.user_id.in_(server_users))
 
         for account in query:

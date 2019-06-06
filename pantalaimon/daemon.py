@@ -23,11 +23,12 @@ import attr
 import keyring
 from aiohttp import ClientSession, web
 from aiohttp.client_exceptions import ClientConnectionError, ContentTypeError
+from jsonschema import ValidationError
 from multidict import CIMultiDict
 from nio import (Api, EncryptionError, LoginResponse, OlmTrustError,
                  SendRetryError)
 
-from pantalaimon.client import PanClient
+from pantalaimon.client import PanClient, UnknownRoomError
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
 from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
@@ -62,6 +63,7 @@ class ProxyDaemon:
 
     store = attr.ib(type=PanStore, init=False)
     homeserver_url = attr.ib(init=False, default=attr.Factory(dict))
+    hostname = attr.ib(init=False, default=attr.Factory(dict))
     pan_clients = attr.ib(init=False, default=attr.Factory(dict))
     client_info = attr.ib(
         init=False,
@@ -94,6 +96,8 @@ class ProxyDaemon:
             logger.info(f"Restoring client for {user_id} {device_id}")
 
             pan_client = PanClient(
+                self.name,
+                self.store,
                 self.homeserver_url,
                 self.send_queue,
                 user_id,
@@ -442,12 +446,12 @@ class ProxyDaemon:
         )
 
     async def forward_to_web(
-        self,
-        request,
-        params=None,
-        data=None,
-        session=None,
-        token=None
+            self,
+            request,
+            params=None,
+            data=None,
+            session=None,
+            token=None
     ):
         """Forward the given request and convert the response to a Response.
 
@@ -510,9 +514,11 @@ class ProxyDaemon:
             return
 
         pan_client = PanClient(
+            self.name,
+            self.store,
             self.homeserver_url,
             self.send_queue,
-            user,
+            user_id,
             store_path=self.data_dir,
             ssl=self.ssl,
             proxy=self.proxy
@@ -887,6 +893,37 @@ class ProxyDaemon:
             request,
             data=json.dumps(sanitized_content)
         )
+
+    async def search(self, request):
+        access_token = self.get_access_token(request)
+
+        if not access_token:
+            return self._missing_token
+
+        client = await self._find_client(access_token)
+
+        if not client:
+            return self._unknown_token
+
+        try:
+            search_categories = await request.json()
+        except (JSONDecodeError, ContentTypeError):
+            return self._not_json
+
+        try:
+            result = await client.search(search_categories)
+        except ValidationError:
+            return web.json_response(
+                {
+                    "errcode": "M_BAD_JSON",
+                    "error": "Invalid search query"
+                },
+                status=400,
+            )
+        except UnknownRoomError:
+            return await self.forward_to_web(request)
+
+        return web.json_response(result, status=200)
 
     async def shutdown(self, app):
         """Shut the daemon down closing all the client sessions it has.

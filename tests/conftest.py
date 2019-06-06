@@ -63,3 +63,18 @@ def panstore(tempdir):
 
     store = PanStore(tempdir, "pan.db")
     return store
+
+
+@pytest.fixture
+def panstore_with_users(panstore):
+    accounts = panstore.load_all_users()
+    user_id, device_id = accounts[0]
+    server = "example"
+
+    panstore.save_server_user(server, user_id)
+
+    server2 = "localhost"
+    user_id2, device_id2 = accounts[1]
+    panstore.save_server_user(server2, user_id2)
+
+    return panstore

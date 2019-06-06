@@ -13,22 +13,88 @@
 # limitations under the License.
 
 import asyncio
+import os
 from collections import defaultdict
+from functools import partial
 from pprint import pformat
 from typing import Any, Dict, Optional
 
 from aiohttp.client_exceptions import ClientConnectionError
+from jsonschema import Draft4Validator, FormatChecker, validators
 from nio import (AsyncClient, ClientConfig, EncryptionError, KeysQueryResponse,
                  KeyVerificationEvent, KeyVerificationKey, KeyVerificationMac,
                  KeyVerificationStart, LocalProtocolError, MegolmEvent,
-                 RoomEncryptedEvent, SyncResponse)
+                 RoomEncryptedEvent, RoomMessage, SyncResponse)
 from nio.crypto import Sas
 from nio.store import SqliteStore
 
+from pantalaimon.index import Index
 from pantalaimon.log import logger
 from pantalaimon.thread_messages import (DaemonResponse, InviteSasSignal,
                                          SasDoneSignal, ShowSasSignal,
                                          UpdateDevicesMessage)
+
+SEARCH_KEYS = ["content.body", "content.name", "content.topic"]
+
+SEARCH_TERMS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "search_categories": {
+            "type": "object",
+            "properties": {
+                "room_events": {
+                    "type": "object",
+                    "properties": {
+                        "search_term": {"type": "string"},
+                        "keys": {
+                            "type": "array",
+                            "items": {"type": "string", "enum": SEARCH_KEYS},
+                            "default": SEARCH_KEYS
+                        },
+                        "order_by": {"type": "string", "default": "rank"},
+                        "include_state": {"type": "boolean", "default": False},
+                        "filter": {"type": "object", "default": {}},
+                        "event_context": {"type": "object", "default": {}},
+                        "groupings": {"type": "object", "default": {}},
+                    },
+                    "required": ["search_term"]
+                },
+            }
+        },
+        "required": ["room_events"]
+    },
+    "required": [
+        "search_categories",
+    ],
+}
+
+
+def extend_with_default(validator_class):
+    validate_properties = validator_class.VALIDATORS["properties"]
+
+    def set_defaults(validator, properties, instance, schema):
+        for prop, subschema in properties.items():
+            if "default" in subschema:
+                instance.setdefault(prop, subschema["default"])
+
+        for error in validate_properties(
+                validator, properties, instance, schema
+        ):
+            yield error
+
+    return validators.extend(validator_class, {"properties": set_defaults})
+
+
+Validator = extend_with_default(Draft4Validator)
+
+
+def validate_json(instance, schema):
+    """Validate a dictionary using the provided json schema."""
+    Validator(schema, format_checker=FormatChecker()).validate(instance)
+
+
+class UnknownRoomError(Exception):
+    pass
 
 
 class PanClient(AsyncClient):
@@ -36,9 +102,11 @@ class PanClient(AsyncClient):
 
     def __init__(
             self,
+            server_name,
+            pan_store,
             homeserver,
             queue=None,
-            user="",
+            user_id="",
             device_id="",
             store_path="",
             config=None,
@@ -46,9 +114,19 @@ class PanClient(AsyncClient):
             proxy=None
     ):
         config = config or ClientConfig(store=SqliteStore, store_name="pan.db")
-        super().__init__(homeserver, user, device_id, store_path, config,
+        super().__init__(homeserver, user_id, device_id, store_path, config,
                          ssl, proxy)
 
+        index_dir = os.path.join(store_path, server_name, user_id)
+
+        try:
+            os.makedirs(index_dir)
+        except OSError:
+            pass
+
+        self.server_name = server_name
+        self.pan_store = pan_store
+        self.index = Index(index_dir)
         self.task = None
         self.queue = queue
 
@@ -63,6 +141,10 @@ class PanClient(AsyncClient):
             self.undecrypted_event_cb,
             MegolmEvent
         )
+        self.add_event_callback(
+            self.store_message_cb,
+            RoomMessage
+        )
         self.key_verificatins_tasks = []
         self.key_request_tasks = []
 
@@ -75,6 +157,21 @@ class PanClient(AsyncClient):
             self.sync_tasks,
             SyncResponse
         )
+
+    def store_message_cb(self, room, event):
+        display_name = room.user_name(event.sender)
+        avatar_url = room.avatar_url(event.sender)
+
+        column_id = self.pan_store.save_event(
+            self.server_name,
+            self.user_id,
+            event,
+            room.room_id,
+            display_name,
+            avatar_url
+        )
+        if column_id:
+            self.index.add_event(column_id, event, room.room_id)
 
     @property
     def unable_to_decrypt(self):
@@ -106,6 +203,8 @@ class PanClient(AsyncClient):
 
         self.key_verificatins_tasks = []
         self.key_request_tasks = []
+
+        self.index.commit()
 
     async def keys_query_cb(self, response):
         await self.send_update_devcies()
@@ -367,10 +466,10 @@ class PanClient(AsyncClient):
         await self.task
 
     def pan_decrypt_event(
-        self,
-        event_dict,
-        room_id=None,
-        ignore_failures=True
+            self,
+            event_dict,
+            room_id=None,
+            ignore_failures=True
     ):
         # type: (Dict[Any, Any], Optional[str], bool) -> (bool)
         event = RoomEncryptedEvent.parse_event(event_dict)
@@ -461,3 +560,50 @@ class PanClient(AsyncClient):
                 self.pan_decrypt_event(event, room_id, ignore_failures)
 
         return body
+
+    async def search(self, search_terms):
+        # type: (Dict[Any, Any]) -> Dict[Any, Any]
+        loop = asyncio.get_event_loop()
+
+        validate_json(search_terms, SEARCH_TERMS_SCHEMA)
+        search_terms = search_terms["search_categories"]["room_events"]
+
+        term = search_terms["search_term"]
+
+        searcher = self.index.searcher()
+        search_func = partial(searcher.search, term)
+
+        result = await loop.run_in_executor(None, search_func)
+
+        result_dict = {
+            "results": []
+        }
+
+        for score, column_id in result:
+            event = self.pan_store.load_event_by_columns(
+                self.server_name,
+                self.user_id,
+                column_id)
+
+            if not event:
+                continue
+
+            event_dict = {
+                "rank": score,
+                "result": event,
+            }
+
+            if False:
+                # TODO load the context from the server
+                event_dict["context"] = {}
+
+            if False:
+                # TODO add profile info
+                pass
+
+            result_dict["results"].append(event_dict)
+
+        result_dict["count"] = len(result_dict["results"])
+        result_dict["highlight"] = []
+
+        return result_dict
