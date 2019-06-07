@@ -217,19 +217,23 @@ class PanStore:
             return None
 
         event = message.event
-        event_profile = event.profile
 
-        profile = {
-            event_profile.user_id: {
-                "display_name": event_profile.display_name,
-                "avatar_url": event_profile.avatar_url,
-            }
+        event_dict = {
+            "result": event.source,
+            "context": {}
         }
 
         if include_profile:
-            return event.source, profile
+            event_profile = event.profile
 
-        return event.source
+            event_dict["context"]["profile_info"] = {
+                event_profile.user_id: {
+                    "display_name": event_profile.display_name,
+                    "avatar_url": event_profile.avatar_url,
+                }
+            }
+
+        return event_dict
 
     @use_database
     def save_server_user(self, server_name, user_id):
