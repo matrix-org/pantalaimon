@@ -24,8 +24,9 @@ from jsonschema import Draft4Validator, FormatChecker, validators
 from nio import (AsyncClient, ClientConfig, EncryptionError, KeysQueryResponse,
                  KeyVerificationEvent, KeyVerificationKey, KeyVerificationMac,
                  KeyVerificationStart, LocalProtocolError, MegolmEvent,
-                 RoomEncryptedEvent, RoomMessage, SyncResponse,
-                 RoomContextError)
+                 RoomEncryptedEvent, SyncResponse,
+                 RoomContextError, RoomMessageText, RoomMessageMedia,
+                 RoomEncryptedMedia, RoomTopicEvent, RoomNameEvent)
 from nio.crypto import Sas
 from nio.store import SqliteStore
 
@@ -144,7 +145,8 @@ class PanClient(AsyncClient):
         )
         self.add_event_callback(
             self.store_message_cb,
-            RoomMessage
+            (RoomMessageText, RoomMessageMedia, RoomEncryptedMedia,
+             RoomTopicEvent, RoomNameEvent)
         )
         self.key_verificatins_tasks = []
         self.key_request_tasks = []

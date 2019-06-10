@@ -15,7 +15,8 @@
 import datetime
 
 import tantivy
-from nio import RoomMessageText, RoomNameEvent, RoomTopicEvent
+from nio import (RoomMessageText, RoomNameEvent, RoomTopicEvent,
+                 RoomMessageMedia, RoomEncryptedMedia)
 
 
 def sanitize_room_id(room_id):
@@ -117,6 +118,8 @@ class Index:
         )
 
         if isinstance(event, RoomMessageText):
+            doc.add_text(self.body_field, event.body)
+        elif isinstance(event, (RoomMessageMedia, RoomEncryptedMedia)):
             doc.add_text(self.body_field, event.body)
         elif isinstance(event, RoomNameEvent):
             doc.add_text(self.name_field, event.name)
