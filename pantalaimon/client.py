@@ -644,7 +644,13 @@ class PanClient(AsyncClient):
             result_dict["results"].append(event_dict)
 
         result_dict["count"] = len(result_dict["results"])
-        result_dict["highlight"] = []
-        result_dict["state"] = state_cache
+        result_dict["highlights"] = []
 
-        return result_dict
+        if include_state:
+            result_dict["state"] = state_cache
+
+        return {
+            "search_categories": {
+                "room_events": result_dict
+            }
+        }
