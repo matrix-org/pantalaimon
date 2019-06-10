@@ -25,7 +25,7 @@ def sanitize_room_id(room_id):
 
 class Searcher:
     def __init__(self, index, body_field, name_field, topic_field,
-                 column_field, room_field, searcher):
+                 column_field, room_field, timestamp_field, searcher):
         self._index = index
         self._searcher = searcher
 
@@ -34,14 +34,14 @@ class Searcher:
         self.topic_field = name_field
         self.column_field = column_field
         self.room_field = room_field
+        self.timestamp_field = timestamp_field
 
-    def search(self, search_term, room=None, max_results=10):
-        # type (str, str) -> List[int, int]
+    def search(self, search_term, room=None, max_results=10, order_by_date=False):
+        # type (str, str, int, bool) -> List[int, int]
         """Search for events in the index.
 
         Returns the score and the column id for the event.
         """
-
         queryparser = tantivy.QueryParser.for_index(
             self._index,
             [
@@ -62,7 +62,11 @@ class Searcher:
 
         query = queryparser.parse_query(search_term)
 
-        collector = tantivy.TopDocs(max_results)
+        if order_by_date:
+            collector = tantivy.TopDocs(max_results,
+                                        order_by_field=self.timestamp_field)
+        else:
+            collector = tantivy.TopDocs(max_results)
 
         result = self._searcher.search(query, collector)
 
@@ -85,7 +89,7 @@ class Index:
         self.topic_field = schema_builder.add_text_field("topic")
 
         self.timestamp_field = schema_builder.add_unsigned_field(
-            "server_timestamp"
+            "server_timestamp", fast="single"
         )
         self.date_field = schema_builder.add_date_field(
             "message_date"
@@ -146,5 +150,6 @@ class Index:
             self.topic_field,
             self.column_field,
             self.room_field,
+            self.timestamp_field,
             self.reader.searcher()
         )

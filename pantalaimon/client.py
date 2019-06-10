@@ -607,6 +607,8 @@ class PanClient(AsyncClient):
         if order_by not in ["rank", "recent"]:
             raise InvalidOrderByError(f"Invalid order by: {order_by}")
 
+        order_by_date = order_by == "recent"
+
         before_limit = 0
         after_limit = 0
         include_profile = False
@@ -620,7 +622,8 @@ class PanClient(AsyncClient):
             include_profile = event_context.get("include_profile", False)
 
         searcher = self.index.searcher()
-        search_func = partial(searcher.search, term, max_results=limit)
+        search_func = partial(searcher.search, term, max_results=limit,
+                              order_by_date=order_by_date)
 
         result = await loop.run_in_executor(None, search_func)
 
@@ -646,7 +649,10 @@ class PanClient(AsyncClient):
                     include_state
                 )
 
-            event_dict["rank"] = score
+            if order_by_date:
+                event_dict["rank"] = 1.0
+            else:
+                event_dict["rank"] = score
 
             result_dict["results"].append(event_dict)
 
