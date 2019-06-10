@@ -84,12 +84,15 @@ class Index:
         self.name_field = schema_builder.add_text_field("name")
         self.topic_field = schema_builder.add_text_field("topic")
 
-        self.timestamp_field = schema_builder.add_date_field(
+        self.timestamp_field = schema_builder.add_unsigned_field(
             "server_timestamp"
+        )
+        self.date_field = schema_builder.add_date_field(
+            "message_date"
         )
         self.room_field = schema_builder.add_facet_field("room")
 
-        self.column_field = schema_builder.add_integer_field(
+        self.column_field = schema_builder.add_unsigned_field(
             "database_column",
             indexed=True,
             stored=True,
@@ -110,12 +113,13 @@ class Index:
 
         room_facet = tantivy.Facet.from_string(room_path)
 
-        doc.add_integer(self.column_field, column_id)
+        doc.add_unsigned(self.column_field, column_id)
         doc.add_facet(self.room_field, room_facet)
         doc.add_date(
-            self.timestamp_field,
+            self.date_field,
             datetime.datetime.fromtimestamp(event.server_timestamp / 1000)
         )
+        doc.add_unsigned(self.timestamp_field, event.server_timestamp)
 
         if isinstance(event, RoomMessageText):
             doc.add_text(self.body_field, event.body)
