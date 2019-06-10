@@ -28,7 +28,7 @@ from multidict import CIMultiDict
 from nio import (Api, EncryptionError, LoginResponse, OlmTrustError,
                  SendRetryError)
 
-from pantalaimon.client import PanClient, UnknownRoomError
+from pantalaimon.client import PanClient, UnknownRoomError, InvalidOrderByError
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
 from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
@@ -616,11 +616,11 @@ class ProxyDaemon:
     @property
     def _unknown_token(self):
         return web.json_response(
-                {
-                    "errcode": "M_UNKNOWN_TOKEN",
-                    "error": "Unrecognised access token."
-                },
-                status=401,
+            {
+                "errcode": "M_UNKNOWN_TOKEN",
+                "error": "Unrecognised access token."
+            },
+            status=401,
         )
 
     @property
@@ -920,12 +920,20 @@ class ProxyDaemon:
                 },
                 status=400,
             )
+        except InvalidOrderByError as e:
+            return web.json_response(
+                {
+                    "errcode": "M_INVALID_PARAM",
+                    "error": str(e)
+                },
+                status=400,
+            )
         except UnknownRoomError:
             return await self.forward_to_web(request)
 
         return web.json_response(result, status=200)
 
-    async def shutdown(self, app):
+    async def shutdown(self, _):
         """Shut the daemon down closing all the client sessions it has.
 
         This method is called when we shut the whole app down.

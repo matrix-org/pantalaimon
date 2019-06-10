@@ -98,6 +98,9 @@ def validate_json(instance, schema):
 class UnknownRoomError(Exception):
     pass
 
+class InvalidOrderByError(Exception):
+    pass
+
 
 class PanClient(AsyncClient):
     """A wrapper class around a nio AsyncClient extending its functionality."""
@@ -599,6 +602,10 @@ class PanClient(AsyncClient):
         term = search_terms["search_term"]
         search_filter = search_terms["filter"]
         limit = search_filter.get("limit", 10)
+        order_by = search_terms.get("order_by")
+
+        if order_by not in ["rank", "recent"]:
+            raise InvalidOrderByError(f"Invalid order by: {order_by}")
 
         before_limit = 0
         after_limit = 0
