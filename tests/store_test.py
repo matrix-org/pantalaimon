@@ -72,14 +72,13 @@ class TestClass(object):
         event_id = panstore.save_event("example", user, event, TEST_ROOM,
                                        "Example2", None)
         assert event_id is None
-        assert False
 
         event_dict = panstore.load_event_by_columns("example", user, 1)
-        assert event.source == event_dict
+        assert event.source == event_dict["result"]
 
-        _, profile = panstore.load_event_by_columns("example", user, 1, True)
+        event_source = panstore.load_event_by_columns("example", user, 1, True)
 
-        assert profile == {
+        assert event_source["context"]["profile_info"] == {
             "@example2:localhost": {
                 "display_name": "Example2",
                 "avatar_url": None
@@ -116,4 +115,4 @@ class TestClass(object):
 
         event_dict = panstore.load_event_by_columns("example", user, found_id)
 
-        assert event_dict == event.source
+        assert event_dict["result"] == event.source
