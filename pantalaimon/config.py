@@ -51,9 +51,9 @@ def parse_address(value):
     return ip_address(value)
 
 
-def parse_url(value):
+def parse_url(v):
     # type: (str) -> ParseResult
-    value = urlparse(value)
+    value = urlparse(v)
 
     if value.scheme not in ('http', 'https'):
         raise ValueError(f"Invalid URL scheme {value.scheme}. "

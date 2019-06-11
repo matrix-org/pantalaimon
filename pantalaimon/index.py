@@ -36,7 +36,8 @@ class Searcher:
         self.room_field = room_field
         self.timestamp_field = timestamp_field
 
-    def search(self, search_term, room=None, max_results=10, order_by_date=False):
+    def search(self, search_term, room=None, max_results=10,
+               order_by_date=False):
         # type (str, str, int, bool) -> List[int, int]
         """Search for events in the index.
 

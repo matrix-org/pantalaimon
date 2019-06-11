@@ -390,7 +390,7 @@ class ProxyDaemon:
         self,
         request,       # type: aiohttp.web.BaseRequest
         params=None,   # type: CIMultiDict
-        data=None,     # type: Dict[Any, Any]
+        data=None,     # type: bytes
         session=None,  # type: aiohttp.ClientSession
         token=None     # type: str
     ):

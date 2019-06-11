@@ -659,7 +659,7 @@ class PanCtl:
     help=("panctl is a small interactive repl to introspect and control"
           "the pantalaimon daemon.")
 )
-@click.version_option(version=0.1, prog_name="panctl")
+@click.version_option(version="0.1", prog_name="panctl")
 def main():
     loop = asyncio.get_event_loop()
     glib_loop = GLib.MainLoop()

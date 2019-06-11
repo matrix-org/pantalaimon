@@ -184,8 +184,6 @@ class PanStore:
             profile=profile_id
         ).on_conflict_ignore().execute()
 
-        # TODO why do we get a 0 on conflict here, the test show that we get the
-        # existing event id.
         if event_id <= 0:
             return None
 
@@ -207,7 +205,7 @@ class PanStore:
             column,                # type: List[int]
             include_profile=False  # type: bool
     ):
-        # type: (...) -> Union[List[Dict[Any, Any]], List[Tuple[Dict, Dict]]]
+        # type: (...) -> Optional[Dict]
         server = Servers.get(name=server)
         user = ServerUsers.get(server=server, user_id=pan_user)
 
