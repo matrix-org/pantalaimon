@@ -16,9 +16,10 @@ import datetime
 import json
 import os
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import attr
+from nio import RoomMessage
 from nio.store import (Accounts, DeviceKeys, DeviceTrustState, TrustState,
                        use_database)
 from peewee import (SQL, DateTimeField, DoesNotExist, ForeignKeyField, Model,
@@ -98,6 +99,16 @@ class UserMessages(Model):
         column_name="event_id")
 
 
+class PanSyncTokens(Model):
+    token = TextField()
+    user = ForeignKeyField(
+        model=ServerUsers,
+        column_name="user_id")
+
+    class Meta:
+        constraints = [SQL("UNIQUE(user_id)")]
+
+
 @attr.s
 class ClientInfo:
     user_id = attr.ib(type=str)
@@ -120,6 +131,7 @@ class PanStore:
         Profile,
         Event,
         UserMessages,
+        PanSyncTokens
     ]
 
     def __attrs_post_init__(self):
@@ -154,9 +166,35 @@ class PanStore:
             return None
 
     @use_database
+    def save_token(self, server, pan_user, token):
+        # type: (str, str, str) -> None
+        """Save a sync token for a pan user."""
+        server = Servers.get(name=server)
+        user = ServerUsers.get(server=server, user_id=pan_user)
+
+        PanSyncTokens.replace(user=user, token=token).execute()
+
+    @use_database
+    def load_token(self, server, pan_user):
+        # type: (str, str) -> Optional[str]
+        """Load a sync token for a pan user.
+
+        Returns the sync token if one is found.
+        """
+        server = Servers.get(name=server)
+        user = ServerUsers.get(server=server, user_id=pan_user)
+
+        token = PanSyncTokens.get_or_none(user=user)
+
+        if token:
+            return token.token
+
+        return None
+
+    @use_database
     def save_event(self, server, pan_user, event, room_id, display_name,
                    avatar_url):
-        # type (str, str, str, RoomMessage, str, str, str) -> Optional[int]
+        # type: (str, str, str, RoomMessage, str, str, str) -> Optional[int]
         """Save an event to the store.
 
         Returns the database id of the event.

@@ -276,6 +276,12 @@ class PanClient(AsyncClient):
 
         self.index.commit()
 
+        self.pan_store.save_token(
+            self.server_name,
+            self.user_id,
+            self.next_batch
+        )
+
         for room_id, room in response.rooms.join.items():
             if room.timeline.limited:
                 logger.info("Room {} had a limited timeline, queueing "
@@ -389,6 +395,11 @@ class PanClient(AsyncClient):
             }
         }
 
+        self.next_batch = self.pan_store.load_token(
+            self.server_name,
+            self.user_id
+        )
+
         # We don't store any room state so initial sync needs to be with the
         # full_state parameter. Subsequent ones are normal.
         while True:
@@ -414,7 +425,6 @@ class PanClient(AsyncClient):
                     return
 
         await self.sync_forever(timeout, sync_filter)
-
 
     async def start_sas(self, message, device):
         try:

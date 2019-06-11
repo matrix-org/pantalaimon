@@ -116,3 +116,13 @@ class TestClass(object):
         event_dict = panstore.load_event_by_columns("example", user, found_id)
 
         assert event_dict["result"] == event.source
+
+    def test_token_storing(self, panstore_with_users):
+        panstore = panstore_with_users
+        accounts = panstore.load_all_users()
+        user, _ = accounts[0]
+
+        assert not panstore.load_token("example", user)
+        panstore.save_token("example", user, "abc123")
+
+        assert "abc123" == panstore.load_token("example", user)
