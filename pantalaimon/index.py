@@ -15,8 +15,8 @@
 import datetime
 
 import tantivy
-from nio import (RoomMessageText, RoomNameEvent, RoomTopicEvent,
-                 RoomMessageMedia, RoomEncryptedMedia)
+from nio import (RoomEncryptedMedia, RoomMessageMedia, RoomMessageText,
+                 RoomNameEvent, RoomTopicEvent)
 
 
 def sanitize_room_id(room_id):

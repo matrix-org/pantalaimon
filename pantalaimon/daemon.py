@@ -28,7 +28,7 @@ from multidict import CIMultiDict
 from nio import (Api, EncryptionError, LoginResponse, OlmTrustError,
                  SendRetryError)
 
-from pantalaimon.client import PanClient, UnknownRoomError, InvalidOrderByError
+from pantalaimon.client import InvalidOrderByError, PanClient, UnknownRoomError
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
 from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,

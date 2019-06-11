@@ -24,9 +24,9 @@ from jsonschema import Draft4Validator, FormatChecker, validators
 from nio import (AsyncClient, ClientConfig, EncryptionError, KeysQueryResponse,
                  KeyVerificationEvent, KeyVerificationKey, KeyVerificationMac,
                  KeyVerificationStart, LocalProtocolError, MegolmEvent,
-                 RoomEncryptedEvent, SyncResponse,
-                 RoomContextError, RoomMessageText, RoomMessageMedia,
-                 RoomEncryptedMedia, RoomTopicEvent, RoomNameEvent)
+                 RoomContextError, RoomEncryptedEvent, RoomEncryptedMedia,
+                 RoomMessageMedia, RoomMessageText, RoomNameEvent,
+                 RoomTopicEvent, SyncResponse)
 from nio.crypto import Sas
 from nio.store import SqliteStore
 
@@ -97,6 +97,7 @@ def validate_json(instance, schema):
 
 class UnknownRoomError(Exception):
     pass
+
 
 class InvalidOrderByError(Exception):
     pass
