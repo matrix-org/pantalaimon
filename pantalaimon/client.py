@@ -372,6 +372,15 @@ class PanClient(AsyncClient):
         logger.info(f"Starting sync loop for {self.user_id}")
 
         loop = asyncio.get_event_loop()
+
+        self.history_fetcher_task = loop.create_task(self.fetcher_loop())
+
+        task = loop.create_task(self.sync_loop())
+        self.task = task
+
+        return task
+
+    async def sync_loop(self):
         timeout = 30000
 
         sync_filter = {
@@ -380,11 +389,32 @@ class PanClient(AsyncClient):
             }
         }
 
-        task = loop.create_task(self.sync_forever(timeout, sync_filter))
-        self.task = task
-        self.history_fetcher_task = loop.create_task(self.fetcher_loop())
+        # We don't store any room state so initial sync needs to be with the
+        # full_state parameter. Subsequent ones are normal.
+        while True:
+            try:
+                response = await self.sync(
+                    sync_filter=sync_filter,
+                    full_state=True
+                )
 
-        return task
+                if isinstance(response, SyncResponse):
+                    await self.sync_tasks(response)
+                    break
+                else:
+                    await asyncio.sleep(3)
+
+            except asyncio.CancelledError:
+                return
+
+            except ClientConnectionError:
+                try:
+                    await asyncio.sleep(3)
+                except asyncio.CancelledError:
+                    return
+
+        await self.sync_forever(timeout, sync_filter)
+
 
     async def start_sas(self, message, device):
         try:
