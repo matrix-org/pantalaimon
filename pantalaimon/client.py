@@ -143,6 +143,8 @@ class PanClient(AsyncClient):
         self.task = None
         self.queue = queue
 
+        self.room_members_fetched = defaultdict(bool)
+
         self.send_semaphores = defaultdict(asyncio.Semaphore)
         self.send_decision_queues = dict()  # type: asyncio.Queue
 

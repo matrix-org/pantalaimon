@@ -807,6 +807,17 @@ class ProxyDaemon:
         sem = client.send_semaphores[room_id]
 
         async with sem:
+            # Even though we request the full state we don't receive room
+            # members since we're using lazy loading. The summary is for some
+            # reason empty so nio can't know if room members are missing from
+            # our state. Fetch the room members here instead.
+            if not client.room_members_fetched[room_id]:
+                try:
+                    await client.joined_members(room_id)
+                    client.room_members_fetched[room_id] = True
+                except ClientConnectionError as e:
+                    return web.Response(status=500, text=str(e))
+
             try:
                 return await _send(self.conf.ignore_verification)
             except OlmTrustError as e:
