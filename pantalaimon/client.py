@@ -19,7 +19,6 @@ from functools import partial
 from pprint import pformat
 from typing import Any, Dict, Optional
 
-import attr
 from aiohttp.client_exceptions import ClientConnectionError
 from jsonschema import Draft4Validator, FormatChecker, validators
 from nio import (AsyncClient, ClientConfig, EncryptionError, KeysQueryResponse,
@@ -33,6 +32,7 @@ from nio.store import SqliteStore
 
 from pantalaimon.index import Index
 from pantalaimon.log import logger
+from pantalaimon.store import FetchTask
 from pantalaimon.thread_messages import (DaemonResponse, InviteSasSignal,
                                          SasDoneSignal, ShowSasSignal,
                                          UpdateDevicesMessage)
@@ -102,12 +102,6 @@ class UnknownRoomError(Exception):
 
 class InvalidOrderByError(Exception):
     pass
-
-
-@attr.s
-class FetchTask:
-    room_id = attr.ib(type=str)
-    token = attr.ib(type=str)
 
 
 class PanClient(AsyncClient):
@@ -216,10 +210,23 @@ class PanClient(AsyncClient):
         message = UpdateDevicesMessage()
         await self.queue.put(message)
 
+    def delete_fetcher_task(self, task):
+        self.pan_store.delete_fetcher_task(
+            self.server_name,
+            self.user_id,
+            task
+        )
+
     async def fetcher_loop(self):
+        for t in self.pan_store.load_fetcher_tasks(
+                self.server_name,
+                self.user_id
+        ):
+            await self.history_fetch_queue.put(t)
+
         while True:
             try:
-                await asyncio.sleep(5)
+                await asyncio.sleep(3)
 
                 fetch_task = await self.history_fetch_queue.get()
 
@@ -228,6 +235,7 @@ class PanClient(AsyncClient):
                 except KeyError:
                     # The room is missing from our client, we probably left the
                     # room.
+                    self.delete_fetcher_task(fetch_task)
                     continue
 
                 try:
@@ -239,8 +247,9 @@ class PanClient(AsyncClient):
                 except ClientConnectionError:
                     self.history_fetch_queue.put(fetch_task)
 
-                # The chunk was empyt, we're at the start of the timeline.
+                # The chunk was empty, we're at the start of the timeline.
                 if not response.chunk:
+                    self.delete_fetcher_task(fetch_task)
                     continue
 
                 for event in response.chunk:
@@ -259,10 +268,13 @@ class PanClient(AsyncClient):
                 else:
                     # There may be even more events to fetch, add a new task to
                     # the queue.
-                    await self.history_fetch_queue.put(
-                        FetchTask(room.room_id, response.end)
-                    )
-            except asyncio.CancelledError:
+                    task = FetchTask(room.room_id, response.end)
+                    self.pan_store.save_fetcher_task(self.server_name,
+                                                     self.user_id, task)
+                    await self.history_fetch_queue.put(task)
+
+                self.delete_fetcher_task(fetch_task)
+            except (asyncio.CancelledError, KeyboardInterrupt):
                 return
 
     async def sync_tasks(self, response):
@@ -290,9 +302,11 @@ class PanClient(AsyncClient):
                             "room for history fetching.".format(
                                 self.rooms[room_id].display_name
                             ))
-                await self.history_fetch_queue.put(
-                    FetchTask(room_id, room.timeline.prev_batch)
-                )
+                task = FetchTask(room_id, room.timeline.prev_batch)
+                self.pan_store.save_fetcher_task(self.server_name,
+                                                 self.user_id, task)
+
+                await self.history_fetch_queue.put(task)
 
     async def keys_query_cb(self, response):
         await self.send_update_devcies()
@@ -592,6 +606,8 @@ class PanClient(AsyncClient):
             self.history_fetcher_task.cancel()
             await self.history_fetcher_task
             self.history_fetcher_task = None
+
+        self.history_fetch_queue = asyncio.Queue()
 
     def pan_decrypt_event(
             self,

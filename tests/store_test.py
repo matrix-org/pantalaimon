@@ -4,6 +4,7 @@ from nio import RoomMessage
 
 from conftest import faker
 from pantalaimon.index import Index
+from pantalaimon.store import FetchTask
 
 TEST_ROOM = "!SVkFJHzfwvuaIEawgC:localhost"
 TEST_ROOM2 = "!testroom:localhost"
@@ -125,4 +126,28 @@ class TestClass(object):
         assert not panstore.load_token("example", user)
         panstore.save_token("example", user, "abc123")
 
-        assert "abc123" == panstore.load_token("example", user)
+        assert panstore.load_token("example", user) == "abc123"
+
+    def test_fetcher_tasks(self, panstore_with_users):
+        panstore = panstore_with_users
+        accounts = panstore.load_all_users()
+        user, _ = accounts[0]
+
+        task = FetchTask(TEST_ROOM, "abc1234")
+        task2 = FetchTask(TEST_ROOM2, "abc1234")
+
+        assert not panstore.load_fetcher_tasks("example", user)
+
+        panstore.save_fetcher_task("example", user, task)
+        panstore.save_fetcher_task("example", user, task2)
+
+        tasks = panstore.load_fetcher_tasks("example", user)
+
+        assert task in tasks
+        assert task2 in tasks
+
+        panstore.delete_fetcher_task("example", user, task)
+        tasks = panstore.load_fetcher_tasks("example", user)
+
+        assert task not in tasks
+        assert task2 in tasks

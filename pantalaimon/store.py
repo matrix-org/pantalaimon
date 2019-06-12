@@ -26,6 +26,12 @@ from peewee import (SQL, DateTimeField, DoesNotExist, ForeignKeyField, Model,
                     SqliteDatabase, TextField)
 
 
+@attr.s
+class FetchTask:
+    room_id = attr.ib(type=str)
+    token = attr.ib(type=str)
+
+
 class DictField(TextField):
     def python_value(self, value):  # pragma: no cover
         return json.loads(value)
@@ -109,6 +115,18 @@ class PanSyncTokens(Model):
         constraints = [SQL("UNIQUE(user_id)")]
 
 
+class PanFetcherTasks(Model):
+    user = ForeignKeyField(
+        model=ServerUsers,
+        column_name="user_id",
+        backref="fetcher_tasks")
+    room_id = TextField()
+    token = TextField()
+
+    class Meta:
+        constraints = [SQL("UNIQUE(user_id, room_id, token)")]
+
+
 @attr.s
 class ClientInfo:
     user_id = attr.ib(type=str)
@@ -131,7 +149,8 @@ class PanStore:
         Profile,
         Event,
         UserMessages,
-        PanSyncTokens
+        PanSyncTokens,
+        PanFetcherTasks
     ]
 
     def __attrs_post_init__(self):
@@ -164,6 +183,38 @@ class PanStore:
             )
         except DoesNotExist:
             return None
+
+    @use_database
+    def save_fetcher_task(self, server, pan_user, task):
+        server = Servers.get(name=server)
+        user = ServerUsers.get(server=server, user_id=pan_user)
+
+        PanFetcherTasks.replace(
+            user=user,
+            room_id=task.room_id,
+            token=task.token
+        ).execute()
+
+    def load_fetcher_tasks(self, server, pan_user):
+        server = Servers.get(name=server)
+        user = ServerUsers.get(server=server, user_id=pan_user)
+
+        tasks = []
+
+        for t in user.fetcher_tasks:
+            tasks.append(FetchTask(t.room_id, t.token))
+
+        return tasks
+
+    def delete_fetcher_task(self, server, pan_user, task):
+        server = Servers.get(name=server)
+        user = ServerUsers.get(server=server, user_id=pan_user)
+
+        PanFetcherTasks.delete().where(
+            PanFetcherTasks.user == user,
+            PanFetcherTasks.room_id == task.room_id,
+            PanFetcherTasks.token == task.token
+        ).execute()
 
     @use_database
     def save_token(self, server, pan_user, token):
