@@ -905,6 +905,17 @@ class ProxyDaemon:
             data=json.dumps(sanitized_content)
         )
 
+    async def search_opts(self, request):
+        headers = {
+            "Access-Control-Allow-Headers": (
+                "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+            ),
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Origin": "*",
+        }
+
+        return web.json_response({}, headers=headers)
+
     async def search(self, request):
         access_token = self.get_access_token(request)
 
@@ -942,7 +953,11 @@ class ProxyDaemon:
         except UnknownRoomError:
             return await self.forward_to_web(request)
 
-        return web.json_response(result, status=200)
+        return web.json_response(
+            result,
+            headers={"Access-Control-Allow-Origin": "*"},
+            status=200
+        )
 
     async def shutdown(self, _):
         """Shut the daemon down closing all the client sessions it has.
