@@ -411,7 +411,7 @@ class PanClient(AsyncClient):
             }
         }
 
-        self.next_batch = self.pan_store.load_token(
+        next_batch = self.pan_store.load_token(
             self.server_name,
             self.user_id
         )
@@ -422,7 +422,8 @@ class PanClient(AsyncClient):
             try:
                 response = await self.sync(
                     sync_filter=sync_filter,
-                    full_state=True
+                    full_state=True,
+                    since=next_batch,
                 )
 
                 if isinstance(response, SyncResponse):
