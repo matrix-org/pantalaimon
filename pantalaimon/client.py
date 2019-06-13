@@ -103,8 +103,10 @@ class UnknownRoomError(Exception):
 class InvalidOrderByError(Exception):
     pass
 
+
 class InvalidLimit(Exception):
     pass
+
 
 class PanClient(AsyncClient):
     """A wrapper class around a nio AsyncClient extending its functionality."""
