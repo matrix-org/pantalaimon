@@ -103,6 +103,8 @@ class UnknownRoomError(Exception):
 class InvalidOrderByError(Exception):
     pass
 
+class InvalidLimit(Exception):
+    pass
 
 class PanClient(AsyncClient):
     """A wrapper class around a nio AsyncClient extending its functionality."""
@@ -717,6 +719,10 @@ class PanClient(AsyncClient):
         term = search_terms["search_term"]
         search_filter = search_terms["filter"]
         limit = search_filter.get("limit", 10)
+
+        if limit <= 0:
+            raise InvalidLimit(f"The limit must be strictly greater than 0.")
+
         order_by = search_terms.get("order_by")
 
         if order_by not in ["rank", "recent"]:

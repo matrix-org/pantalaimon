@@ -28,7 +28,8 @@ from multidict import CIMultiDict
 from nio import (Api, EncryptionError, LoginResponse, OlmTrustError,
                  SendRetryError)
 
-from pantalaimon.client import InvalidOrderByError, PanClient, UnknownRoomError
+from pantalaimon.client import (InvalidOrderByError, PanClient,
+                                UnknownRoomError, InvalidLimit)
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
 from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
@@ -942,7 +943,7 @@ class ProxyDaemon:
                 },
                 status=400,
             )
-        except InvalidOrderByError as e:
+        except (InvalidOrderByError, InvalidLimit) as e:
             return web.json_response(
                 {
                     "errcode": "M_INVALID_PARAM",
