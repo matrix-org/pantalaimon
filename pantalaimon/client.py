@@ -723,6 +723,10 @@ class PanClient(AsyncClient):
         if limit <= 0:
             raise InvalidLimit(f"The limit must be strictly greater than 0.")
 
+        rooms = search_filter.get("rooms", [])
+
+        room_id = rooms[0] if len(rooms) == 1 else None
+
         order_by = search_terms.get("order_by")
 
         if order_by not in ["rank", "recent"]:
@@ -743,8 +747,8 @@ class PanClient(AsyncClient):
             include_profile = event_context.get("include_profile", False)
 
         searcher = self.index.searcher()
-        search_func = partial(searcher.search, term, max_results=limit,
-                              order_by_date=order_by_date)
+        search_func = partial(searcher.search, term, room=room_id,
+                              max_results=limit, order_by_date=order_by_date)
 
         result = await loop.run_in_executor(None, search_func)
 
