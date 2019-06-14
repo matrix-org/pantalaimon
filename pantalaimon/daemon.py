@@ -30,9 +30,9 @@ from nio import (Api, EncryptionError, LoginResponse, OlmTrustError,
 
 from pantalaimon.client import (InvalidLimit, InvalidOrderByError, PanClient,
                                 UnknownRoomError)
+from pantalaimon.index import InvalidQueryError
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
-from pantalaimon.index import InvalidQueryError
 from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
                                          CancelSendingMessage,
                                          ConfirmSasMessage, DaemonResponse,
