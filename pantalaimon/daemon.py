@@ -32,6 +32,7 @@ from pantalaimon.client import (InvalidLimit, InvalidOrderByError, PanClient,
                                 UnknownRoomError)
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
+from pantalaimon.index import InvalidQueryError
 from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
                                          CancelSendingMessage,
                                          ConfirmSasMessage, DaemonResponse,
@@ -943,7 +944,7 @@ class ProxyDaemon:
                 },
                 status=400,
             )
-        except (InvalidOrderByError, InvalidLimit) as e:
+        except (InvalidOrderByError, InvalidLimit, InvalidQueryError) as e:
             return web.json_response(
                 {
                     "errcode": "M_INVALID_PARAM",

@@ -29,6 +29,10 @@ from peewee import (SQL, DateTimeField, ForeignKeyField, Model, SqliteDatabase,
 from pantalaimon.store import use_database
 
 
+class InvalidQueryError(Exception):
+    pass
+
+
 class DictField(TextField):
     def python_value(self, value):  # pragma: no cover
         return json.loads(value)
@@ -284,12 +288,17 @@ class Searcher:
         # This currently supports only a single room since the query parser
         # doesn't seem to work with multiple room fields here.
         if room:
-            search_term = "{} AND room:{}".format(
+            query_string = "{} AND room:{}".format(
                 search_term,
                 sanitize_room_id(room)
             )
+        else:
+            query_string = search_term
 
-        query = queryparser.parse_query(search_term)
+        try:
+            query = queryparser.parse_query(query_string)
+        except ValueError:
+            raise InvalidQueryError(f"Invalid search term: {search_term}")
 
         if order_by_recent:
             collector = tantivy.TopDocs(max_results,
