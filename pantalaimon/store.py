@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import datetime
 import json
 import os
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import attr
-from nio import RoomMessage
 from nio.store import (Accounts, DeviceKeys, DeviceTrustState, TrustState,
                        use_database)
-from peewee import (SQL, DateTimeField, DoesNotExist, ForeignKeyField, Model,
-                    SqliteDatabase, TextField)
+from peewee import (SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase,
+                    TextField)
 
 
 @attr.s
@@ -70,41 +68,6 @@ class ServerUsers(Model):
         constraints = [SQL("UNIQUE(user_id,server_id)")]
 
 
-class Profile(Model):
-    user_id = TextField()
-    avatar_url = TextField(null=True)
-    display_name = TextField(null=True)
-
-    class Meta:
-        constraints = [SQL("UNIQUE(user_id,avatar_url,display_name)")]
-
-
-class Event(Model):
-    event_id = TextField()
-    sender = TextField()
-    date = DateTimeField()
-    room_id = TextField()
-
-    source = DictField()
-
-    profile = ForeignKeyField(
-        model=Profile,
-        column_name="profile_id",
-    )
-
-    class Meta:
-        constraints = [SQL("UNIQUE(event_id, room_id, sender, profile_id)")]
-
-
-class UserMessages(Model):
-    user = ForeignKeyField(
-        model=ServerUsers,
-        column_name="user_id")
-    event = ForeignKeyField(
-        model=Event,
-        column_name="event_id")
-
-
 class PanSyncTokens(Model):
     token = TextField()
     user = ForeignKeyField(
@@ -146,9 +109,6 @@ class PanStore:
         ServerUsers,
         DeviceKeys,
         DeviceTrustState,
-        Profile,
-        Event,
-        UserMessages,
         PanSyncTokens,
         PanFetcherTasks
     ]
@@ -241,86 +201,6 @@ class PanStore:
             return token.token
 
         return None
-
-    @use_database
-    def save_event(self, server, pan_user, event, room_id, display_name,
-                   avatar_url):
-        # type: (str, str, str, RoomMessage, str, str, str) -> Optional[int]
-        """Save an event to the store.
-
-        Returns the database id of the event.
-        """
-        server = Servers.get(name=server)
-        user = ServerUsers.get(server=server, user_id=pan_user)
-
-        profile_id, _ = Profile.get_or_create(
-            user_id=event.sender,
-            display_name=display_name,
-            avatar_url=avatar_url
-        )
-
-        event_source = event.source
-        event_source["room_id"] = room_id
-
-        event_id = Event.insert(
-            event_id=event.event_id,
-            sender=event.sender,
-            date=datetime.datetime.fromtimestamp(
-                event.server_timestamp / 1000
-            ),
-            room_id=room_id,
-            source=event_source,
-            profile=profile_id
-        ).on_conflict_ignore().execute()
-
-        if event_id <= 0:
-            return None
-
-        _, created = UserMessages.get_or_create(
-            user=user,
-            event=event_id,
-        )
-
-        if created:
-            return event_id
-
-        return None
-
-    @use_database
-    def load_event_by_columns(
-            self,
-            server,                # type: str
-            pan_user,              # type: str
-            column,                # type: List[int]
-            include_profile=False  # type: bool
-    ):
-        # type: (...) -> Optional[Dict]
-        server = Servers.get(name=server)
-        user = ServerUsers.get(server=server, user_id=pan_user)
-
-        message = UserMessages.get_or_none(user=user, event=column)
-
-        if not message:
-            return None
-
-        event = message.event
-
-        event_dict = {
-            "result": event.source,
-            "context": {}
-        }
-
-        if include_profile:
-            event_profile = event.profile
-
-            event_dict["context"]["profile_info"] = {
-                event_profile.user_id: {
-                    "display_name": event_profile.display_name,
-                    "avatar_url": event_profile.avatar_url,
-                }
-            }
-
-        return event_dict
 
     @use_database
     def save_server_user(self, server_name, user_id):

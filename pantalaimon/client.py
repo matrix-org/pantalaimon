@@ -15,7 +15,6 @@
 import asyncio
 import os
 from collections import defaultdict
-from functools import partial
 from pprint import pformat
 from typing import Any, Dict, Optional
 
@@ -30,7 +29,7 @@ from nio import (AsyncClient, ClientConfig, EncryptionError, KeysQueryResponse,
 from nio.crypto import Sas
 from nio.store import SqliteStore
 
-from pantalaimon.index import Index
+from pantalaimon.index import IndexStore
 from pantalaimon.log import logger
 from pantalaimon.store import FetchTask
 from pantalaimon.thread_messages import (DaemonResponse, InviteSasSignal,
@@ -137,7 +136,7 @@ class PanClient(AsyncClient):
 
         self.server_name = server_name
         self.pan_store = pan_store
-        self.index = Index(index_dir)
+        self.index = IndexStore(self.user_id, index_dir)
         self.task = None
         self.queue = queue
 
@@ -179,20 +178,7 @@ class PanClient(AsyncClient):
         display_name = room.user_name(event.sender)
         avatar_url = room.avatar_url(event.sender)
 
-        column_id = self.pan_store.save_event(
-            self.server_name,
-            self.user_id,
-            event,
-            room.room_id,
-            display_name,
-            avatar_url
-        )
-
-        if column_id:
-            self.index.add_event(column_id, event, room.room_id)
-            return True
-
-        return False
+        self.index.add_event(event, room.room_id, display_name, avatar_url)
 
     @property
     def unable_to_decrypt(self):
@@ -247,7 +233,8 @@ class PanClient(AsyncClient):
                         room.display_name
                     ))
                     response = await self.room_messages(fetch_task.room_id,
-                                                        fetch_task.token)
+                                                        fetch_task.token,
+                                                        limit=100)
                 except ClientConnectionError:
                     self.history_fetch_queue.put(fetch_task)
 
@@ -266,10 +253,17 @@ class PanClient(AsyncClient):
                     )):
                         continue
 
-                    if not self.store_message_cb(room, event):
-                        # The event was already in our store, we catched up.
-                        break
-                else:
+                    display_name = room.user_name(event.sender)
+                    avatar_url = room.avatar_url(event.sender)
+                    self.index.add_event(event, room.room_id, display_name,
+                                         avatar_url)
+
+                last_event = response.chunk[-1]
+
+                if not self.index.event_in_store(
+                        last_event.event_id,
+                        room.room_id
+                ):
                     # There may be even more events to fetch, add a new task to
                     # the queue.
                     task = FetchTask(room.room_id, response.end)
@@ -277,6 +271,7 @@ class PanClient(AsyncClient):
                                                      self.user_id, task)
                     await self.history_fetch_queue.put(task)
 
+                await self.index.commit_events()
                 self.delete_fetcher_task(fetch_task)
             except (asyncio.CancelledError, KeyboardInterrupt):
                 return
@@ -292,8 +287,7 @@ class PanClient(AsyncClient):
         self.key_verificatins_tasks = []
         self.key_request_tasks = []
 
-        self.index.commit()
-
+        await self.index.commit_events()
         self.pan_store.save_token(
             self.server_name,
             self.user_id,
@@ -688,13 +682,11 @@ class PanClient(AsyncClient):
 
     async def search(self, search_terms):
         # type: (Dict[Any, Any]) -> Dict[Any, Any]
-        loop = asyncio.get_event_loop()
         state_cache = dict()
 
-        async def add_context(room_id, event_id, before, after, include_state):
+        async def add_context(event_dict, room_id, event_id, include_state):
             try:
-                context = await self.room_context(room_id, event_id,
-                                                  limit=before+after)
+                context = await self.room_context(room_id, event_id, limit=0)
             except ClientConnectionError:
                 return
 
@@ -704,16 +696,8 @@ class PanClient(AsyncClient):
             if include_state:
                 state_cache[room_id] = [e.source for e in context.state]
 
-            event_context = event_dict["context"]
-
-            event_context["events_before"] = [
-                e.source for e in context.events_before[:before]
-            ]
-            event_context["events_after"] = [
-                e.source for e in context.events_after[:after]
-            ]
-            event_context["start"] = context.start
-            event_context["end"] = context.end
+            event_dict["context"]["start"] = context.start
+            event_dict["context"]["end"] = context.end
 
         validate_json(search_terms, SEARCH_TERMS_SCHEMA)
         search_terms = search_terms["search_categories"]["room_events"]
@@ -723,7 +707,7 @@ class PanClient(AsyncClient):
         limit = search_filter.get("limit", 10)
 
         if limit <= 0:
-            raise InvalidLimit(f"The limit must be strictly greater than 0.")
+            raise InvalidLimit("The limit must be strictly greater than 0.")
 
         rooms = search_filter.get("rooms", [])
 
@@ -734,7 +718,7 @@ class PanClient(AsyncClient):
         if order_by not in ["rank", "recent"]:
             raise InvalidOrderByError(f"Invalid order by: {order_by}")
 
-        order_by_date = order_by == "recent"
+        order_by_recent = order_by == "recent"
 
         before_limit = 0
         after_limit = 0
@@ -746,51 +730,37 @@ class PanClient(AsyncClient):
         if event_context:
             before_limit = event_context.get("before_limit", 5)
             after_limit = event_context.get("before_limit", 5)
-            include_profile = event_context.get("include_profile", False)
 
-        searcher = self.index.searcher()
-        search_func = partial(searcher.search, term, room=room_id,
-                              max_results=limit, order_by_date=order_by_date)
+        if before_limit < 0 or after_limit < 0:
+            raise InvalidLimit("Invalid context limit, the limit must be a "
+                               "positive number")
 
-        result = await loop.run_in_executor(None, search_func)
+        response_dict = await self.index.search(
+            term,
+            room=room_id,
+            max_results=limit,
+            order_by_recent=order_by_recent,
+            include_profile=include_profile,
+            before_limit=before_limit,
+            after_limit=after_limit
+        )
 
-        result_dict = {
-            "results": []
-        }
-
-        for score, column_id in result:
-            event_dict = self.pan_store.load_event_by_columns(
-                self.server_name,
-                self.user_id,
-                column_id, include_profile)
-
-            if not event_dict:
-                continue
-
-            if include_state or before_limit or after_limit:
-                await add_context(
-                    event_dict["result"]["room_id"],
-                    event_dict["result"]["event_id"],
-                    before_limit,
-                    after_limit,
-                    include_state
-                )
-
-            if order_by_date:
-                event_dict["rank"] = 1.0
-            else:
-                event_dict["rank"] = score
-
-            result_dict["results"].append(event_dict)
-
-        result_dict["count"] = len(result_dict["results"])
-        result_dict["highlights"] = []
+        # TODO add the state and start/end tokens
+        # if event_context or include_state:
+        #     for event_dict in response_dict:
+        #         await add_context(
+        #             event_dict["result"]["room_id"],
+        #             event_dict["result"]["event_id"],
+        #             0,
+        #             0,
+        #             include_state
+        #         )
 
         if include_state:
-            result_dict["state"] = state_cache
+            response_dict["state"] = state_cache
 
         return {
             "search_categories": {
-                "room_events": result_dict
+                "room_events": response_dict
             }
         }

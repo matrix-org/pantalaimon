@@ -1,9 +1,11 @@
+import asyncio
 import pdb
+import pprint
 
 from nio import RoomMessage
 
 from conftest import faker
-from pantalaimon.index import Index
+from pantalaimon.index import Index, IndexStore
 from pantalaimon.store import FetchTask
 
 TEST_ROOM = "!SVkFJHzfwvuaIEawgC:localhost"
@@ -32,8 +34,8 @@ class TestClass(object):
         return RoomMessage.parse_event(
             {
                 "content": {"body": "Another message", "msgtype": "m.text"},
-                "event_id": "$15163622445EBvZJ:localhost",
-                "origin_server_ts": 1516362244026,
+                "event_id": "$15163622445EBvZK:localhost",
+                "origin_server_ts": 1516362244030,
                 "room_id": "!SVkFJHzfwvuaIEawgC:localhost",
                 "sender": "@example2:localhost",
                 "type": "m.room.message",
@@ -57,66 +59,6 @@ class TestClass(object):
 
         token = panstore.load_access_token(user_id, device_id)
         access_token == token
-
-    def test_event_storing(self, panstore_with_users):
-        panstore = panstore_with_users
-        accounts = panstore.load_all_users()
-        user, _ = accounts[0]
-
-        event = self.test_event
-
-        event_id = panstore.save_event("example", user, event, TEST_ROOM,
-                                       "Example2", None)
-
-        assert event_id == 1
-
-        event_id = panstore.save_event("example", user, event, TEST_ROOM,
-                                       "Example2", None)
-        assert event_id is None
-
-        event_dict = panstore.load_event_by_columns("example", user, 1)
-        assert event.source == event_dict["result"]
-
-        event_source = panstore.load_event_by_columns("example", user, 1, True)
-
-        assert event_source["context"]["profile_info"] == {
-            "@example2:localhost": {
-                "display_name": "Example2",
-                "avatar_url": None
-            }
-        }
-
-    def test_index(self, panstore_with_users):
-        panstore = panstore_with_users
-        accounts = panstore.load_all_users()
-        user, _ = accounts[0]
-
-        event = self.test_event
-        another_event = self.another_event
-
-        index = Index(panstore.store_path)
-
-        event_id = panstore.save_event("example", user, event, TEST_ROOM,
-                                       "Example2", None)
-        assert event_id == 1
-        index.add_event(event_id, event, TEST_ROOM)
-
-        event_id = panstore.save_event("example", user, another_event,
-                                       TEST_ROOM2, "Example2", None)
-        assert event_id == 2
-        index.add_event(event_id, another_event, TEST_ROOM2)
-
-        index.commit()
-
-        searcher = index.searcher()
-
-        searched_events = searcher.search("message", TEST_ROOM)
-
-        _, found_id = searched_events[0]
-
-        event_dict = panstore.load_event_by_columns("example", user, found_id)
-
-        assert event_dict["result"] == event.source
 
     def test_token_storing(self, panstore_with_users):
         panstore = panstore_with_users
@@ -151,3 +93,26 @@ class TestClass(object):
 
         assert task not in tasks
         assert task2 in tasks
+
+    def test_new_indexstore(self, tempdir):
+        loop = asyncio.get_event_loop()
+
+        store = IndexStore("example", tempdir)
+
+        store.add_event(self.test_event, TEST_ROOM, None, None)
+        store.add_event(self.another_event, TEST_ROOM, None, None)
+        loop.run_until_complete(store.commit_events())
+
+        assert store.event_in_store(self.test_event.event_id, TEST_ROOM)
+        assert not store.event_in_store("FAKE", TEST_ROOM)
+
+        result = loop.run_until_complete(
+            store.search("test", TEST_ROOM, after_limit=10, before_limit=10)
+        )
+        pprint.pprint(result)
+
+        assert len(result["results"]) == 1
+        assert result["count"] == 1
+        assert result["results"][0]["result"] == self.test_event.source
+        assert (result["results"][0]["context"]["events_after"][0]
+                == self.another_event.source)
