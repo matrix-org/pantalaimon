@@ -35,6 +35,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "Notifications": "on",
                 "UseKeyring": "yes",
                 "SearchRequests": "off",
+                "IndexEncryptedOnly": "True",
             },
             converters={
                 "address": parse_address,
@@ -114,6 +115,7 @@ class ServerConfig:
     ignore_verification = attr.ib(type=bool, default=False)
     keyring = attr.ib(type=bool, default=True)
     search_requests = attr.ib(type=bool, default=False)
+    index_encrypted_only = attr.ib(type=bool, default=True)
 
 
 @attr.s
@@ -171,6 +173,7 @@ class PanConfig:
                 keyring = section.getboolean("UseKeyring")
                 proxy = section.geturl("Proxy")
                 search_requests = section.getboolean("SearchRequests")
+                index_encrypted_only = section.getboolean("IndexEncryptedOnly")
 
                 listen_tuple = (listen_address, listen_port)
 
@@ -189,7 +192,8 @@ class PanConfig:
                     ssl,
                     ignore_verification,
                     keyring,
-                    search_requests
+                    search_requests,
+                    index_encrypted_only
                 )
 
                 self.servers[section_name] = server_conf

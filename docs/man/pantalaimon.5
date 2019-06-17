@@ -66,6 +66,13 @@ Homeserver, note that this will make the search much slower. If this is set to
 .Nm pantalaimon
 will not make any additional HTTP requests and will leave some data fields in
 the search response empty. Defaults to "Off".
+.It Cm IndexEncryptedOnly
+A configuration option to decide if
+.Nm pantalaimon
+should fetch the history for
+unencrytped rooms as well as for encrypted ones. If True, only the history for
+encrypted rooms is fetched and indexed. Search requests for non-encrypted
+rooms are forwarded to the Homeserver.
 .El
 .Pp
 Aditional to the homeserver section a special section with the name

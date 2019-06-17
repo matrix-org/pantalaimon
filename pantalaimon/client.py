@@ -180,6 +180,9 @@ class PanClient(AsyncClient):
         display_name = room.user_name(event.sender)
         avatar_url = room.avatar_url(event.sender)
 
+        if not room.encrypted and self.pan_conf.index_encrypted_only:
+            return
+
         self.index.add_event(event, room.room_id, display_name, avatar_url)
 
     @property
@@ -296,13 +299,18 @@ class PanClient(AsyncClient):
             self.next_batch
         )
 
-        for room_id, room in response.rooms.join.items():
-            if room.timeline.limited:
+        for room_id, room_info in response.rooms.join.items():
+            if room_info.timeline.limited:
+                room = self.rooms[room_id]
+
+                if not room.encrypted and self.pan_conf.index_encrypted_only:
+                    continue
+
                 logger.info("Room {} had a limited timeline, queueing "
                             "room for history fetching.".format(
-                                self.rooms[room_id].display_name
+                                room.display_name
                             ))
-                task = FetchTask(room_id, room.timeline.prev_batch)
+                task = FetchTask(room_id, room_info.timeline.prev_batch)
                 self.pan_store.save_fetcher_task(self.server_name,
                                                  self.user_id, task)
 
@@ -701,7 +709,6 @@ class PanClient(AsyncClient):
             event_dict["context"]["start"] = context.start
             event_dict["context"]["end"] = context.end
 
-        validate_json(search_terms, SEARCH_TERMS_SCHEMA)
         search_terms = search_terms["search_categories"]["room_events"]
 
         term = search_terms["search_term"]

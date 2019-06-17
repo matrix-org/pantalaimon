@@ -29,7 +29,8 @@ from nio import (Api, EncryptionError, LoginResponse, OlmTrustError,
                  SendRetryError)
 
 from pantalaimon.client import (InvalidLimit, InvalidOrderByError, PanClient,
-                                UnknownRoomError)
+                                UnknownRoomError, SEARCH_TERMS_SCHEMA,
+                                validate_json)
 from pantalaimon.index import InvalidQueryError
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
@@ -932,12 +933,12 @@ class ProxyDaemon:
             return self._unknown_token
 
         try:
-            search_categories = await request.json()
+            content = await request.json()
         except (JSONDecodeError, ContentTypeError):
             return self._not_json
 
         try:
-            result = await client.search(search_categories)
+            validate_json(content, SEARCH_TERMS_SCHEMA)
         except ValidationError:
             return web.json_response(
                 {
@@ -946,6 +947,29 @@ class ProxyDaemon:
                 },
                 status=400,
             )
+
+        # If we're indexing only encrypted rooms check if the search request is
+        # for an encrypted room, if it isn't forward it to the server.
+        # TODO if the search request contains no rooms, that is a search in all
+        # rooms or a mix of encrypted and unencrypted rooms we need to combine
+        # search a local search with a remote search.
+        if self.conf.index_encrypted_only:
+            s_filter = content["search_categories"]["room_events"]["filter"]
+            rooms = s_filter.get("rooms", list(client.rooms))
+
+            for room_id in rooms:
+                try:
+                    room = client.rooms[room_id]
+                    if room.encrypted:
+                        break
+
+                except KeyError:
+                    return await self.forward_to_web(request)
+            else:
+                return await self.forward_to_web(request)
+
+        try:
+            result = await client.search(content)
         except (InvalidOrderByError, InvalidLimit, InvalidQueryError) as e:
             return web.json_response(
                 {
