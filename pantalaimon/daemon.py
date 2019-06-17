@@ -100,6 +100,7 @@ class ProxyDaemon:
             pan_client = PanClient(
                 self.name,
                 self.store,
+                self.conf,
                 self.homeserver_url,
                 self.send_queue,
                 user_id,
@@ -518,6 +519,7 @@ class ProxyDaemon:
         pan_client = PanClient(
             self.name,
             self.store,
+            self.conf,
             self.homeserver_url,
             self.send_queue,
             user_id,

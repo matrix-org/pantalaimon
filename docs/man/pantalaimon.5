@@ -51,6 +51,21 @@ This option configures if a proxy instance should use the OS keyring to store
 its own access tokens. The access tokens are required for the daemon to resume
 operation. If this is set to "No", access tokens are stored in the pantalaimon
 database in plaintext. Defaults to "Yes".
+.It Cm SearchRequests
+This option configures if the proxy should make additional HTTP requests to the
+server when clients use the search API endpoint. Some data that is required to
+fill out a complete search response is only available on the Homeserver (e.g.
+start/end tokens for the event context or room state at a particular point in
+time).
+
+If this option is set to "On"
+.Nm pantalaimon
+will make additional HTTP requests to fetch the unavailable data from the
+Homeserver, note that this will make the search much slower. If this is set to
+"Off"
+.Nm pantalaimon
+will not make any additional HTTP requests and will leave some data fields in
+the search response empty. Defaults to "Off".
 .El
 .Pp
 Aditional to the homeserver section a special section with the name

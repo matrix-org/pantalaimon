@@ -114,6 +114,7 @@ class PanClient(AsyncClient):
             self,
             server_name,
             pan_store,
+            pan_conf,
             homeserver,
             queue=None,
             user_id="",
@@ -136,6 +137,7 @@ class PanClient(AsyncClient):
 
         self.server_name = server_name
         self.pan_store = pan_store
+        self.pan_conf = pan_conf
         self.index = IndexStore(self.user_id, index_dir)
         self.task = None
         self.queue = queue
@@ -745,7 +747,7 @@ class PanClient(AsyncClient):
             after_limit=after_limit
         )
 
-        if event_context or include_state:
+        if (event_context or include_state) and self.pan_conf.search_requests:
             for event_dict in response_dict["results"]:
                 await add_context(
                     event_dict,
