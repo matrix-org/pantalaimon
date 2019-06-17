@@ -72,7 +72,10 @@ A configuration option to decide if
 should fetch the history for
 unencrytped rooms as well as for encrypted ones. If True, only the history for
 encrypted rooms is fetched and indexed. Search requests for non-encrypted
-rooms are forwarded to the Homeserver.
+rooms are forwarded to the Homeserver. Defaults to "True".
+.It Cm IndexingBatchSize
+The number of messages that should be requested from the Homeserver when we
+fetch and index messages from the room history. Defaults to 100.
 .El
 .Pp
 Aditional to the homeserver section a special section with the name

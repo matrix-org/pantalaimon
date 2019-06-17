@@ -36,6 +36,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "UseKeyring": "yes",
                 "SearchRequests": "off",
                 "IndexEncryptedOnly": "True",
+                "IndexingBatchSize": "100",
             },
             converters={
                 "address": parse_address,
@@ -104,6 +105,17 @@ class ServerConfig:
             homeserver.
         ssl (bool): Enable or disable SSL for the connection between
             pantalaimon and the homeserver.
+        ignore_verification (bool): Enable or disable device verification for
+            E2E encrypted messages.
+        keyring (bool): Enable or disable the OS keyring for the storage of
+            access tokens.
+        search_requests (bool): Enable or disable aditional Homeserver requests
+            for the search API endpoint.
+        index_encrypted_only (bool): Enable or disable message indexing fro
+            non-encrypted rooms.
+        indexing_batch_size (int): The number of messages that should be
+            requested from the Homeserver when we fetch and index messages from
+            the room history.
     """
 
     name = attr.ib(type=str)
@@ -116,6 +128,7 @@ class ServerConfig:
     keyring = attr.ib(type=bool, default=True)
     search_requests = attr.ib(type=bool, default=False)
     index_encrypted_only = attr.ib(type=bool, default=True)
+    indexing_batch_size = attr.ib(type=int, default=100)
 
 
 @attr.s
@@ -175,6 +188,13 @@ class PanConfig:
                 search_requests = section.getboolean("SearchRequests")
                 index_encrypted_only = section.getboolean("IndexEncryptedOnly")
 
+                indexing_batch_size = section.getint("IndexingBatchSize")
+
+                if not 1 < indexing_batch_size <= 1000:
+                    raise PanConfigError("The indexing batch size needs to be "
+                                         "a positive integer between 1 and "
+                                         "1000")
+
                 listen_tuple = (listen_address, listen_port)
 
                 if listen_tuple in listen_set:
@@ -193,7 +213,8 @@ class PanConfig:
                     ignore_verification,
                     keyring,
                     search_requests,
-                    index_encrypted_only
+                    index_encrypted_only,
+                    indexing_batch_size
                 )
 
                 self.servers[section_name] = server_conf

@@ -237,9 +237,11 @@ class PanClient(AsyncClient):
                     logger.debug("Fetching room history for {}".format(
                         room.display_name
                     ))
-                    response = await self.room_messages(fetch_task.room_id,
-                                                        fetch_task.token,
-                                                        limit=100)
+                    response = await self.room_messages(
+                        fetch_task.room_id,
+                        fetch_task.token,
+                        limit=self.pan_conf.indexing_batch_size
+                    )
                 except ClientConnectionError:
                     self.history_fetch_queue.put(fetch_task)
 
