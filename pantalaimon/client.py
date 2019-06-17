@@ -745,16 +745,14 @@ class PanClient(AsyncClient):
             after_limit=after_limit
         )
 
-        # TODO add the state and start/end tokens
-        # if event_context or include_state:
-        #     for event_dict in response_dict:
-        #         await add_context(
-        #             event_dict["result"]["room_id"],
-        #             event_dict["result"]["event_id"],
-        #             0,
-        #             0,
-        #             include_state
-        #         )
+        if event_context or include_state:
+            for event_dict in response_dict["results"]:
+                await add_context(
+                    event_dict,
+                    event_dict["result"]["room_id"],
+                    event_dict["result"]["event_id"],
+                    include_state
+                )
 
         if include_state:
             response_dict["state"] = state_cache
