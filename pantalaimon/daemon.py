@@ -495,7 +495,7 @@ class ProxyDaemon:
                 status=response.status,
                 content_type=response.content_type,
                 headers=CORS_HEADERS,
-                body=response.read()
+                body=await response.read()
             )
         except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
