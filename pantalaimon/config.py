@@ -37,6 +37,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "SearchRequests": "off",
                 "IndexEncryptedOnly": "True",
                 "IndexingBatchSize": "100",
+                "HistoryFetchDelay": "3000",
             },
             converters={
                 "address": parse_address,
@@ -116,6 +117,8 @@ class ServerConfig:
         indexing_batch_size (int): The number of messages that should be
             requested from the Homeserver when we fetch and index messages from
             the room history.
+        history_fetch_delay (int): The delay between room history fetching
+            requests in seconds.
     """
 
     name = attr.ib(type=str)
@@ -129,6 +132,7 @@ class ServerConfig:
     search_requests = attr.ib(type=bool, default=False)
     index_encrypted_only = attr.ib(type=bool, default=True)
     indexing_batch_size = attr.ib(type=int, default=100)
+    history_fetch_delay = attr.ib(type=int, default=3)
 
 
 @attr.s
@@ -195,6 +199,13 @@ class PanConfig:
                                          "a positive integer between 1 and "
                                          "1000")
 
+                history_fetch_delay = section.getint("HistoryFetchDelay")
+
+                if not 100 < history_fetch_delay <= 10000:
+                    raise PanConfigError("The history fetch delay needs to be "
+                                         "a positive integer between 100 and "
+                                         "10000")
+
                 listen_tuple = (listen_address, listen_port)
 
                 if listen_tuple in listen_set:
@@ -214,7 +225,8 @@ class PanConfig:
                     keyring,
                     search_requests,
                     index_encrypted_only,
-                    indexing_batch_size
+                    indexing_batch_size,
+                    history_fetch_delay / 1000
                 )
 
                 self.servers[section_name] = server_conf

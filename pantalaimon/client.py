@@ -221,8 +221,7 @@ class PanClient(AsyncClient):
 
         while True:
             try:
-                await asyncio.sleep(3)
-
+                await asyncio.sleep(self.pan_conf.history_fetch_delay)
                 fetch_task = await self.history_fetch_queue.get()
 
                 try:
