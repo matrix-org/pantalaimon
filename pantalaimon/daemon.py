@@ -50,6 +50,15 @@ from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
                                          UpdateUsersMessage)
 
 
+CORS_HEADERS = {
+        "Access-Control-Allow-Headers": (
+            "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+        ),
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Origin": "*",
+}
+
+
 @attr.s
 class ProxyDaemon:
     name = attr.ib()
@@ -485,7 +494,8 @@ class ProxyDaemon:
             return web.Response(
                 status=response.status,
                 content_type=response.content_type,
-                body=await response.read()
+                headers=CORS_HEADERS,
+                body=response.read()
             )
         except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
@@ -605,6 +615,7 @@ class ProxyDaemon:
         return web.Response(
             status=response.status,
             content_type=response.content_type,
+            headers=CORS_HEADERS,
             body=await response.read()
         )
 
@@ -615,6 +626,7 @@ class ProxyDaemon:
                 "errcode": "M_MISSING_TOKEN",
                 "error": "Missing access token."
             },
+            headers=CORS_HEADERS,
             status=401,
         )
 
@@ -625,6 +637,7 @@ class ProxyDaemon:
                 "errcode": "M_UNKNOWN_TOKEN",
                 "error": "Unrecognised access token."
             },
+            headers=CORS_HEADERS,
             status=401,
         )
 
@@ -635,6 +648,7 @@ class ProxyDaemon:
                 "errcode": "M_NOT_JSON",
                 "error": "Request did not contain valid JSON."
             },
+            headers=CORS_HEADERS,
             status=400,
         )
 
@@ -707,6 +721,7 @@ class ProxyDaemon:
 
                 return web.json_response(
                     json_response,
+                    headers=CORS_HEADERS,
                     status=response.status,
                 )
             except (JSONDecodeError, ContentTypeError):
@@ -715,6 +730,7 @@ class ProxyDaemon:
         return web.Response(
             status=response.status,
             content_type=response.content_type,
+            headers=CORS_HEADERS,
             body=await response.read()
         )
 
@@ -744,6 +760,7 @@ class ProxyDaemon:
 
                 return web.json_response(
                     json_response,
+                    headers=CORS_HEADERS,
                     status=response.status,
                 )
             except (JSONDecodeError, ContentTypeError):
@@ -752,6 +769,7 @@ class ProxyDaemon:
         return web.Response(
             status=response.status,
             content_type=response.content_type,
+            headers=CORS_HEADERS,
             body=await response.read()
         )
 
@@ -800,6 +818,7 @@ class ProxyDaemon:
                 return web.Response(
                     status=response.transport_response.status,
                     content_type=response.transport_response.content_type,
+                    headers=CORS_HEADERS,
                     body=await response.transport_response.read()
                 )
             except ClientConnectionError as e:
@@ -911,15 +930,7 @@ class ProxyDaemon:
         )
 
     async def search_opts(self, request):
-        headers = {
-            "Access-Control-Allow-Headers": (
-                "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-            ),
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Origin": "*",
-        }
-
-        return web.json_response({}, headers=headers)
+        return web.json_response({}, headers=CORS_HEADERS)
 
     async def search(self, request):
         access_token = self.get_access_token(request)
@@ -945,6 +956,7 @@ class ProxyDaemon:
                     "errcode": "M_BAD_JSON",
                     "error": "Invalid search query"
                 },
+                headers=CORS_HEADERS,
                 status=400,
             )
 
@@ -976,6 +988,7 @@ class ProxyDaemon:
                     "errcode": "M_INVALID_PARAM",
                     "error": str(e)
                 },
+                headers=CORS_HEADERS,
                 status=400,
             )
         except UnknownRoomError:
@@ -983,7 +996,7 @@ class ProxyDaemon:
 
         return web.json_response(
             result,
-            headers={"Access-Control-Allow-Origin": "*"},
+            headers=CORS_HEADERS,
             status=200
         )
 
