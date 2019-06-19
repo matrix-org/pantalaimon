@@ -5,6 +5,7 @@ import re
 from aiohttp import web
 
 from conftest import faker
+from pantalaimon.thread_messages import UpdateUsersMessage
 
 
 class TestClass(object):
@@ -36,7 +37,7 @@ class TestClass(object):
         }
 
     async def test_daemon_start(self, pan_proxy_server, aiohttp_client, aioresponse):
-        server, daemon = pan_proxy_server
+        server, daemon, _ = pan_proxy_server
 
         client = await aiohttp_client(server)
 
@@ -70,7 +71,7 @@ class TestClass(object):
         assert pan_client.task
 
     async def test_pan_client_sync(self, pan_proxy_server, aiohttp_client, aioresponse):
-        server, daemon = pan_proxy_server
+        server, daemon, _ = pan_proxy_server
 
         client = await aiohttp_client(server)
 
@@ -105,7 +106,7 @@ class TestClass(object):
         assert len(pan_client.rooms) == 1
 
     async def test_pan_client_keys_upload(self, pan_proxy_server, aiohttp_client, aioresponse):
-        server, daemon = pan_proxy_server
+        server, daemon, _ = pan_proxy_server
 
         client = await aiohttp_client(server)
 
@@ -148,3 +149,15 @@ class TestClass(object):
         pan_client = list(daemon.pan_clients.values())[0]
 
         assert pan_client.olm.account.shared
+
+    async def test_server_users_update(self, running_proxy):
+        _, _, _, queues = running_proxy
+        queue, _ = queues
+        queue = queue.sync_q
+
+        message = queue.get_nowait()
+
+        assert isinstance(message, UpdateUsersMessage)
+
+        assert message.user_id == "@example:example.org"
+        assert message.device_id == "GHTYAJCE"

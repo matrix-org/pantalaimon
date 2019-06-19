@@ -125,9 +125,41 @@ async def pan_proxy_server(tempdir, aiohttp_server):
 
     server = await aiohttp_server(app)
 
-    yield server, proxy
+    yield server, proxy, (pan_queue, ui_queue)
 
     await proxy.shutdown(app)
+
+
+@pytest.fixture
+async def running_proxy(pan_proxy_server, aioresponse, aiohttp_client):
+    server, proxy, queues = pan_proxy_server
+
+    login_response = {
+        "access_token": "abc123",
+        "device_id": "GHTYAJCE",
+        "home_server": "example.org",
+        "user_id": "@example:example.org"
+    }
+
+    aioclient = await aiohttp_client(server)
+
+    aioresponse.post(
+        "https://example.org/_matrix/client/r0/login",
+        status=200,
+        payload=login_response,
+        repeat=True
+    )
+
+    await aioclient.post(
+        "/_matrix/client/r0/login",
+        json={
+            "type": "m.login.password",
+            "user": "example",
+            "password": "wordpass",
+        }
+    )
+
+    yield server, aioclient, proxy, queues
 
 
 @pytest.fixture
