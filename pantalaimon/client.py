@@ -20,21 +20,39 @@ from typing import Any, Dict, Optional
 
 from aiohttp.client_exceptions import ClientConnectionError
 from jsonschema import Draft4Validator, FormatChecker, validators
-from nio import (AsyncClient, ClientConfig, EncryptionError, KeysQueryResponse,
-                 KeyVerificationEvent, KeyVerificationKey, KeyVerificationMac,
-                 KeyVerificationStart, LocalProtocolError, MegolmEvent,
-                 RoomContextError, RoomEncryptedEvent, RoomEncryptedMedia,
-                 RoomMessageMedia, RoomMessageText, RoomNameEvent,
-                 RoomTopicEvent, SyncResponse)
+from nio import (
+    AsyncClient,
+    ClientConfig,
+    EncryptionError,
+    KeysQueryResponse,
+    KeyVerificationEvent,
+    KeyVerificationKey,
+    KeyVerificationMac,
+    KeyVerificationStart,
+    LocalProtocolError,
+    MegolmEvent,
+    RoomContextError,
+    RoomEncryptedEvent,
+    RoomEncryptedMedia,
+    RoomMessageMedia,
+    RoomMessageText,
+    RoomNameEvent,
+    RoomTopicEvent,
+    SyncResponse,
+)
 from nio.crypto import Sas
 from nio.store import SqliteStore
 
 from pantalaimon.index import IndexStore
 from pantalaimon.log import logger
 from pantalaimon.store import FetchTask
-from pantalaimon.thread_messages import (DaemonResponse, InviteSasSignal,
-                                         SasDoneSignal, ShowSasSignal,
-                                         UpdateDevicesMessage)
+from pantalaimon.thread_messages import (
+    DaemonResponse,
+    InviteSasSignal,
+    SasDoneSignal,
+    ShowSasSignal,
+    UpdateDevicesMessage,
+)
 
 SEARCH_KEYS = ["content.body", "content.name", "content.topic"]
 
@@ -51,7 +69,7 @@ SEARCH_TERMS_SCHEMA = {
                         "keys": {
                             "type": "array",
                             "items": {"type": "string", "enum": SEARCH_KEYS},
-                            "default": SEARCH_KEYS
+                            "default": SEARCH_KEYS,
                         },
                         "order_by": {"type": "string", "default": "rank"},
                         "include_state": {"type": "boolean", "default": False},
@@ -59,15 +77,13 @@ SEARCH_TERMS_SCHEMA = {
                         "event_context": {"type": "object"},
                         "groupings": {"type": "object", "default": {}},
                     },
-                    "required": ["search_term"]
-                },
-            }
+                    "required": ["search_term"],
+                }
+            },
         },
-        "required": ["room_events"]
+        "required": ["room_events"],
     },
-    "required": [
-        "search_categories",
-    ],
+    "required": ["search_categories"],
 }
 
 
@@ -79,9 +95,7 @@ def extend_with_default(validator_class):
             if "default" in subschema:
                 instance.setdefault(prop, subschema["default"])
 
-        for error in validate_properties(
-                validator, properties, instance, schema
-        ):
+        for error in validate_properties(validator, properties, instance, schema):
             yield error
 
     return validators.extend(validator_class, {"properties": set_defaults})
@@ -111,22 +125,21 @@ class PanClient(AsyncClient):
     """A wrapper class around a nio AsyncClient extending its functionality."""
 
     def __init__(
-            self,
-            server_name,
-            pan_store,
-            pan_conf,
-            homeserver,
-            queue=None,
-            user_id="",
-            device_id="",
-            store_path="",
-            config=None,
-            ssl=None,
-            proxy=None
+        self,
+        server_name,
+        pan_store,
+        pan_conf,
+        homeserver,
+        queue=None,
+        user_id="",
+        device_id="",
+        store_path="",
+        config=None,
+        ssl=None,
+        proxy=None,
     ):
         config = config or ClientConfig(store=SqliteStore, store_name="pan.db")
-        super().__init__(homeserver, user_id, device_id, store_path, config,
-                         ssl, proxy)
+        super().__init__(homeserver, user_id, device_id, store_path, config, ssl, proxy)
 
         index_dir = os.path.join(store_path, server_name, user_id)
 
@@ -150,31 +163,24 @@ class PanClient(AsyncClient):
         self.history_fetcher_task = None
         self.history_fetch_queue = asyncio.Queue()
 
-        self.add_to_device_callback(
-            self.key_verification_cb,
-            KeyVerificationEvent
-        )
-        self.add_event_callback(
-            self.undecrypted_event_cb,
-            MegolmEvent
-        )
+        self.add_to_device_callback(self.key_verification_cb, KeyVerificationEvent)
+        self.add_event_callback(self.undecrypted_event_cb, MegolmEvent)
         self.add_event_callback(
             self.store_message_cb,
-            (RoomMessageText, RoomMessageMedia, RoomEncryptedMedia,
-             RoomTopicEvent, RoomNameEvent)
+            (
+                RoomMessageText,
+                RoomMessageMedia,
+                RoomEncryptedMedia,
+                RoomTopicEvent,
+                RoomNameEvent,
+            ),
         )
         self.key_verificatins_tasks = []
         self.key_request_tasks = []
 
-        self.add_response_callback(
-            self.keys_query_cb,
-            KeysQueryResponse
-        )
+        self.add_response_callback(self.keys_query_cb, KeysQueryResponse)
 
-        self.add_response_callback(
-            self.sync_tasks,
-            SyncResponse
-        )
+        self.add_response_callback(self.sync_tasks, SyncResponse)
 
     def store_message_cb(self, room, event):
         display_name = room.user_name(event.sender)
@@ -192,9 +198,11 @@ class PanClient(AsyncClient):
             "type": "m.room.message",
             "content": {
                 "msgtype": "m.text",
-                "body": ("** Unable to decrypt: The sender's device has not "
-                         "sent us the keys for this message. **")
-            }
+                "body": (
+                    "** Unable to decrypt: The sender's device has not "
+                    "sent us the keys for this message. **"
+                ),
+            },
         }
 
     async def send_message(self, message):
@@ -206,17 +214,10 @@ class PanClient(AsyncClient):
         await self.queue.put(message)
 
     def delete_fetcher_task(self, task):
-        self.pan_store.delete_fetcher_task(
-            self.server_name,
-            self.user_id,
-            task
-        )
+        self.pan_store.delete_fetcher_task(self.server_name, self.user_id, task)
 
     async def fetcher_loop(self):
-        for t in self.pan_store.load_fetcher_tasks(
-                self.server_name,
-                self.user_id
-        ):
+        for t in self.pan_store.load_fetcher_tasks(self.server_name, self.user_id):
             await self.history_fetch_queue.put(t)
 
         while True:
@@ -233,13 +234,13 @@ class PanClient(AsyncClient):
                     continue
 
                 try:
-                    logger.debug("Fetching room history for {}".format(
-                        room.display_name
-                    ))
+                    logger.debug(
+                        "Fetching room history for {}".format(room.display_name)
+                    )
                     response = await self.room_messages(
                         fetch_task.room_id,
                         fetch_task.token,
-                        limit=self.pan_conf.indexing_batch_size
+                        limit=self.pan_conf.indexing_batch_size,
                     )
                 except ClientConnectionError:
                     self.history_fetch_queue.put(fetch_task)
@@ -250,31 +251,31 @@ class PanClient(AsyncClient):
                     continue
 
                 for event in response.chunk:
-                    if not isinstance(event, (
+                    if not isinstance(
+                        event,
+                        (
                             RoomMessageText,
                             RoomMessageMedia,
                             RoomEncryptedMedia,
                             RoomTopicEvent,
-                            RoomNameEvent
-                    )):
+                            RoomNameEvent,
+                        ),
+                    ):
                         continue
 
                     display_name = room.user_name(event.sender)
                     avatar_url = room.avatar_url(event.sender)
-                    self.index.add_event(event, room.room_id, display_name,
-                                         avatar_url)
+                    self.index.add_event(event, room.room_id, display_name, avatar_url)
 
                 last_event = response.chunk[-1]
 
-                if not self.index.event_in_store(
-                        last_event.event_id,
-                        room.room_id
-                ):
+                if not self.index.event_in_store(last_event.event_id, room.room_id):
                     # There may be even more events to fetch, add a new task to
                     # the queue.
                     task = FetchTask(room.room_id, response.end)
-                    self.pan_store.save_fetcher_task(self.server_name,
-                                                     self.user_id, task)
+                    self.pan_store.save_fetcher_task(
+                        self.server_name, self.user_id, task
+                    )
                     await self.history_fetch_queue.put(task)
 
                 await self.index.commit_events()
@@ -294,11 +295,7 @@ class PanClient(AsyncClient):
         self.key_request_tasks = []
 
         await self.index.commit_events()
-        self.pan_store.save_token(
-            self.server_name,
-            self.user_id,
-            self.next_batch
-        )
+        self.pan_store.save_token(self.server_name, self.user_id, self.next_batch)
 
         for room_id, room_info in response.rooms.join.items():
             if room_info.timeline.limited:
@@ -307,13 +304,12 @@ class PanClient(AsyncClient):
                 if not room.encrypted and self.pan_conf.index_encrypted_only:
                     continue
 
-                logger.info("Room {} had a limited timeline, queueing "
-                            "room for history fetching.".format(
-                                room.display_name
-                            ))
+                logger.info(
+                    "Room {} had a limited timeline, queueing "
+                    "room for history fetching.".format(room.display_name)
+                )
                 task = FetchTask(room_id, room_info.timeline.prev_batch)
-                self.pan_store.save_fetcher_task(self.server_name,
-                                                 self.user_id, task)
+                self.pan_store.save_fetcher_task(self.server_name, self.user_id, task)
 
                 await self.history_fetch_queue.put(task)
 
@@ -323,10 +319,11 @@ class PanClient(AsyncClient):
     def undecrypted_event_cb(self, room, event):
         loop = asyncio.get_event_loop()
 
-        logger.info("Unable to decrypt event from {} via {}.".format(
-            event.sender,
-            event.device_id
-        ))
+        logger.info(
+            "Unable to decrypt event from {} via {}.".format(
+                event.sender, event.device_id
+            )
+        )
 
         if event.session_id not in self.outgoing_key_requests:
             logger.info("Requesting room key for undecrypted event.")
@@ -338,19 +335,16 @@ class PanClient(AsyncClient):
         loop = asyncio.get_event_loop()
 
         if isinstance(event, KeyVerificationStart):
-            logger.info(f"{event.sender} via {event.from_device} has started "
-                        f"a key verification process.")
+            logger.info(
+                f"{event.sender} via {event.from_device} has started "
+                f"a key verification process."
+            )
 
             message = InviteSasSignal(
-                self.user_id,
-                event.sender,
-                event.from_device,
-                event.transaction_id
+                self.user_id, event.sender, event.from_device, event.transaction_id
             )
 
-            task = loop.create_task(
-                self.queue.put(message)
-            )
+            task = loop.create_task(self.queue.put(message))
             self.key_verificatins_tasks.append(task)
 
         elif isinstance(event, KeyVerificationKey):
@@ -362,16 +356,10 @@ class PanClient(AsyncClient):
             emoji = sas.get_emoji()
 
             message = ShowSasSignal(
-                self.user_id,
-                device.user_id,
-                device.id,
-                sas.transaction_id,
-                emoji
+                self.user_id, device.user_id, device.id, sas.transaction_id, emoji
             )
 
-            task = loop.create_task(
-                self.queue.put(message)
-            )
+            task = loop.create_task(self.queue.put(message))
             self.key_verificatins_tasks.append(task)
 
         elif isinstance(event, KeyVerificationMac):
@@ -381,14 +369,13 @@ class PanClient(AsyncClient):
             device = sas.other_olm_device
 
             if sas.verified:
-                task = loop.create_task(self.send_message(
-                    SasDoneSignal(
-                        self.user_id,
-                        device.user_id,
-                        device.id,
-                        sas.transaction_id
+                task = loop.create_task(
+                    self.send_message(
+                        SasDoneSignal(
+                            self.user_id, device.user_id, device.id, sas.transaction_id
+                        )
                     )
-                ))
+                )
                 self.key_verificatins_tasks.append(task)
                 task = loop.create_task(self.send_update_devcies())
                 self.key_verificatins_tasks.append(task)
@@ -407,22 +394,13 @@ class PanClient(AsyncClient):
         self.history_fetcher_task = loop.create_task(self.fetcher_loop())
 
         timeout = 30000
-        sync_filter = {
-            "room": {
-                "state": {"lazy_load_members": True}
-            }
-        }
+        sync_filter = {"room": {"state": {"lazy_load_members": True}}}
         next_batch = self.pan_store.load_token(self.server_name, self.user_id)
 
         # We don't store any room state so initial sync needs to be with the
         # full_state parameter. Subsequent ones are normal.
         task = loop.create_task(
-            self.sync_forever(
-                timeout,
-                sync_filter,
-                full_state=True,
-                since=next_batch
-            )
+            self.sync_forever(timeout, sync_filter, full_state=True, since=next_batch)
         )
         self.task = task
 
@@ -436,16 +414,15 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     "m.ok",
-                    "Successfully started the key verification request"
-                    ))
+                    "Successfully started the key verification request",
+                )
+            )
         except ClientConnectionError as e:
             await self.send_message(
                 DaemonResponse(
-                    message.message_id,
-                    self.user_id,
-                    "m.connection_error",
-                    str(e)
-                ))
+                    message.message_id, self.user_id, "m.connection_error", str(e)
+                )
+            )
 
     async def accept_sas(self, message):
         user_id = message.user_id
@@ -459,9 +436,8 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     Sas._txid_error[0],
-                    Sas._txid_error[1]
+                    Sas._txid_error[1],
                 )
-
             )
             return
 
@@ -472,24 +448,24 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     "m.ok",
-                    "Successfully accepted the key verification request"
-                    ))
+                    "Successfully accepted the key verification request",
+                )
+            )
         except LocalProtocolError as e:
             await self.send_message(
                 DaemonResponse(
                     message.message_id,
                     self.user_id,
                     Sas._unexpected_message_error[0],
-                    str(e)
-                ))
+                    str(e),
+                )
+            )
         except ClientConnectionError as e:
             await self.send_message(
                 DaemonResponse(
-                    message.message_id,
-                    self.user_id,
-                    "m.connection_error",
-                    str(e)
-                ))
+                    message.message_id, self.user_id, "m.connection_error", str(e)
+                )
+            )
 
     async def cancel_sas(self, message):
         user_id = message.user_id
@@ -503,9 +479,8 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     Sas._txid_error[0],
-                    Sas._txid_error[1]
+                    Sas._txid_error[1],
                 )
-
             )
             return
 
@@ -516,16 +491,15 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     "m.ok",
-                    "Successfully canceled the key verification request"
-                    ))
+                    "Successfully canceled the key verification request",
+                )
+            )
         except ClientConnectionError as e:
             await self.send_message(
                 DaemonResponse(
-                    message.message_id,
-                    self.user_id,
-                    "m.connection_error",
-                    str(e)
-                ))
+                    message.message_id, self.user_id, "m.connection_error", str(e)
+                )
+            )
 
     async def confirm_sas(self, message):
         user_id = message.user_id
@@ -539,9 +513,8 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     Sas._txid_error[0],
-                    Sas._txid_error[1]
+                    Sas._txid_error[1],
                 )
-
             )
             return
 
@@ -550,11 +523,9 @@ class PanClient(AsyncClient):
         except ClientConnectionError as e:
             await self.send_message(
                 DaemonResponse(
-                    message.message_id,
-                    self.user_id,
-                    "m.connection_error",
-                    str(e)
-                ))
+                    message.message_id, self.user_id, "m.connection_error", str(e)
+                )
+            )
 
             return
 
@@ -564,10 +535,7 @@ class PanClient(AsyncClient):
             await self.send_update_devcies()
             await self.send_message(
                 SasDoneSignal(
-                    self.user_id,
-                    device.user_id,
-                    device.id,
-                    sas.transaction_id
+                    self.user_id, device.user_id, device.id, sas.transaction_id
                 )
             )
         else:
@@ -576,8 +544,9 @@ class PanClient(AsyncClient):
                     message.message_id,
                     self.user_id,
                     "m.ok",
-                    f"Waiting for {device.user_id} to confirm."
-                    ))
+                    f"Waiting for {device.user_id} to confirm.",
+                )
+            )
 
     async def loop_stop(self):
         """Stop the client loop."""
@@ -605,18 +574,15 @@ class PanClient(AsyncClient):
 
         self.history_fetch_queue = asyncio.Queue()
 
-    def pan_decrypt_event(
-            self,
-            event_dict,
-            room_id=None,
-            ignore_failures=True
-    ):
+    def pan_decrypt_event(self, event_dict, room_id=None, ignore_failures=True):
         # type: (Dict[Any, Any], Optional[str], bool) -> (bool)
         event = RoomEncryptedEvent.parse_event(event_dict)
 
         if not isinstance(event, MegolmEvent):
-            logger.warn("Encrypted event is not a megolm event:"
-                        "\n{}".format(pformat(event_dict)))
+            logger.warn(
+                "Encrypted event is not a megolm event:"
+                "\n{}".format(pformat(event_dict))
+            )
             return False
 
         if not event.room_id:
@@ -661,8 +627,7 @@ class PanClient(AsyncClient):
                 continue
 
             if event["type"] != "m.room.encrypted":
-                logger.debug("Event is not encrypted: "
-                             "\n{}".format(pformat(event)))
+                logger.debug("Event is not encrypted: " "\n{}".format(pformat(event)))
                 continue
 
             self.pan_decrypt_event(event, ignore_failures=ignore_failures)
@@ -682,9 +647,11 @@ class PanClient(AsyncClient):
         for room_id, room_dict in body["rooms"]["join"].items():
             try:
                 if not self.rooms[room_id].encrypted:
-                    logger.info("Room {} is not encrypted skipping...".format(
-                        self.rooms[room_id].display_name
-                    ))
+                    logger.info(
+                        "Room {} is not encrypted skipping...".format(
+                            self.rooms[room_id].display_name
+                        )
+                    )
                     continue
             except KeyError:
                 logger.info("Unknown room {} skipping...".format(room_id))
@@ -752,8 +719,9 @@ class PanClient(AsyncClient):
             after_limit = event_context.get("before_limit", 5)
 
         if before_limit < 0 or after_limit < 0:
-            raise InvalidLimit("Invalid context limit, the limit must be a "
-                               "positive number")
+            raise InvalidLimit(
+                "Invalid context limit, the limit must be a " "positive number"
+            )
 
         response_dict = await self.index.search(
             term,
@@ -762,7 +730,7 @@ class PanClient(AsyncClient):
             order_by_recent=order_by_recent,
             include_profile=include_profile,
             before_limit=before_limit,
-            after_limit=after_limit
+            after_limit=after_limit,
         )
 
         if (event_context or include_state) and self.pan_conf.search_requests:
@@ -771,14 +739,10 @@ class PanClient(AsyncClient):
                     event_dict,
                     event_dict["result"]["room_id"],
                     event_dict["result"]["event_id"],
-                    include_state
+                    include_state,
                 )
 
         if include_state:
             response_dict["state"] = state_cache
 
-        return {
-            "search_categories": {
-                "room_events": response_dict
-            }
-        }
+        return {"search_categories": {"room_events": response_dict}}

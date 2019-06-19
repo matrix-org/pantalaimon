@@ -24,20 +24,27 @@ from pydbus.generic import signal
 
 from pantalaimon.log import logger
 from pantalaimon.store import PanStore
-from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
-                                         CancelSendingMessage,
-                                         ConfirmSasMessage, DaemonResponse,
-                                         DeviceBlacklistMessage,
-                                         DeviceUnblacklistMessage,
-                                         DeviceUnverifyMessage,
-                                         DeviceVerifyMessage,
-                                         ExportKeysMessage, ImportKeysMessage,
-                                         InviteSasSignal, SasDoneSignal,
-                                         SendAnywaysMessage, ShowSasSignal,
-                                         StartSasMessage,
-                                         UnverifiedDevicesSignal,
-                                         UpdateDevicesMessage,
-                                         UpdateUsersMessage)
+from pantalaimon.thread_messages import (
+    AcceptSasMessage,
+    CancelSasMessage,
+    CancelSendingMessage,
+    ConfirmSasMessage,
+    DaemonResponse,
+    DeviceBlacklistMessage,
+    DeviceUnblacklistMessage,
+    DeviceUnverifyMessage,
+    DeviceVerifyMessage,
+    ExportKeysMessage,
+    ImportKeysMessage,
+    InviteSasSignal,
+    SasDoneSignal,
+    SendAnywaysMessage,
+    ShowSasSignal,
+    StartSasMessage,
+    UnverifiedDevicesSignal,
+    UpdateDevicesMessage,
+    UpdateUsersMessage,
+)
 
 
 class IdCounter:
@@ -126,40 +133,22 @@ class Control:
         return self.users
 
     def ExportKeys(self, pan_user, filepath, passphrase):
-        message = ExportKeysMessage(
-            self.message_id,
-            pan_user,
-            filepath,
-            passphrase
-        )
+        message = ExportKeysMessage(self.message_id, pan_user, filepath, passphrase)
         self.queue.put(message)
         return message.message_id
 
     def ImportKeys(self, pan_user, filepath, passphrase):
-        message = ImportKeysMessage(
-            self.message_id,
-            pan_user,
-            filepath,
-            passphrase
-        )
+        message = ImportKeysMessage(self.message_id, pan_user, filepath, passphrase)
         self.queue.put(message)
         return message.message_id
 
     def SendAnyways(self, pan_user, room_id):
-        message = SendAnywaysMessage(
-            self.message_id,
-            pan_user,
-            room_id
-        )
+        message = SendAnywaysMessage(self.message_id, pan_user, room_id)
         self.queue.put(message)
         return message.message_id
 
     def CancelSending(self, pan_user, room_id):
-        message = CancelSendingMessage(
-            self.message_id,
-            pan_user,
-            room_id
-        )
+        message = CancelSendingMessage(self.message_id, pan_user, room_id)
         self.queue.put(message)
         return message.message_id
 
@@ -293,8 +282,9 @@ class Devices:
             return []
 
         device_list = [
-            device for device_list in device_store.values() for device in
-            device_list.values()
+            device
+            for device_list in device_store.values()
+            for device in device_list.values()
         ]
 
         return device_list
@@ -313,82 +303,44 @@ class Devices:
         return device_list.values()
 
     def Verify(self, pan_user, user_id, device_id):
-        message = DeviceVerifyMessage(
-            self.message_id,
-            pan_user,
-            user_id,
-            device_id
-        )
+        message = DeviceVerifyMessage(self.message_id, pan_user, user_id, device_id)
         self.queue.put(message)
         return message.message_id
 
     def Unverify(self, pan_user, user_id, device_id):
-        message = DeviceUnverifyMessage(
-            self.message_id,
-            pan_user,
-            user_id,
-            device_id
-        )
+        message = DeviceUnverifyMessage(self.message_id, pan_user, user_id, device_id)
         self.queue.put(message)
         return message.message_id
 
     def Blacklist(self, pan_user, user_id, device_id):
-        message = DeviceBlacklistMessage(
-            self.message_id,
-            pan_user,
-            user_id,
-            device_id
-        )
+        message = DeviceBlacklistMessage(self.message_id, pan_user, user_id, device_id)
         self.queue.put(message)
         return message.message_id
 
     def Unblacklist(self, pan_user, user_id, device_id):
         message = DeviceUnblacklistMessage(
-            self.message_id,
-            pan_user,
-            user_id,
-            device_id
+            self.message_id, pan_user, user_id, device_id
         )
         self.queue.put(message)
         return message.message_id
 
     def StartKeyVerification(self, pan_user, user_id, device_id):
-        message = StartSasMessage(
-            self.message_id,
-            pan_user,
-            user_id,
-            device_id
-        )
+        message = StartSasMessage(self.message_id, pan_user, user_id, device_id)
         self.queue.put(message)
         return message.message_id
 
     def CancelKeyVerification(self, pan_user, user_id, device_id):
-        message = CancelSasMessage(
-            self.message_id,
-            pan_user,
-            user_id,
-            device_id
-        )
+        message = CancelSasMessage(self.message_id, pan_user, user_id, device_id)
         self.queue.put(message)
         return message.message_id
 
     def ConfirmKeyVerification(self, pan_user, user_id, device_id):
-        message = ConfirmSasMessage(
-            self.message_id,
-            pan_user,
-            user_id,
-            device_id
-        )
+        message = ConfirmSasMessage(self.message_id, pan_user, user_id, device_id)
         self.queue.put(message)
         return message.message_id
 
     def AcceptKeyVerification(self, pan_user, user_id, device_id):
-        message = AcceptSasMessage(
-            self.message_id,
-            pan_user,
-            user_id,
-            device_id
-        )
+        message = AcceptSasMessage(self.message_id, pan_user, user_id, device_id)
         self.queue.put(message)
         return message.message_id
 
@@ -421,8 +373,9 @@ class GlibT:
 
         id_counter = IdCounter()
 
-        self.control_if = Control(self.send_queue, self.store,
-                                  self.server_list, id_counter)
+        self.control_if = Control(
+            self.send_queue, self.store, self.server_list, id_counter
+        )
         self.device_if = Devices(self.send_queue, self.store, id_counter)
 
         self.bus = SessionBus()
@@ -431,131 +384,95 @@ class GlibT:
     def unverified_notification(self, message):
         notificaton = notify2.Notification(
             "Unverified devices.",
-            message=(f"There are unverified devices in the room "
-                     f"{message.room_display_name}.")
+            message=(
+                f"There are unverified devices in the room "
+                f"{message.room_display_name}."
+            ),
         )
         notificaton.set_category("im")
 
         def send_cb(notification, action_key, user_data):
             message = user_data
-            self.control_if.SendAnyways(
-                message.pan_user,
-                message.room_id
-            )
+            self.control_if.SendAnyways(message.pan_user, message.room_id)
 
         def cancel_cb(notification, action_key, user_data):
             message = user_data
-            self.control_if.CancelSending(
-                message.pan_user,
-                message.room_id
-            )
+            self.control_if.CancelSending(message.pan_user, message.room_id)
 
         if "actions" in notify2.get_server_caps():
-            notificaton.add_action(
-                "send",
-                "Send anyways",
-                send_cb,
-                message
-            )
-            notificaton.add_action(
-                "cancel",
-                "Cancel sending",
-                cancel_cb,
-                message
-            )
+            notificaton.add_action("send", "Send anyways", send_cb, message)
+            notificaton.add_action("cancel", "Cancel sending", cancel_cb, message)
 
         notificaton.show()
 
     def sas_invite_notification(self, message):
         notificaton = notify2.Notification(
             "Key verification invite",
-            message=(f"{message.user_id} via {message.device_id} has started "
-                     f"a key verification process.")
+            message=(
+                f"{message.user_id} via {message.device_id} has started "
+                f"a key verification process."
+            ),
         )
         notificaton.set_category("im")
 
         def accept_cb(notification, action_key, user_data):
             message = user_data
             self.device_if.AcceptKeyVerification(
-                message.pan_user,
-                message.user_id,
-                message.device_id
+                message.pan_user, message.user_id, message.device_id
             )
 
         def cancel_cb(notification, action_key, user_data):
             message = user_data
             self.device_if.CancelKeyVerification(
-                message.pan_user,
-                message.user_id,
-                message.device_id,
+                message.pan_user, message.user_id, message.device_id
             )
 
         if "actions" in notify2.get_server_caps():
-            notificaton.add_action(
-                "accept",
-                "Accept",
-                accept_cb,
-                message
-            )
-            notificaton.add_action(
-                "cancel",
-                "Cancel",
-                cancel_cb,
-                message
-            )
+            notificaton.add_action("accept", "Accept", accept_cb, message)
+            notificaton.add_action("cancel", "Cancel", cancel_cb, message)
 
         notificaton.show()
 
     def sas_show_notification(self, message):
         emojis = [x[0] for x in message.emoji]
 
-        emoji_str = u"   ".join(emojis)
+        emoji_str = "   ".join(emojis)
 
         notificaton = notify2.Notification(
             "Short authentication string",
-            message=(f"Short authentication string for the key verification of"
-                     f" {message.user_id} via {message.device_id}:\n"
-                     f"{emoji_str}")
+            message=(
+                f"Short authentication string for the key verification of"
+                f" {message.user_id} via {message.device_id}:\n"
+                f"{emoji_str}"
+            ),
         )
         notificaton.set_category("im")
 
         def confirm_cb(notification, action_key, user_data):
             message = user_data
             self.device_if.ConfirmKeyVerification(
-                message.pan_user,
-                message.user_id,
-                message.device_id
+                message.pan_user, message.user_id, message.device_id
             )
 
         def cancel_cb(notification, action_key, user_data):
             message = user_data
             self.device_if.CancelKeyVerification(
-                message.pan_user,
-                message.user_id,
-                message.device_id,
+                message.pan_user, message.user_id, message.device_id
             )
 
         if "actions" in notify2.get_server_caps():
-            notificaton.add_action(
-                "confirm",
-                "Confirm",
-                confirm_cb,
-                message
-            )
-            notificaton.add_action(
-                "cancel",
-                "Cancel",
-                cancel_cb,
-                message
-            )
+            notificaton.add_action("confirm", "Confirm", confirm_cb, message)
+            notificaton.add_action("cancel", "Cancel", cancel_cb, message)
 
         notificaton.show()
 
     def sas_done_notification(self, message):
         notificaton = notify2.Notification(
             "Device successfully verified.",
-            message=(f"Device {message.device_id} of user {message.user_id} "
-                     f"successfully verified.")
+            message=(
+                f"Device {message.device_id} of user {message.user_id} "
+                f"successfully verified."
+            ),
         )
         notificaton.set_category("im")
         notificaton.show()
@@ -576,9 +493,7 @@ class GlibT:
 
         elif isinstance(message, UnverifiedDevicesSignal):
             self.control_if.UnverifiedDevices(
-                message.pan_user,
-                message.room_id,
-                message.room_display_name
+                message.pan_user, message.room_id, message.room_display_name
             )
 
             if self.notifications:
@@ -589,7 +504,7 @@ class GlibT:
                 message.pan_user,
                 message.user_id,
                 message.device_id,
-                message.transaction_id
+                message.transaction_id,
             )
 
             if self.notifications:
@@ -622,10 +537,7 @@ class GlibT:
             self.control_if.Response(
                 message.message_id,
                 message.pan_user,
-                {
-                    "code": message.code,
-                    "message": message.message
-                }
+                {"code": message.code, "message": message.message},
             )
 
         self.receive_queue.task_done()
@@ -639,8 +551,10 @@ class GlibT:
                 notify2.init("pantalaimon", mainloop=self.loop)
                 self.notifications = True
             except dbus.DBusException:
-                logger.error("Notifications are enabled but no notification "
-                             "server could be found, disabling notifications.")
+                logger.error(
+                    "Notifications are enabled but no notification "
+                    "server could be found, disabling notifications."
+                )
                 self.notifications = False
 
         GLib.timeout_add(100, self.message_callback)

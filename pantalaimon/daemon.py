@@ -25,36 +25,46 @@ from aiohttp import ClientSession, web
 from aiohttp.client_exceptions import ClientConnectionError, ContentTypeError
 from jsonschema import ValidationError
 from multidict import CIMultiDict
-from nio import (Api, EncryptionError, LoginResponse, OlmTrustError,
-                 SendRetryError)
+from nio import Api, EncryptionError, LoginResponse, OlmTrustError, SendRetryError
 
-from pantalaimon.client import (SEARCH_TERMS_SCHEMA, InvalidLimit,
-                                InvalidOrderByError, PanClient,
-                                UnknownRoomError, validate_json)
+from pantalaimon.client import (
+    SEARCH_TERMS_SCHEMA,
+    InvalidLimit,
+    InvalidOrderByError,
+    PanClient,
+    UnknownRoomError,
+    validate_json,
+)
 from pantalaimon.index import InvalidQueryError
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
-from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
-                                         CancelSendingMessage,
-                                         ConfirmSasMessage, DaemonResponse,
-                                         DeviceBlacklistMessage,
-                                         DeviceUnblacklistMessage,
-                                         DeviceUnverifyMessage,
-                                         DeviceVerifyMessage,
-                                         ExportKeysMessage, ImportKeysMessage,
-                                         SasMessage, SendAnywaysMessage,
-                                         StartSasMessage,
-                                         UnverifiedDevicesSignal,
-                                         UnverifiedResponse,
-                                         UpdateDevicesMessage,
-                                         UpdateUsersMessage)
+from pantalaimon.thread_messages import (
+    AcceptSasMessage,
+    CancelSasMessage,
+    CancelSendingMessage,
+    ConfirmSasMessage,
+    DaemonResponse,
+    DeviceBlacklistMessage,
+    DeviceUnblacklistMessage,
+    DeviceUnverifyMessage,
+    DeviceVerifyMessage,
+    ExportKeysMessage,
+    ImportKeysMessage,
+    SasMessage,
+    SendAnywaysMessage,
+    StartSasMessage,
+    UnverifiedDevicesSignal,
+    UnverifiedResponse,
+    UpdateDevicesMessage,
+    UpdateUsersMessage,
+)
 
 CORS_HEADERS = {
-        "Access-Control-Allow-Headers": (
-            "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-        ),
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": (
+        "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    ),
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Origin": "*",
 }
 
 
@@ -76,11 +86,7 @@ class ProxyDaemon:
     homeserver_url = attr.ib(init=False, default=attr.Factory(dict))
     hostname = attr.ib(init=False, default=attr.Factory(dict))
     pan_clients = attr.ib(init=False, default=attr.Factory(dict))
-    client_info = attr.ib(
-        init=False,
-        default=attr.Factory(dict),
-        type=dict
-    )
+    client_info = attr.ib(init=False, default=attr.Factory(dict), type=dict)
     default_session = attr.ib(init=False, default=None)
     database_name = "pan.db"
 
@@ -93,15 +99,16 @@ class ProxyDaemon:
         for user_id, device_id in accounts:
             if self.conf.keyring:
                 token = keyring.get_password(
-                    "pantalaimon",
-                    f"{user_id}-{device_id}-token"
+                    "pantalaimon", f"{user_id}-{device_id}-token"
                 )
             else:
                 token = self.store.load_access_token(user_id, device_id)
 
             if not token:
-                logger.warn(f"Not restoring client for {user_id} {device_id}, "
-                            f"missing access token.")
+                logger.warn(
+                    f"Not restoring client for {user_id} {device_id}, "
+                    f"missing access token."
+                )
                 continue
 
             logger.info(f"Restoring client for {user_id} {device_id}")
@@ -116,7 +123,7 @@ class ProxyDaemon:
                 device_id,
                 store_path=self.data_dir,
                 ssl=self.ssl,
-                proxy=self.proxy
+                proxy=self.proxy,
             )
             pan_client.user_id = user_id
             pan_client.access_token = token
@@ -136,7 +143,7 @@ class ProxyDaemon:
                         method,
                         self.homeserver_url + path,
                         proxy=self.proxy,
-                        ssl=self.ssl
+                        ssl=self.ssl,
                     )
                 except ClientConnectionError:
                     return None
@@ -155,12 +162,15 @@ class ProxyDaemon:
                     return None
 
                 if user_id not in self.pan_clients:
-                    logger.warn(f"User {user_id} doesn't have a matching pan "
-                                f"client.")
+                    logger.warn(
+                        f"User {user_id} doesn't have a matching pan " f"client."
+                    )
                     return None
 
-                logger.info(f"Homeserver confirmed valid access token "
-                            f"for user {user_id}, caching info.")
+                logger.info(
+                    f"Homeserver confirmed valid access token "
+                    f"for user {user_id}, caching info."
+                )
 
                 client_info = ClientInfo(user_id, access_token)
                 self.client_info[access_token] = client_info
@@ -173,12 +183,12 @@ class ProxyDaemon:
         ret = client.verify_device(device)
 
         if ret:
-            msg = (f"Device {device.id} of user "
-                   f"{device.user_id} succesfully verified.")
+            msg = (
+                f"Device {device.id} of user " f"{device.user_id} succesfully verified."
+            )
             await self.send_update_devcies()
         else:
-            msg = (f"Device {device.id} of user "
-                   f"{device.user_id} already verified.")
+            msg = f"Device {device.id} of user " f"{device.user_id} already verified."
 
         logger.info(msg)
         await self.send_response(message_id, client.user_id, "m.ok", msg)
@@ -187,12 +197,13 @@ class ProxyDaemon:
         ret = client.unverify_device(device)
 
         if ret:
-            msg = (f"Device {device.id} of user "
-                   f"{device.user_id} succesfully unverified.")
+            msg = (
+                f"Device {device.id} of user "
+                f"{device.user_id} succesfully unverified."
+            )
             await self.send_update_devcies()
         else:
-            msg = (f"Device {device.id} of user "
-                   f"{device.user_id} already unverified.")
+            msg = f"Device {device.id} of user " f"{device.user_id} already unverified."
 
         logger.info(msg)
         await self.send_response(message_id, client.user_id, "m.ok", msg)
@@ -201,12 +212,15 @@ class ProxyDaemon:
         ret = client.blacklist_device(device)
 
         if ret:
-            msg = (f"Device {device.id} of user "
-                   f"{device.user_id} succesfully blacklisted.")
+            msg = (
+                f"Device {device.id} of user "
+                f"{device.user_id} succesfully blacklisted."
+            )
             await self.send_update_devcies()
         else:
-            msg = (f"Device {device.id} of user "
-                   f"{device.user_id} already blacklisted.")
+            msg = (
+                f"Device {device.id} of user " f"{device.user_id} already blacklisted."
+            )
 
         logger.info(msg)
         await self.send_response(message_id, client.user_id, "m.ok", msg)
@@ -215,12 +229,16 @@ class ProxyDaemon:
         ret = client.unblacklist_device(device)
 
         if ret:
-            msg = (f"Device {device.id} of user "
-                   f"{device.user_id} succesfully unblacklisted.")
+            msg = (
+                f"Device {device.id} of user "
+                f"{device.user_id} succesfully unblacklisted."
+            )
             await self.send_update_devcies()
         else:
-            msg = (f"Device {device.id} of user "
-                   f"{device.user_id} already unblacklisted.")
+            msg = (
+                f"Device {device.id} of user "
+                f"{device.user_id} already unblacklisted."
+            )
 
         logger.info(msg)
         await self.send_response(message_id, client.user_id, "m.ok", msg)
@@ -239,23 +257,23 @@ class ProxyDaemon:
 
         if isinstance(
             message,
-            (DeviceVerifyMessage, DeviceUnverifyMessage, StartSasMessage,
-             DeviceBlacklistMessage, DeviceUnblacklistMessage)
+            (
+                DeviceVerifyMessage,
+                DeviceUnverifyMessage,
+                StartSasMessage,
+                DeviceBlacklistMessage,
+                DeviceUnblacklistMessage,
+            ),
         ):
 
-            device = client.device_store[message.user_id].get(
-                message.device_id,
-                None
-            )
+            device = client.device_store[message.user_id].get(message.device_id, None)
 
             if not device:
-                msg = (f"No device found for {message.user_id} and "
-                       f"{message.device_id}")
+                msg = (
+                    f"No device found for {message.user_id} and " f"{message.device_id}"
+                )
                 await self.send_response(
-                    message.message_id,
-                    message.pan_user,
-                    "m.unknown_device",
-                    msg
+                    message.message_id, message.pan_user, "m.unknown_device", msg
                 )
                 logger.info(msg)
                 return
@@ -265,11 +283,9 @@ class ProxyDaemon:
             elif isinstance(message, DeviceUnverifyMessage):
                 await self._unverify_device(message.message_id, client, device)
             elif isinstance(message, DeviceBlacklistMessage):
-                await self._blacklist_device(message.message_id, client,
-                                             device)
+                await self._blacklist_device(message.message_id, client, device)
             elif isinstance(message, DeviceUnblacklistMessage):
-                await self._unblacklist_device(message.message_id, client,
-                                               device)
+                await self._unblacklist_device(message.message_id, client, device)
             elif isinstance(message, StartSasMessage):
                 await client.start_sas(message, device)
 
@@ -288,25 +304,21 @@ class ProxyDaemon:
             try:
                 await client.export_keys(path, message.passphrase)
             except OSError as e:
-                info_msg = (f"Error exporting keys for {client.user_id} to"
-                            f" {path} {e}")
+                info_msg = (
+                    f"Error exporting keys for {client.user_id} to" f" {path} {e}"
+                )
                 logger.info(info_msg)
                 await self.send_response(
-                    message.message_id,
-                    client.user_id,
-                    "m.os_error",
-                    str(e)
+                    message.message_id, client.user_id, "m.os_error", str(e)
                 )
 
             else:
-                info_msg = (f"Succesfully exported keys for {client.user_id} "
-                            f"to {path}")
+                info_msg = (
+                    f"Succesfully exported keys for {client.user_id} " f"to {path}"
+                )
                 logger.info(info_msg)
                 await self.send_response(
-                    message.message_id,
-                    client.user_id,
-                    "m.ok",
-                    info_msg
+                    message.message_id, client.user_id, "m.ok", info_msg
                 )
 
         elif isinstance(message, ImportKeysMessage):
@@ -316,37 +328,32 @@ class ProxyDaemon:
             try:
                 await client.import_keys(path, message.passphrase)
             except (OSError, EncryptionError) as e:
-                info_msg = (f"Error importing keys for {client.user_id} "
-                            f"from {path} {e}")
+                info_msg = (
+                    f"Error importing keys for {client.user_id} " f"from {path} {e}"
+                )
                 logger.info(info_msg)
                 await self.send_response(
-                    message.message_id,
-                    client.user_id,
-                    "m.os_error",
-                    str(e)
+                    message.message_id, client.user_id, "m.os_error", str(e)
                 )
             else:
-                info_msg = (f"Succesfully imported keys for {client.user_id} "
-                            f"from {path}")
+                info_msg = (
+                    f"Succesfully imported keys for {client.user_id} " f"from {path}"
+                )
                 logger.info(info_msg)
                 await self.send_response(
-                    message.message_id,
-                    client.user_id,
-                    "m.ok",
-                    info_msg
+                    message.message_id, client.user_id, "m.ok", info_msg
                 )
 
         elif isinstance(message, UnverifiedResponse):
             client = self.pan_clients[message.pan_user]
 
             if message.room_id not in client.send_decision_queues:
-                msg = (f"No send request found for user {message.pan_user} "
-                       f"and room {message.room_id}.")
+                msg = (
+                    f"No send request found for user {message.pan_user} "
+                    f"and room {message.room_id}."
+                )
                 await self.send_response(
-                    message.message_id,
-                    message.pan_user,
-                    "m.unknown_request",
-                    msg
+                    message.message_id, message.pan_user, "m.unknown_request", msg
                 )
                 return
 
@@ -365,10 +372,7 @@ class ProxyDaemon:
         access_token = request.query.get("access_token", "")
 
         if not access_token:
-            access_token = request.headers.get(
-                "Authorization",
-                ""
-            ).strip("Bearer ")
+            access_token = request.headers.get("Authorization", "").strip("Bearer ")
 
         return access_token
 
@@ -400,11 +404,11 @@ class ProxyDaemon:
 
     async def forward_request(
         self,
-        request,       # type: aiohttp.web.BaseRequest
-        params=None,   # type: CIMultiDict
-        data=None,     # type: bytes
+        request,  # type: aiohttp.web.BaseRequest
+        params=None,  # type: CIMultiDict
+        data=None,  # type: bytes
         session=None,  # type: aiohttp.ClientSession
-        token=None     # type: str
+        token=None,  # type: str
     ):
         # type: (...) -> aiohttp.ClientResponse
         """Forward the given request to our configured homeserver.
@@ -454,16 +458,11 @@ class ProxyDaemon:
             params=params,
             headers=headers,
             proxy=self.proxy,
-            ssl=self.ssl
+            ssl=self.ssl,
         )
 
     async def forward_to_web(
-            self,
-            request,
-            params=None,
-            data=None,
-            session=None,
-            token=None
+        self, request, params=None, data=None, session=None, token=None
     ):
         """Forward the given request and convert the response to a Response.
 
@@ -484,17 +483,13 @@ class ProxyDaemon:
         """
         try:
             response = await self.forward_request(
-                request,
-                params=params,
-                data=data,
-                session=session,
-                token=token
+                request, params=params, data=data, session=session, token=token
             )
             return web.Response(
                 status=response.status,
                 content_type=response.content_type,
                 headers=CORS_HEADERS,
-                body=await response.read()
+                body=await response.read(),
             )
         except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
@@ -522,8 +517,10 @@ class ProxyDaemon:
         self.store.save_server_user(self.name, user_id)
 
         if user_id in self.pan_clients:
-            logger.info(f"Background sync client already exists for {user_id},"
-                        f" not starting new one")
+            logger.info(
+                f"Background sync client already exists for {user_id},"
+                f" not starting new one"
+            )
             return
 
         pan_client = PanClient(
@@ -535,7 +532,7 @@ class ProxyDaemon:
             user_id,
             store_path=self.data_dir,
             ssl=self.ssl,
-            proxy=self.proxy
+            proxy=self.proxy,
         )
         response = await pan_client.login(password, "pantalaimon")
 
@@ -543,8 +540,7 @@ class ProxyDaemon:
             await pan_client.close()
             return
 
-        logger.info(f"Succesfully started new background sync client for "
-                    f"{user_id}")
+        logger.info(f"Succesfully started new background sync client for " f"{user_id}")
 
         await self.send_queue.put(UpdateUsersMessage())
 
@@ -554,13 +550,11 @@ class ProxyDaemon:
             keyring.set_password(
                 "pantalaimon",
                 f"{user_id}-{pan_client.device_id}-token",
-                pan_client.access_token
+                pan_client.access_token,
             )
         else:
             self.store.save_access_token(
-                user_id,
-                pan_client.device_id,
-                pan_client.access_token
+                user_id, pan_client.device_id, pan_client.access_token
             )
 
         pan_client.start_loop()
@@ -580,7 +574,7 @@ class ProxyDaemon:
             return web.json_response(
                 {
                     "errcode": "M_NOT_JSON",
-                    "error": "Request did not contain valid JSON."
+                    "error": "Request did not contain valid JSON.",
                 },
                 status=500,
             )
@@ -605,25 +599,23 @@ class ProxyDaemon:
             access_token = json_response.get("access_token", None)
 
             if user_id and access_token:
-                logger.info(f"User: {user} succesfully logged in, starting "
-                            f"a background sync client.")
-                await self.start_pan_client(access_token, user, user_id,
-                                            password)
+                logger.info(
+                    f"User: {user} succesfully logged in, starting "
+                    f"a background sync client."
+                )
+                await self.start_pan_client(access_token, user, user_id, password)
 
         return web.Response(
             status=response.status,
             content_type=response.content_type,
             headers=CORS_HEADERS,
-            body=await response.read()
+            body=await response.read(),
         )
 
     @property
     def _missing_token(self):
         return web.json_response(
-            {
-                "errcode": "M_MISSING_TOKEN",
-                "error": "Missing access token."
-            },
+            {"errcode": "M_MISSING_TOKEN", "error": "Missing access token."},
             headers=CORS_HEADERS,
             status=401,
         )
@@ -631,10 +623,7 @@ class ProxyDaemon:
     @property
     def _unknown_token(self):
         return web.json_response(
-            {
-                "errcode": "M_UNKNOWN_TOKEN",
-                "error": "Unrecognised access token."
-            },
+            {"errcode": "M_UNKNOWN_TOKEN", "error": "Unrecognised access token."},
             headers=CORS_HEADERS,
             status=401,
         )
@@ -642,10 +631,7 @@ class ProxyDaemon:
     @property
     def _not_json(self):
         return web.json_response(
-            {
-                "errcode": "M_NOT_JSON",
-                "error": "Request did not contain valid JSON."
-            },
+            {"errcode": "M_NOT_JSON", "error": "Request did not contain valid JSON."},
             headers=CORS_HEADERS,
             status=400,
         )
@@ -660,23 +646,18 @@ class ProxyDaemon:
             while True:
                 try:
                     logger.info("Trying to decrypt sync")
-                    return decryption_method(
-                        body,
-                        ignore_failures=False
-                    )
+                    return decryption_method(body, ignore_failures=False)
                 except EncryptionError:
-                    logger.info("Error decrypting sync, waiting for next pan "
-                                "sync")
+                    logger.info("Error decrypting sync, waiting for next pan " "sync")
                     await client.synced.wait(),
                     logger.info("Pan synced, retrying decryption.")
 
         try:
             return await asyncio.wait_for(
-                decrypt_loop(client, body),
-                timeout=self.decryption_timeout)
+                decrypt_loop(client, body), timeout=self.decryption_timeout
+            )
         except asyncio.TimeoutError:
-            logger.info("Decryption attempt timed out, decrypting with "
-                        "failures")
+            logger.info("Decryption attempt timed out, decrypting with " "failures")
             return decryption_method(body, ignore_failures=True)
 
     async def sync(self, request):
@@ -705,9 +686,7 @@ class ProxyDaemon:
 
         try:
             response = await self.forward_request(
-                request,
-                params=query,
-                token=client.access_token
+                request, params=query, token=client.access_token
             )
         except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
@@ -718,9 +697,7 @@ class ProxyDaemon:
                 json_response = await self.decrypt_body(client, json_response)
 
                 return web.json_response(
-                    json_response,
-                    headers=CORS_HEADERS,
-                    status=response.status,
+                    json_response, headers=CORS_HEADERS, status=response.status
                 )
             except (JSONDecodeError, ContentTypeError):
                 pass
@@ -729,7 +706,7 @@ class ProxyDaemon:
             status=response.status,
             content_type=response.content_type,
             headers=CORS_HEADERS,
-            body=await response.read()
+            body=await response.read(),
         )
 
     async def messages(self, request):
@@ -751,15 +728,11 @@ class ProxyDaemon:
             try:
                 json_response = await response.json()
                 json_response = await self.decrypt_body(
-                    client,
-                    json_response,
-                    sync=False
+                    client, json_response, sync=False
                 )
 
                 return web.json_response(
-                    json_response,
-                    headers=CORS_HEADERS,
-                    status=response.status,
+                    json_response, headers=CORS_HEADERS, status=response.status
                 )
             except (JSONDecodeError, ContentTypeError):
                 pass
@@ -768,7 +741,7 @@ class ProxyDaemon:
             status=response.status,
             content_type=response.content_type,
             headers=CORS_HEADERS,
-            body=await response.read()
+            body=await response.read(),
         )
 
     async def send_message(self, request):
@@ -788,17 +761,11 @@ class ProxyDaemon:
             room = client.rooms[room_id]
             encrypt = room.encrypted
         except KeyError:
-            return await self.forward_to_web(
-                request,
-                token=client.access_token
-            )
+            return await self.forward_to_web(request, token=client.access_token)
 
         # The room isn't encrypted just forward the message.
         if not encrypt:
-            return await self.forward_to_web(
-                request,
-                token=client.access_token
-            )
+            return await self.forward_to_web(request, token=client.access_token)
 
         msgtype = request.match_info["event_type"]
         txnid = request.match_info["txnid"]
@@ -810,14 +777,15 @@ class ProxyDaemon:
 
         async def _send(ignore_unverified=False):
             try:
-                response = await client.room_send(room_id, msgtype, content,
-                                                  txnid, ignore_unverified)
+                response = await client.room_send(
+                    room_id, msgtype, content, txnid, ignore_unverified
+                )
 
                 return web.Response(
                     status=response.transport_response.status,
                     content_type=response.transport_response.content_type,
                     headers=CORS_HEADERS,
-                    body=await response.transport_response.read()
+                    body=await response.transport_response.read(),
                 )
             except ClientConnectionError as e:
                 return web.Response(status=500, text=str(e))
@@ -849,45 +817,40 @@ class ProxyDaemon:
                 client.send_decision_queues[room_id] = queue
 
                 message = UnverifiedDevicesSignal(
-                    client.user_id,
-                    room_id,
-                    room.display_name
+                    client.user_id, room_id, room.display_name
                 )
 
                 await self.send_queue.put(message)
 
                 try:
                     response = await asyncio.wait_for(
-                        queue.get(),
-                        self.unverified_send_timeout
+                        queue.get(), self.unverified_send_timeout
                     )
 
                     if isinstance(response, CancelSendingMessage):
                         # The send was canceled notify the client that sent the
                         # request about this.
-                        info_msg = (f"Canceled message sending for room "
-                                    f"{room.display_name} ({room_id}).")
+                        info_msg = (
+                            f"Canceled message sending for room "
+                            f"{room.display_name} ({room_id})."
+                        )
                         logger.info(info_msg)
                         await self.send_response(
-                            response.message_id,
-                            client.user_id,
-                            "m.ok",
-                            info_msg
+                            response.message_id, client.user_id, "m.ok", info_msg
                         )
 
                         return web.Response(status=503, text=str(e))
 
                     elif isinstance(response, SendAnywaysMessage):
                         # We are sending and ignoring devices along the way.
-                        info_msg = (f"Ignoring unverified devices and sending "
-                                    f"message to room "
-                                    f"{room.display_name} ({room_id}).")
+                        info_msg = (
+                            f"Ignoring unverified devices and sending "
+                            f"message to room "
+                            f"{room.display_name} ({room_id})."
+                        )
                         logger.info(info_msg)
                         await self.send_response(
-                            response.message_id,
-                            client.user_id,
-                            "m.ok",
-                            info_msg
+                            response.message_id, client.user_id, "m.ok", info_msg
                         )
 
                         ret = await _send(True)
@@ -900,10 +863,12 @@ class ProxyDaemon:
 
                     return web.Response(
                         status=503,
-                        text=(f"Room contains unverified devices and no "
-                              f"action was taken for "
-                              f"{self.unverified_send_timeout} seconds, "
-                              f"request timed out")
+                        text=(
+                            f"Room contains unverified devices and no "
+                            f"action was taken for "
+                            f"{self.unverified_send_timeout} seconds, "
+                            f"request timed out"
+                        ),
                     )
 
                 finally:
@@ -922,10 +887,7 @@ class ProxyDaemon:
 
         sanitized_content = self.sanitize_filter(content)
 
-        return await self.forward_to_web(
-            request,
-            data=json.dumps(sanitized_content)
-        )
+        return await self.forward_to_web(request, data=json.dumps(sanitized_content))
 
     async def search_opts(self, request):
         return web.json_response({}, headers=CORS_HEADERS)
@@ -950,10 +912,7 @@ class ProxyDaemon:
             validate_json(content, SEARCH_TERMS_SCHEMA)
         except ValidationError:
             return web.json_response(
-                {
-                    "errcode": "M_BAD_JSON",
-                    "error": "Invalid search query"
-                },
+                {"errcode": "M_BAD_JSON", "error": "Invalid search query"},
                 headers=CORS_HEADERS,
                 status=400,
             )
@@ -982,21 +941,14 @@ class ProxyDaemon:
             result = await client.search(content)
         except (InvalidOrderByError, InvalidLimit, InvalidQueryError) as e:
             return web.json_response(
-                {
-                    "errcode": "M_INVALID_PARAM",
-                    "error": str(e)
-                },
+                {"errcode": "M_INVALID_PARAM", "error": str(e)},
                 headers=CORS_HEADERS,
                 status=400,
             )
         except UnknownRoomError:
             return await self.forward_to_web(request)
 
-        return web.json_response(
-            result,
-            headers=CORS_HEADERS,
-            status=200
-        )
+        return web.json_response(result, headers=CORS_HEADERS, status=200)
 
     async def shutdown(self, _):
         """Shut the daemon down closing all the client sessions it has.

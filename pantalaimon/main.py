@@ -53,40 +53,39 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
         send_queue=send_queue,
         recv_queue=recv_queue,
         proxy=server_conf.proxy.geturl() if server_conf.proxy else None,
-        ssl=None if server_conf.ssl is True else False
+        ssl=None if server_conf.ssl is True else False,
     )
 
     app = web.Application()
 
-    app.add_routes([
-        web.post("/_matrix/client/r0/login", proxy.login),
-        web.get("/_matrix/client/r0/sync", proxy.sync),
-        web.get("/_matrix/client/r0/rooms/{room_id}/messages", proxy.messages),
-        web.put(
-            r"/_matrix/client/r0/rooms/{room_id}/send/{event_type}/{txnid}",
-            proxy.send_message
-        ),
-        web.post("/_matrix/client/r0/user/{user_id}/filter", proxy.filter),
-        web.post("/_matrix/client/r0/search", proxy.search),
-        web.options("/_matrix/client/r0/search", proxy.search_opts),
-    ])
+    app.add_routes(
+        [
+            web.post("/_matrix/client/r0/login", proxy.login),
+            web.get("/_matrix/client/r0/sync", proxy.sync),
+            web.get("/_matrix/client/r0/rooms/{room_id}/messages", proxy.messages),
+            web.put(
+                r"/_matrix/client/r0/rooms/{room_id}/send/{event_type}/{txnid}",
+                proxy.send_message,
+            ),
+            web.post("/_matrix/client/r0/user/{user_id}/filter", proxy.filter),
+            web.post("/_matrix/client/r0/search", proxy.search),
+            web.options("/_matrix/client/r0/search", proxy.search_opts),
+        ]
+    )
     app.router.add_route("*", "/" + "{proxyPath:.*}", proxy.router)
     app.on_shutdown.append(proxy.shutdown)
 
     runner = web.AppRunner(app)
     await runner.setup()
 
-    site = web.TCPSite(
-        runner,
-        str(server_conf.listen_address),
-        server_conf.listen_port
-    )
+    site = web.TCPSite(runner, str(server_conf.listen_address), server_conf.listen_port)
 
     return proxy, runner, site
 
 
 async def message_router(receive_queue, send_queue, proxies):
     """Find the recipient of a message and forward it to the right proxy."""
+
     def find_proxy_by_user(user):
         # type: (str) -> Optional[ProxyDaemon]
         for proxy in proxies:
@@ -109,35 +108,28 @@ async def message_router(receive_queue, send_queue, proxies):
             msg = f"No pan client found for {message.pan_user}."
             logger.warn(msg)
             await send_info(
-                message.message_id,
-                message.pan_user,
-                "m.unknown_client",
-                msg
+                message.message_id, message.pan_user, "m.unknown_client", msg
             )
 
         await proxy.receive_message(message)
 
 
 @click.command(
-    help=("pantalaimon is a reverse proxy for matrix homeservers that "
-          "transparently encrypts and decrypts messages for clients that "
-          "connect to pantalaimon.")
-
+    help=(
+        "pantalaimon is a reverse proxy for matrix homeservers that "
+        "transparently encrypts and decrypts messages for clients that "
+        "connect to pantalaimon."
+    )
 )
 @click.version_option(version="0.1", prog_name="pantalaimon")
-@click.option("--log-level", type=click.Choice([
-    "error",
-    "warning",
-    "info",
-    "debug"
-]), default=None)
+@click.option(
+    "--log-level",
+    type=click.Choice(["error", "warning", "info", "debug"]),
+    default=None,
+)
 @click.option("-c", "--config", type=click.Path(exists=True))
 @click.pass_context
-def main(
-    context,
-    log_level,
-    config
-):
+def main(context, log_level, config):
     loop = asyncio.get_event_loop()
 
     conf_dir = user_config_dir("pantalaimon", "")
@@ -172,12 +164,7 @@ def main(
 
         for server_conf in pan_conf.servers.values():
             proxy, runner, site = loop.run_until_complete(
-                init(
-                    data_dir,
-                    server_conf,
-                    pan_queue.async_q,
-                    ui_queue.async_q,
-                )
+                init(data_dir, server_conf, pan_queue.async_q, ui_queue.async_q)
             )
             servers.append((proxy, runner, site))
             proxies.append(proxy)
@@ -185,13 +172,11 @@ def main(
     except keyring.errors.KeyringError as e:
         context.fail(f"Error initializing keyring: {e}")
 
-    glib_thread = GlibT(pan_queue.sync_q, ui_queue.sync_q, data_dir,
-                        pan_conf.servers.values(), pan_conf)
-
-    glib_fut = loop.run_in_executor(
-        None,
-        glib_thread.run
+    glib_thread = GlibT(
+        pan_queue.sync_q, ui_queue.sync_q, data_dir, pan_conf.servers.values(), pan_conf
     )
+
+    glib_fut = loop.run_in_executor(None, glib_thread.run)
 
     async def wait_for_glib(glib_thread, fut):
         glib_thread.stop()
@@ -211,8 +196,10 @@ def main(
 
     try:
         for proxy, _, site in servers:
-            click.echo(f"======== Starting daemon for homeserver "
-                       f"{proxy.name} on {site.name} ========")
+            click.echo(
+                f"======== Starting daemon for homeserver "
+                f"{proxy.name} on {site.name} ========"
+            )
             loop.run_until_complete(site.start())
 
         click.echo("(Press CTRL+C to quit)")

@@ -18,10 +18,8 @@ from collections import defaultdict
 from typing import List, Optional, Tuple
 
 import attr
-from nio.store import (Accounts, DeviceKeys, DeviceTrustState, TrustState,
-                       use_database)
-from peewee import (SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase,
-                    TextField)
+from nio.store import Accounts, DeviceKeys, DeviceTrustState, TrustState, use_database
+from peewee import SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase, TextField
 
 
 @attr.s
@@ -41,10 +39,7 @@ class DictField(TextField):
 class AccessTokens(Model):
     token = TextField()
     account = ForeignKeyField(
-        model=Accounts,
-        primary_key=True,
-        backref="access_token",
-        on_delete="CASCADE"
+        model=Accounts, primary_key=True, backref="access_token", on_delete="CASCADE"
     )
 
 
@@ -58,10 +53,7 @@ class Servers(Model):
 class ServerUsers(Model):
     user_id = TextField()
     server = ForeignKeyField(
-        model=Servers,
-        column_name="server_id",
-        backref="users",
-        on_delete="CASCADE"
+        model=Servers, column_name="server_id", backref="users", on_delete="CASCADE"
     )
 
     class Meta:
@@ -70,9 +62,7 @@ class ServerUsers(Model):
 
 class PanSyncTokens(Model):
     token = TextField()
-    user = ForeignKeyField(
-        model=ServerUsers,
-        column_name="user_id")
+    user = ForeignKeyField(model=ServerUsers, column_name="user_id")
 
     class Meta:
         constraints = [SQL("UNIQUE(user_id)")]
@@ -80,9 +70,8 @@ class PanSyncTokens(Model):
 
 class PanFetcherTasks(Model):
     user = ForeignKeyField(
-        model=ServerUsers,
-        column_name="user_id",
-        backref="fetcher_tasks")
+        model=ServerUsers, column_name="user_id", backref="fetcher_tasks"
+    )
     room_id = TextField()
     token = TextField()
 
@@ -110,13 +99,12 @@ class PanStore:
         DeviceKeys,
         DeviceTrustState,
         PanSyncTokens,
-        PanFetcherTasks
+        PanFetcherTasks,
     ]
 
     def __attrs_post_init__(self):
         self.database_path = os.path.join(
-            os.path.abspath(self.store_path),
-            self.database_name
+            os.path.abspath(self.store_path), self.database_name
         )
 
         self.database = self._create_database()
@@ -127,19 +115,14 @@ class PanStore:
 
     def _create_database(self):
         return SqliteDatabase(
-            self.database_path,
-            pragmas={
-                "foreign_keys": 1,
-                "secure_delete": 1,
-            }
+            self.database_path, pragmas={"foreign_keys": 1, "secure_delete": 1}
         )
 
     @use_database
     def _get_account(self, user_id, device_id):
         try:
             return Accounts.get(
-                Accounts.user_id == user_id,
-                Accounts.device_id == device_id,
+                Accounts.user_id == user_id, Accounts.device_id == device_id
             )
         except DoesNotExist:
             return None
@@ -150,9 +133,7 @@ class PanStore:
         user = ServerUsers.get(server=server, user_id=pan_user)
 
         PanFetcherTasks.replace(
-            user=user,
-            room_id=task.room_id,
-            token=task.token
+            user=user, room_id=task.room_id, token=task.token
         ).execute()
 
     def load_fetcher_tasks(self, server, pan_user):
@@ -173,7 +154,7 @@ class PanStore:
         PanFetcherTasks.delete().where(
             PanFetcherTasks.user == user,
             PanFetcherTasks.room_id == task.room_id,
-            PanFetcherTasks.token == task.token
+            PanFetcherTasks.token == task.token,
         ).execute()
 
     @use_database
@@ -208,18 +189,14 @@ class PanStore:
         server, _ = Servers.get_or_create(name=server_name)
 
         ServerUsers.insert(
-            user_id=user_id,
-            server=server
+            user_id=user_id, server=server
         ).on_conflict_ignore().execute()
 
     @use_database
     def load_all_users(self):
         users = []
 
-        query = Accounts.select(
-            Accounts.user_id,
-            Accounts.device_id,
-        )
+        query = Accounts.select(Accounts.user_id, Accounts.device_id)
 
         for account in query:
             users.append((account.user_id, account.device_id))
@@ -241,10 +218,9 @@ class PanStore:
         for u in server.users:
             server_users.append(u.user_id)
 
-        query = Accounts.select(
-            Accounts.user_id,
-            Accounts.device_id,
-        ).where(Accounts.user_id.in_(server_users))
+        query = Accounts.select(Accounts.user_id, Accounts.device_id).where(
+            Accounts.user_id.in_(server_users)
+        )
 
         for account in query:
             users.append((account.user_id, account.device_id))
@@ -256,10 +232,7 @@ class PanStore:
         account = self._get_account(user_id, device_id)
         assert account
 
-        AccessTokens.replace(
-            account=account,
-            token=access_token
-        ).execute()
+        AccessTokens.replace(account=account, token=access_token).execute()
 
     @use_database
     def load_access_token(self, user_id, device_id):
@@ -302,7 +275,7 @@ class PanStore:
                     "ed25519": keys["ed25519"],
                     "curve25519": keys["curve25519"],
                     "trust_state": trust_state.name,
-                    "device_display_name": d.display_name
+                    "device_display_name": d.display_name,
                 }
 
             store[account.user_id] = device_store

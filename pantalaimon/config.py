@@ -43,7 +43,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "address": parse_address,
                 "url": parse_url,
                 "loglevel": parse_log_level,
-            }
+            },
         )
 
 
@@ -59,9 +59,10 @@ def parse_url(v):
     # type: (str) -> ParseResult
     value = urlparse(v)
 
-    if value.scheme not in ('http', 'https'):
-        raise ValueError(f"Invalid URL scheme {value.scheme}. "
-                         f"Only HTTP(s) URLs are allowed")
+    if value.scheme not in ("http", "https"):
+        raise ValueError(
+            f"Invalid URL scheme {value.scheme}. " f"Only HTTP(s) URLs are allowed"
+        )
     value.port
 
     return value
@@ -124,8 +125,7 @@ class ServerConfig:
     name = attr.ib(type=str)
     homeserver = attr.ib(type=ParseResult)
     listen_address = attr.ib(
-        type=Union[IPv4Address, IPv6Address],
-        default=ip_address("127.0.0.1")
+        type=Union[IPv4Address, IPv6Address], default=ip_address("127.0.0.1")
     )
     listen_port = attr.ib(type=int, default=8009)
     proxy = attr.ib(type=str, default="")
@@ -183,8 +183,9 @@ class PanConfig:
                 homeserver = section.geturl("Homeserver")
 
                 if not homeserver:
-                    raise PanConfigError(f"Homserver is not set for "
-                                         f"section {section_name}")
+                    raise PanConfigError(
+                        f"Homserver is not set for " f"section {section_name}"
+                    )
 
                 listen_address = section.getaddress("ListenAddress")
                 listen_port = section.getint("ListenPort")
@@ -198,23 +199,29 @@ class PanConfig:
                 indexing_batch_size = section.getint("IndexingBatchSize")
 
                 if not 1 < indexing_batch_size <= 1000:
-                    raise PanConfigError("The indexing batch size needs to be "
-                                         "a positive integer between 1 and "
-                                         "1000")
+                    raise PanConfigError(
+                        "The indexing batch size needs to be "
+                        "a positive integer between 1 and "
+                        "1000"
+                    )
 
                 history_fetch_delay = section.getint("HistoryFetchDelay")
 
                 if not 100 < history_fetch_delay <= 10000:
-                    raise PanConfigError("The history fetch delay needs to be "
-                                         "a positive integer between 100 and "
-                                         "10000")
+                    raise PanConfigError(
+                        "The history fetch delay needs to be "
+                        "a positive integer between 100 and "
+                        "10000"
+                    )
 
                 listen_tuple = (listen_address, listen_port)
 
                 if listen_tuple in listen_set:
-                    raise PanConfigError(f"The listen address/port combination"
-                                         f" for section {section_name} was "
-                                         f"already defined before.")
+                    raise PanConfigError(
+                        f"The listen address/port combination"
+                        f" for section {section_name} was "
+                        f"already defined before."
+                    )
                 listen_set.add(listen_tuple)
 
                 server_conf = ServerConfig(
@@ -229,7 +236,7 @@ class PanConfig:
                     search_requests,
                     index_encrypted_only,
                     indexing_batch_size,
-                    history_fetch_delay / 1000
+                    history_fetch_delay / 1000,
                 )
 
                 self.servers[section_name] = server_conf
