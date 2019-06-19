@@ -94,21 +94,19 @@ class TestClass(object):
         assert task not in tasks
         assert task2 in tasks
 
-    def test_new_indexstore(self, tempdir):
+    async def test_new_indexstore(self, tempdir):
         loop = asyncio.get_event_loop()
 
         store = IndexStore("example", tempdir)
 
         store.add_event(self.test_event, TEST_ROOM, None, None)
         store.add_event(self.another_event, TEST_ROOM, None, None)
-        loop.run_until_complete(store.commit_events())
+        await store.commit_events()
 
         assert store.event_in_store(self.test_event.event_id, TEST_ROOM)
         assert not store.event_in_store("FAKE", TEST_ROOM)
 
-        result = loop.run_until_complete(
-            store.search("test", TEST_ROOM, after_limit=10, before_limit=10)
-        )
+        result = await store.search("test", TEST_ROOM, after_limit=10, before_limit=10)
         pprint.pprint(result)
 
         assert len(result["results"]) == 1
