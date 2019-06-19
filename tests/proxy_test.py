@@ -26,6 +26,15 @@ class TestClass(object):
     def sync_response(self):
         return self._load_response("tests/data/sync.json")
 
+    @property
+    def keys_upload_response(self):
+        return {
+            "one_time_key_counts": {
+                "curve25519": 10,
+                "signed_curve25519": 20
+            }
+        }
+
     async def test_daemon_start(self, pan_proxy_server, aiohttp_client, aioresponse):
         server, daemon = pan_proxy_server
 
@@ -94,3 +103,48 @@ class TestClass(object):
         # Check that the pan client started to sync after logging in.
         pan_client = list(daemon.pan_clients.values())[0]
         assert len(pan_client.rooms) == 1
+
+    async def test_pan_client_keys_upload(self, pan_proxy_server, aiohttp_client, aioresponse):
+        server, daemon = pan_proxy_server
+
+        client = await aiohttp_client(server)
+
+        aioresponse.post(
+            "https://example.org/_matrix/client/r0/login",
+            status=200,
+            payload=self.login_response,
+            repeat=True
+        )
+
+        sync_url = re.compile(
+            r'^https://example\.org/_matrix/client/r0/sync\?access_token=.*'
+        )
+
+        aioresponse.get(
+            sync_url,
+            status=200,
+            payload=self.sync_response,
+        )
+
+        keys_upload_url = re.compile(
+            r"^https://example\.org/_matrix/client/r0/keys/upload\?.*"
+        )
+
+        aioresponse.post(
+            keys_upload_url,
+            status=200,
+            payload=self.keys_upload_response,
+        )
+
+        await client.post(
+            "/_matrix/client/r0/login",
+            json={
+                "type": "m.login.password",
+                "user": "example",
+                "password": "wordpass",
+            }
+        )
+
+        pan_client = list(daemon.pan_clients.values())[0]
+
+        assert pan_client.olm.account.shared
