@@ -1,22 +1,22 @@
 import asyncio
 import shutil
 import tempfile
-import janus
 from random import choices
-from urllib.parse import urlparse
 from string import ascii_letters, ascii_uppercase, digits
+from urllib.parse import urlparse
+
+import janus
+import pytest
 from aiohttp import web
 from aioresponses import aioresponses
-
-import pytest
 from faker import Faker
 from faker.providers import BaseProvider
 from nio.crypto import OlmAccount
 from nio.store import SqliteStore
 
-from pantalaimon.store import ClientInfo, PanStore
-from pantalaimon.daemon import ProxyDaemon
 from pantalaimon.config import ServerConfig
+from pantalaimon.daemon import ProxyDaemon
+from pantalaimon.store import ClientInfo, PanStore
 
 faker = Faker()
 

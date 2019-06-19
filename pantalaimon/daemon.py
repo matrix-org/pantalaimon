@@ -28,9 +28,9 @@ from multidict import CIMultiDict
 from nio import (Api, EncryptionError, LoginResponse, OlmTrustError,
                  SendRetryError)
 
-from pantalaimon.client import (InvalidLimit, InvalidOrderByError, PanClient,
-                                UnknownRoomError, SEARCH_TERMS_SCHEMA,
-                                validate_json)
+from pantalaimon.client import (SEARCH_TERMS_SCHEMA, InvalidLimit,
+                                InvalidOrderByError, PanClient,
+                                UnknownRoomError, validate_json)
 from pantalaimon.index import InvalidQueryError
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
@@ -48,7 +48,6 @@ from pantalaimon.thread_messages import (AcceptSasMessage, CancelSasMessage,
                                          UnverifiedResponse,
                                          UpdateDevicesMessage,
                                          UpdateUsersMessage)
-
 
 CORS_HEADERS = {
         "Access-Control-Allow-Headers": (
