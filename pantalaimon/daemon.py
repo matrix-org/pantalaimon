@@ -91,6 +91,8 @@ class ProxyDaemon:
     database_name = "pan.db"
 
     def __attrs_post_init__(self):
+        loop = asyncio.get_event_loop()
+
         self.homeserver_url = self.homeserver.geturl()
         self.hostname = self.homeserver.hostname
         self.store = PanStore(self.data_dir)
@@ -129,6 +131,12 @@ class ProxyDaemon:
             pan_client.access_token = token
             pan_client.load_store()
             self.pan_clients[user_id] = pan_client
+
+            loop.create_task(
+                self.send_queue.put(
+                    UpdateUsersMessage(self.name, user_id, pan_client.device_id)
+                )
+            )
 
             pan_client.start_loop()
 
@@ -542,7 +550,9 @@ class ProxyDaemon:
 
         logger.info(f"Succesfully started new background sync client for " f"{user_id}")
 
-        await self.send_queue.put(UpdateUsersMessage())
+        await self.send_queue.put(
+            UpdateUsersMessage(self.name, user_id, pan_client.device_id)
+        )
 
         self.pan_clients[user_id] = pan_client
 

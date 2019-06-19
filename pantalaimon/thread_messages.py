@@ -54,7 +54,9 @@ class DaemonResponse(Message):
 
 @attr.s
 class UpdateUsersMessage(Message):
-    pass
+    server = attr.ib()
+    user_id = attr.ib()
+    device_id = attr.ib()
 
 
 @attr.s

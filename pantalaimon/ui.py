@@ -117,12 +117,10 @@ class Control:
         self.store = store
         self.queue = queue
         self.id_counter = id_counter
-        self.users = defaultdict(list)
-        self.update_users()
+        self.users = defaultdict(set)
 
-    def update_users(self):
-        for server in self.server_list:
-            self.users[server.name] = self.store.load_users(server.name)
+    def update_users(self, message):
+        self.users[message.server].add((message.user_id, message.device_id))
 
     @property
     def message_id(self):
@@ -369,7 +367,6 @@ class GlibT:
         self.loop = None
 
         self.store = PanStore(self.data_dir)
-        self.users = self.store.load_all_users()
 
         id_counter = IdCounter()
 
@@ -489,7 +486,7 @@ class GlibT:
             self.device_if.update_devices()
 
         elif isinstance(message, UpdateUsersMessage):
-            self.control_if.update_users()
+            self.control_if.update_users(message)
 
         elif isinstance(message, UnverifiedDevicesSignal):
             self.control_if.UnverifiedDevices(
