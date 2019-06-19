@@ -600,7 +600,6 @@ class ProxyDaemon:
             json_response = await response.json()
         except (JSONDecodeError, ContentTypeError):
             json_response = None
-            pass
 
         if response.status == 200 and json_response:
             user_id = json_response.get("user_id", None)
