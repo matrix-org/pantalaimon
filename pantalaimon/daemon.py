@@ -55,7 +55,6 @@ from pantalaimon.thread_messages import (
     StartSasMessage,
     UnverifiedDevicesSignal,
     UnverifiedResponse,
-    UpdateDevicesMessage,
     UpdateUsersMessage,
 )
 
@@ -138,6 +137,8 @@ class ProxyDaemon:
                 )
             )
 
+            loop.create_task(pan_client.send_update_devices(pan_client.device_store))
+
             pan_client.start_loop()
 
     async def _find_client(self, access_token):
@@ -194,7 +195,7 @@ class ProxyDaemon:
             msg = (
                 f"Device {device.id} of user " f"{device.user_id} succesfully verified."
             )
-            await self.send_update_devcies()
+            await client.send_update_device(device)
         else:
             msg = f"Device {device.id} of user " f"{device.user_id} already verified."
 
@@ -209,7 +210,7 @@ class ProxyDaemon:
                 f"Device {device.id} of user "
                 f"{device.user_id} succesfully unverified."
             )
-            await self.send_update_devcies()
+            await client.send_update_device(device)
         else:
             msg = f"Device {device.id} of user " f"{device.user_id} already unverified."
 
@@ -224,7 +225,7 @@ class ProxyDaemon:
                 f"Device {device.id} of user "
                 f"{device.user_id} succesfully blacklisted."
             )
-            await self.send_update_devcies()
+            await client.send_update_device(device)
         else:
             msg = (
                 f"Device {device.id} of user " f"{device.user_id} already blacklisted."
@@ -241,7 +242,7 @@ class ProxyDaemon:
                 f"Device {device.id} of user "
                 f"{device.user_id} succesfully unblacklisted."
             )
-            await self.send_update_devcies()
+            await client.send_update_device(device)
         else:
             msg = (
                 f"Device {device.id} of user "
@@ -254,10 +255,6 @@ class ProxyDaemon:
     async def send_response(self, message_id, pan_user, code, message):
         """Send a thread response message to the UI thread."""
         message = DaemonResponse(message_id, pan_user, code, message)
-        await self.send_queue.put(message)
-
-    async def send_update_devcies(self):
-        message = UpdateDevicesMessage()
         await self.send_queue.put(message)
 
     async def receive_message(self, message):
@@ -864,7 +861,8 @@ class ProxyDaemon:
                         )
 
                         ret = await _send(True)
-                        await self.send_update_devcies()
+                        # TODO send all the devices of a room to be updated
+                        # await client.send_update_devices()
                         return ret
 
                 except asyncio.TimeoutError:

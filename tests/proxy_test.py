@@ -1,11 +1,18 @@
 import asyncio
 import json
 import re
+from collections import defaultdict
 
 from aiohttp import web
+from nio.crypto import OlmDevice
 
 from conftest import faker
-from pantalaimon.thread_messages import UpdateUsersMessage
+from pantalaimon.thread_messages import UpdateDevicesMessage, UpdateUsersMessage
+
+BOB_ID = "@bob:example.org"
+BOB_DEVICE = "AGMTSWVYML"
+BOB_CURVE = "T9tOKF+TShsn6mk1zisW2IBsBbTtzDNvw99RBFMJOgI"
+BOB_ONETIME = "6QlQw3mGUveS735k/JDaviuoaih5eEi6S1J65iHjfgU"
 
 
 class TestClass(object):
@@ -35,6 +42,25 @@ class TestClass(object):
                 "signed_curve25519": 20
             }
         }
+
+    @property
+    def example_devices(self):
+        devices = defaultdict(dict)
+
+        for _ in range(10):
+            device = faker.olm_device()
+            devices[device.user_id][device.id] = device
+
+        bob_device = OlmDevice(
+            BOB_ID,
+            BOB_DEVICE,
+            {"ed25519": BOB_ONETIME,
+             "curve25519": BOB_CURVE}
+        )
+
+        devices[BOB_ID][BOB_DEVICE] = bob_device
+
+        return devices
 
     async def test_daemon_start(self, pan_proxy_server, aiohttp_client, aioresponse):
         server, daemon, _ = pan_proxy_server
@@ -161,3 +187,24 @@ class TestClass(object):
 
         assert message.user_id == "@example:example.org"
         assert message.device_id == "GHTYAJCE"
+
+    async def tests_server_devices_update(self, running_proxy):
+        _, _, proxy, queues = running_proxy
+        queue, _ = queues
+        queue = queue.sync_q
+
+        devices = self.example_devices
+        bob_device = devices[BOB_ID][BOB_DEVICE]
+
+        message = queue.get_nowait()
+        assert isinstance(message, UpdateUsersMessage)
+
+        client = list(proxy.pan_clients.values())[0]
+        client.store.save_device_keys(devices)
+
+        await client.send_update_device(bob_device)
+
+        message = queue.get_nowait()
+        assert isinstance(message, UpdateDevicesMessage)
+
+        assert BOB_DEVICE in message.devices[BOB_ID]

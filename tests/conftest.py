@@ -11,7 +11,7 @@ from aiohttp import web
 from aioresponses import aioresponses
 from faker import Faker
 from faker.providers import BaseProvider
-from nio.crypto import OlmAccount
+from nio.crypto import OlmAccount, OlmDevice
 from nio.store import SqliteStore
 
 from pantalaimon.config import ServerConfig
@@ -33,6 +33,28 @@ class Provider(BaseProvider):
 
     def client(self):
         return ClientInfo(faker.mx_id(), faker.access_token())
+
+
+    def avatar_url(self):
+        return "mxc://{}/{}#auto".format(
+            faker.hostname(),
+            "".join(choice(ascii_letters) for i in range(24))
+        )
+
+    def olm_key_pair(self):
+        return OlmAccount().identity_keys
+
+    def olm_device(self):
+        user_id = faker.mx_id()
+        device_id = faker.device_id()
+        key_pair = faker.olm_key_pair()
+
+        return OlmDevice(
+            user_id,
+            device_id,
+            key_pair,
+        )
+
 
 
 faker.add_provider(Provider)

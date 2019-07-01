@@ -61,7 +61,8 @@ class UpdateUsersMessage(Message):
 
 @attr.s
 class UpdateDevicesMessage(Message):
-    pass
+    pan_user = attr.ib(type=str)
+    devices = attr.ib(type=dict)
 
 
 @attr.s

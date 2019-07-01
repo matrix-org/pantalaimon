@@ -18,7 +18,8 @@ from collections import defaultdict
 from typing import List, Optional, Tuple
 
 import attr
-from nio.store import Accounts, DeviceKeys, DeviceTrustState, TrustState, use_database
+from nio.crypto import TrustState
+from nio.store import Accounts, DeviceKeys, DeviceTrustState, use_database
 from peewee import SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase, TextField
 
 

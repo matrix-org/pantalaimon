@@ -209,9 +209,29 @@ class PanClient(AsyncClient):
         """Send a thread message to the UI thread."""
         await self.queue.put(message)
 
-    async def send_update_devcies(self):
-        message = UpdateDevicesMessage()
+    async def send_update_devices(self, devices):
+        """Send a dictionary of devices to the UI thread."""
+        dict_devices = defaultdict(dict)
+
+        for user_devices in devices.values():
+            for device in user_devices.values():
+                # Turn the OlmDevice type into a dictionary, flatten the
+                # keys dict and remove the deleted key/value.
+                # Since all the keys and values are strings this also
+                # copies them making it thread safe.
+                device_dict = device.as_dict()
+                device_dict = {**device_dict, **device_dict["keys"]}
+                device_dict.pop("keys")
+                display_name = device_dict.pop("display_name")
+                device_dict["device_display_name"] = display_name
+                dict_devices[device.user_id][device.id] = device_dict
+
+        message = UpdateDevicesMessage(self.user_id, dict_devices)
         await self.queue.put(message)
+
+    async def send_update_device(self, device):
+        """Send a single device to the UI thread to be updated."""
+        await self.send_update_devices({device.user_id: {device.id: device}})
 
     def delete_fetcher_task(self, task):
         self.pan_store.delete_fetcher_task(self.server_name, self.user_id, task)
@@ -314,7 +334,7 @@ class PanClient(AsyncClient):
                 await self.history_fetch_queue.put(task)
 
     async def keys_query_cb(self, response):
-        await self.send_update_devcies()
+        await self.send_update_devices(response.changed)
 
     def undecrypted_event_cb(self, room, event):
         loop = asyncio.get_event_loop()
@@ -377,7 +397,7 @@ class PanClient(AsyncClient):
                     )
                 )
                 self.key_verificatins_tasks.append(task)
-                task = loop.create_task(self.send_update_devcies())
+                task = loop.create_task(self.send_update_device(device))
                 self.key_verificatins_tasks.append(task)
 
     def start_loop(self):
@@ -532,7 +552,7 @@ class PanClient(AsyncClient):
         device = sas.other_olm_device
 
         if sas.verified:
-            await self.send_update_devcies()
+            await self.send_update_device(device)
             await self.send_message(
                 SasDoneSignal(
                     self.user_id, device.user_id, device.id, sas.transaction_id

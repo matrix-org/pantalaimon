@@ -14,6 +14,7 @@
 
 from collections import defaultdict
 from queue import Empty
+from collections import defaultdict
 
 import attr
 import dbus
@@ -264,10 +265,9 @@ class Devices:
 
     def __init__(self, queue, store, id_counter):
         self.store = store
-        self.device_list = None
+        self.device_list = dict()
         self.queue = queue
         self.id_counter = id_counter
-        self.update_devices()
 
     @property
     def message_id(self):
@@ -342,8 +342,22 @@ class Devices:
         self.queue.put(message)
         return message.message_id
 
-    def update_devices(self):
-        self.device_list = self.store.load_all_devices()
+    def update_devices(self, message):
+        if message.pan_user not in self.device_list:
+            self.device_list[message.pan_user] = defaultdict(dict)
+
+        device_list = self.device_list.get(message.pan_user)
+
+        for user_devices in message.devices.values():
+            for device in user_devices.values():
+                if device["deleted"]:
+                    try:
+                        device_list[device["user_id"]].pop(device["device_id"])
+                    except KeyError:
+                        pass
+
+                device.pop("deleted")
+                device_list[device["user_id"]][device["device_id"]] = device
 
 
 @attr.s
@@ -483,7 +497,7 @@ class GlibT:
         logger.debug(f"UI loop received message {message}")
 
         if isinstance(message, UpdateDevicesMessage):
-            self.device_if.update_devices()
+            self.device_if.update_devices(message)
 
         elif isinstance(message, UpdateUsersMessage):
             self.control_if.update_users(message)
