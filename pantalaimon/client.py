@@ -334,7 +334,8 @@ class PanClient(AsyncClient):
                 await self.history_fetch_queue.put(task)
 
     async def keys_query_cb(self, response):
-        await self.send_update_devices(response.changed)
+        if response.changed:
+            await self.send_update_devices(response.changed)
 
     def undecrypted_event_cb(self, room, event):
         loop = asyncio.get_event_loop()
