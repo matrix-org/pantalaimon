@@ -861,8 +861,7 @@ class ProxyDaemon:
                         )
 
                         ret = await _send(True)
-                        # TODO send all the devices of a room to be updated
-                        # await client.send_update_devices()
+                        await client.send_update_devices(client.room_devices(room_id))
                         return ret
 
                 except asyncio.TimeoutError:
