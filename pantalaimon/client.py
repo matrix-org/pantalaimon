@@ -320,6 +320,11 @@ class PanClient(AsyncClient):
         if self.index:
             await self.index.commit_events()
 
+        if self.last_sync_token == self.next_batch:
+            return
+
+        self.last_sync_token = self.next_batch
+
         self.pan_store.save_token(self.server_name, self.user_id, self.next_batch)
 
         for room_id, room_info in response.rooms.join.items():
