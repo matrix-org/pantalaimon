@@ -35,7 +35,7 @@ from pantalaimon.client import (
     UnknownRoomError,
     validate_json,
 )
-from pantalaimon.index import InvalidQueryError
+from pantalaimon.index import INDEXING_ENABLED, InvalidQueryError
 from pantalaimon.log import logger
 from pantalaimon.store import ClientInfo, PanStore
 from pantalaimon.thread_messages import (
@@ -904,6 +904,9 @@ class ProxyDaemon:
 
         if not access_token:
             return self._missing_token
+
+        if not INDEXING_ENABLED:
+            return await self.forward_to_web(request)
 
         client = await self._find_client(access_token)
 

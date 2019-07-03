@@ -43,7 +43,7 @@ from nio import (
 from nio.crypto import Sas
 from nio.store import SqliteStore
 
-from pantalaimon.index import IndexStore
+from pantalaimon.index import INDEXING_ENABLED
 from pantalaimon.log import logger
 from pantalaimon.store import FetchTask
 from pantalaimon.thread_messages import (
@@ -151,7 +151,16 @@ class PanClient(AsyncClient):
         self.server_name = server_name
         self.pan_store = pan_store
         self.pan_conf = pan_conf
-        self.index = IndexStore(self.user_id, index_dir)
+
+        if INDEXING_ENABLED:
+            logger.info("Indexing enabled.")
+            from pantalaimon.index import IndexStore
+
+            self.index = IndexStore(self.user_id, index_dir)
+        else:
+            logger.info("Indexing disabled.")
+            self.index = None
+
         self.task = None
         self.queue = queue
 
@@ -159,26 +168,32 @@ class PanClient(AsyncClient):
 
         self.send_semaphores = defaultdict(asyncio.Semaphore)
         self.send_decision_queues = dict()  # type: asyncio.Queue
+        self.last_sync_token = None
 
         self.history_fetcher_task = None
         self.history_fetch_queue = asyncio.Queue()
 
         self.add_to_device_callback(self.key_verification_cb, KeyVerificationEvent)
         self.add_event_callback(self.undecrypted_event_cb, MegolmEvent)
-        self.add_event_callback(
-            self.store_message_cb,
-            (
-                RoomMessageText,
-                RoomMessageMedia,
-                RoomEncryptedMedia,
-                RoomTopicEvent,
-                RoomNameEvent,
-            ),
-        )
+
+        if INDEXING_ENABLED:
+            self.add_event_callback(
+                self.store_message_cb,
+                (
+                    RoomMessageText,
+                    RoomMessageMedia,
+                    RoomEncryptedMedia,
+                    RoomTopicEvent,
+                    RoomNameEvent,
+                ),
+            )
+
         self.add_response_callback(self.keys_query_cb, KeysQueryResponse)
         self.add_response_callback(self.sync_tasks, SyncResponse)
 
     def store_message_cb(self, room, event):
+        assert INDEXING_ENABLED
+
         display_name = room.user_name(event.sender)
         avatar_url = room.avatar_url(event.sender)
 
@@ -233,6 +248,8 @@ class PanClient(AsyncClient):
         self.pan_store.delete_fetcher_task(self.server_name, self.user_id, task)
 
     async def fetcher_loop(self):
+        assert INDEXING_ENABLED
+
         for t in self.pan_store.load_fetcher_tasks(self.server_name, self.user_id):
             await self.history_fetch_queue.put(t)
 
@@ -300,7 +317,9 @@ class PanClient(AsyncClient):
                 return
 
     async def sync_tasks(self, response):
-        await self.index.commit_events()
+        if self.index:
+            await self.index.commit_events()
+
         self.pan_store.save_token(self.server_name, self.user_id, self.next_batch)
 
         for room_id, room_info in response.rooms.join.items():
@@ -392,7 +411,8 @@ class PanClient(AsyncClient):
 
         loop = asyncio.get_event_loop()
 
-        self.history_fetcher_task = loop.create_task(self.fetcher_loop())
+        if INDEXING_ENABLED:
+            self.history_fetcher_task = loop.create_task(self.fetcher_loop())
 
         timeout = 30000
         sync_filter = {"room": {"state": {"lazy_load_members": True}}}
@@ -671,6 +691,8 @@ class PanClient(AsyncClient):
 
     async def search(self, search_terms):
         # type: (Dict[Any, Any]) -> Dict[Any, Any]
+        assert INDEXING_ENABLED
+
         state_cache = dict()
 
         async def add_context(event_dict, room_id, event_id, include_state):
