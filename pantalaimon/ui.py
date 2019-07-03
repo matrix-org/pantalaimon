@@ -14,7 +14,6 @@
 
 from collections import defaultdict
 from queue import Empty
-from collections import defaultdict
 
 import attr
 import dbus
