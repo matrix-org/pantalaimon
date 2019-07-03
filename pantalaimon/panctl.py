@@ -369,23 +369,7 @@ class PanCtl:
         ),
     }
 
-    commands = [
-        "help",
-        "list-servers",
-        "list-devices",
-        "export-keys",
-        "import-keys",
-        "verify-device",
-        "unverify-device",
-        "blacklist-device",
-        "unblacklist-device",
-        "start-verification",
-        "cancel-verification",
-        "accept-verification",
-        "confirm-verification",
-        "send-anyways",
-        "cancel-sending",
-    ]
+    commands = list(command_help.keys())
 
     def __attrs_post_init__(self):
         self.bus = SessionBus()
