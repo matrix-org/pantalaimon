@@ -34,6 +34,11 @@ setup(
         "typing;python_version<'3.5'",
         "matrix-nio[e2e]"
     ],
+    extras_require={
+        "e2e_search":  [
+            "tantivy",
+        ]
+    },
     entry_points={
         "console_scripts": ["pantalaimon=pantalaimon.main:main",
                             "panctl=pantalaimon.panctl:main"],
