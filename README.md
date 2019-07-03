@@ -61,6 +61,22 @@ cd notification-daemon-mac-py
 ./notify.py
 ```
 
+### Experimental E2E search support.
+
+Pantalaimon can handle the search endpoint of a Matrix server as well, providing
+search support for E2E encrypted rooms.
+
+For this to work [tantivy](https://github.com/tantivy-search/tantivy) is needed.
+Tantivy is a full text search engine written in rust.
+
+The python bindings for tantivy are needed for pantalaimon. The bindings are not
+yet merged upstream, instead they can be found
+[here](https://github.com/matrix-org/tantivy/tree/topcollector_order_by/python).
+
+Note that rust nightly (tested version was: 1.36.0-nightly (50a0defd5 2019-05-21))
+and [setuptools-rust](https://pypi.org/project/setuptools-rust/) are required
+before the tantivy python bindings can be installed.
+
 Usage
 =====
 
