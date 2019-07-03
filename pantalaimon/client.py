@@ -400,7 +400,7 @@ class PanClient(AsyncClient):
                 )
                 await self.send_update_device(device)
 
-    def start_loop(self):
+    def start_loop(self, loop_sleep_time=None):
         """Start a loop that runs forever and keeps on syncing with the server.
 
         The loop can be stopped with the stop_loop() method.
@@ -417,11 +417,18 @@ class PanClient(AsyncClient):
         timeout = 30000
         sync_filter = {"room": {"state": {"lazy_load_members": True}}}
         next_batch = self.pan_store.load_token(self.server_name, self.user_id)
+        self.last_sync_token = next_batch
 
         # We don't store any room state so initial sync needs to be with the
         # full_state parameter. Subsequent ones are normal.
         task = loop.create_task(
-            self.sync_forever(timeout, sync_filter, full_state=True, since=next_batch)
+            self.sync_forever(
+                timeout,
+                sync_filter,
+                full_state=True,
+                since=next_batch,
+                loop_sleep_time=loop_sleep_time
+            )
         )
         self.task = task
 
