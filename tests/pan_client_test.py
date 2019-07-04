@@ -3,9 +3,18 @@ import re
 
 import janus
 import pytest
-from nio import (LoginResponse, SyncResponse, Timeline, RoomMemberEvent, Rooms,
-        RoomInfo, DeviceOneTimeKeyCount, RoomEncryptionEvent, DeviceList,
-        RoomSummary)
+from nio import (
+    DeviceList,
+    DeviceOneTimeKeyCount,
+    LoginResponse,
+    RoomEncryptionEvent,
+    RoomInfo,
+    RoomMemberEvent,
+    Rooms,
+    RoomSummary,
+    SyncResponse,
+    Timeline,
+)
 
 from pantalaimon.client import PanClient
 from pantalaimon.config import ServerConfig
@@ -22,6 +31,7 @@ async def client(tmpdir, loop):
     store = PanStore(tmpdir)
     queue = janus.Queue(loop=loop)
     conf = ServerConfig("example", "https://exapmle.org")
+    conf.history_fetch_delay = 0.1
 
     store.save_server_user("example", "@example:example.org")
 
@@ -306,13 +316,91 @@ class TestClass(object):
 
     @property
     def empty_sync(self):
-        return SyncResponse(
-            "tokenf#a#inf",
-            Rooms(),
-            DeviceOneTimeKeyCount(50, 50),
-            DeviceList([], []),
-            []
-        )
+        return {
+            "account_data": {
+                "events": []
+            },
+            "device_lists": {
+                "changed": [],
+                "left": []
+            },
+            "device_one_time_keys_count": {
+                "signed_curve25519": 50
+            },
+            "groups": {
+                "invite": {},
+                "join": {},
+                "leave": {}
+            },
+            "next_batch": "s1059_133339_44_763_246_1_586_12411_1",
+            "presence": {
+                "events": []
+            },
+            "rooms": {
+                "invite": {},
+                "join": {},
+                "leave": {}
+            },
+            "to_device": {
+                "events": []
+            }
+        }
+
+    @property
+    def messages_response(self):
+        return {
+            "chunk": [
+              {
+                "age": 1042,
+                "content": {
+                  "body": "hello world",
+                  "msgtype": "m.text"
+                },
+                "event_id": "$1444812213350496Caaaa:example.com",
+                "origin_server_ts": 1444812213737,
+                "room_id": "!Xq3620DUiqCaoxq:example.com",
+                "sender": "@alice:example.com",
+                "type": "m.room.message"
+              },
+              {
+                "age": 20123,
+                "content": {
+                  "body": "the world is big",
+                  "msgtype": "m.text"
+                },
+                "event_id": "$1444812213350496Cbbbb:example.com",
+                "origin_server_ts": 1444812194656,
+                "room_id": "!Xq3620DUiqCaoxq:example.com",
+                "sender": "@alice:example.com",
+                "type": "m.room.message"
+              },
+              {
+                "age": 50789,
+                "content": {
+                  "name": "New room name"
+                },
+                "event_id": "$1444812213350496Ccccc:example.com",
+                "origin_server_ts": 1444812163990,
+                "prev_content": {
+                  "name": "Old room name"
+                },
+                "room_id": "!Xq3620DUiqCaoxq:example.com",
+                "sender": "@alice:example.com",
+                "state_key": "",
+                "type": "m.room.name"
+              }
+            ],
+            "end": "t47409-4357353_219380_26003_2265",
+            "start": "t47429-4392820_219380_26003_2265"
+        }
+
+    @property
+    def empty_messages(self):
+        return {
+            "chunk": [],
+            "end": "t47429-4392820_219380_26003_2277",
+            "start": "t47409-4357353_219380_26003_2265"
+        }
 
     async def test_login(self, client):
         await client.receive_response(self.login_response)
@@ -346,11 +434,21 @@ class TestClass(object):
 
         await client.receive_response(self.login_response)
 
+        # Set a big history fetch delay so it doesn't consume the fetch tasks.
+        client.pan_conf.history_fetch_delay = 10
         client.start_loop(100)
 
+        # Sync tasks are done after we get a sync event so wait for two of them
         await client.synced.wait()
         await client.synced.wait()
 
+        # Make sure that we have only a single history fetch task for the
+        # single room we have
         assert not client.history_fetch_queue.empty()
+        assert client.history_fetch_queue.qsize() == 1
+
+        # Do another round to be sure we don't get more tasks than necessary.
+        await client.synced.wait()
+        assert client.history_fetch_queue.qsize() == 1
 
         await client.loop_stop()
