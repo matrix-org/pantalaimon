@@ -444,7 +444,7 @@ class PanClient(AsyncClient):
                 sync_filter,
                 full_state=True,
                 since=next_batch,
-                loop_sleep_time=loop_sleep_time
+                loop_sleep_time=loop_sleep_time,
             )
         )
         self.task = task
