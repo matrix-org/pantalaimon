@@ -19,7 +19,13 @@ from typing import List, Optional, Tuple
 
 import attr
 from nio.crypto import TrustState
-from nio.store import Accounts, DeviceKeys, DeviceTrustState, use_database
+from nio.store import (
+    Accounts,
+    DeviceKeys,
+    DeviceTrustState,
+    use_database,
+    use_database_atomic,
+)
 from peewee import SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase, TextField
 
 
@@ -127,6 +133,21 @@ class PanStore:
             )
         except DoesNotExist:
             return None
+
+    @use_database_atomic
+    def replace_fetcher_task(self, server, pan_user, old_task, new_task):
+        server = Servers.get(name=server)
+        user = ServerUsers.get(server=server, user_id=pan_user)
+
+        PanFetcherTasks.delete().where(
+            PanFetcherTasks.user == user,
+            PanFetcherTasks.room_id == old_task.room_id,
+            PanFetcherTasks.token == old_task.token,
+        ).execute()
+
+        PanFetcherTasks.replace(
+            user=user, room_id=new_task.room_id, token=new_task.token
+        ).execute()
 
     @use_database
     def save_fetcher_task(self, server, pan_user, task):

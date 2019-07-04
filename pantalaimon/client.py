@@ -306,13 +306,14 @@ class PanClient(AsyncClient):
                     # There may be even more events to fetch, add a new task to
                     # the queue.
                     task = FetchTask(room.room_id, response.end)
-                    self.pan_store.save_fetcher_task(
-                        self.server_name, self.user_id, task
+                    self.pan_store.replace_fetcher_task(
+                        self.server_name, self.user_id, fetch_task, task
                     )
                     await self.history_fetch_queue.put(task)
+                else:
+                    await self.index.commit_events()
+                    self.delete_fetcher_task(fetch_task)
 
-                await self.index.commit_events()
-                self.delete_fetcher_task(fetch_task)
             except asyncio.CancelledError:
                 return
 
