@@ -452,3 +452,95 @@ class TestClass(object):
         assert client.history_fetch_queue.qsize() == 1
 
         await client.loop_stop()
+
+    async def test_start_loop(self, client, aioresponse):
+        sync_url = re.compile(
+            r'^https://example\.org/_matrix/client/r0/sync\?access_token=.*'
+        )
+
+        aioresponse.get(
+            sync_url,
+            status=200,
+            payload=self.initial_sync_response,
+        )
+
+        aioresponse.get(
+            sync_url,
+            status=200,
+            payload=self.empty_sync,
+            repeat=True
+        )
+
+        aioresponse.post(
+            "https://example.org/_matrix/client/r0/keys/upload?access_token=abc123",
+            status=200,
+            payload=self.keys_upload_response,
+            repeat=True
+        )
+
+        aioresponse.post(
+            "https://example.org/_matrix/client/r0/keys/query?access_token=abc123",
+            status=200,
+            payload=self.keys_query_response,
+            repeat=True
+        )
+
+        messages_url = re.compile(
+            r'^https://example\.org/_matrix/client/r0/rooms/{}/messages\?.*'.format(TEST_ROOM_ID)
+        )
+
+        aioresponse.get(
+            messages_url,
+            status=200,
+            payload=self.messages_response
+        )
+
+        aioresponse.get(
+            messages_url,
+            status=200,
+            payload=self.empty_messages,
+            repeat=True
+        )
+
+        await client.receive_response(self.login_response)
+
+        client.start_loop(100)
+
+        await client.new_fetch_task.wait()
+
+        # Load the currently waiting task
+        tasks = client.pan_store.load_fetcher_tasks(
+            client.server_name,
+            client.user_id
+        )
+        assert len(tasks) == 1
+
+        # Check that the task is our prev_batch from the sync resposne
+        assert tasks[0].room_id == TEST_ROOM_ID
+        assert tasks[0].token == "t392-516_47314_0_7_1_1_1_11444_1"
+
+        # Let's wait for the next fetch task
+        await client.new_fetch_task.wait()
+
+        tasks = client.pan_store.load_fetcher_tasks(
+            client.server_name,
+            client.user_id
+        )
+        assert len(tasks) == 1
+
+        # Check that the task is our end token from the messages resposne
+        assert tasks[0].room_id == TEST_ROOM_ID
+        assert tasks[0].token == "t47409-4357353_219380_26003_2265"
+
+        # Wait for the next fetch loop iteration.
+        await client.fetch_loop_event.wait()
+
+        tasks = client.pan_store.load_fetcher_tasks(
+            client.server_name,
+            client.user_id
+        )
+        # Check that there are no more tasks since we reached the start of the
+        # room timeline.
+        assert not tasks
+
+        await client.loop_stop()
