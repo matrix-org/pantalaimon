@@ -164,6 +164,10 @@ class PanClient(AsyncClient):
         self.task = None
         self.queue = queue
 
+        # Those two events are mainly used for testing.
+        self.new_fetch_task = asyncio.Event()
+        self.fetch_loop_event = asyncio.Event()
+
         self.room_members_fetched = defaultdict(bool)
 
         self.send_semaphores = defaultdict(asyncio.Semaphore)
@@ -254,6 +258,9 @@ class PanClient(AsyncClient):
             await self.history_fetch_queue.put(t)
 
         while True:
+            self.fetch_loop_event.set()
+            self.fetch_loop_event.clear()
+
             try:
                 await asyncio.sleep(self.pan_conf.history_fetch_delay)
                 fetch_task = await self.history_fetch_queue.get()
@@ -310,6 +317,8 @@ class PanClient(AsyncClient):
                         self.server_name, self.user_id, fetch_task, task
                     )
                     await self.history_fetch_queue.put(task)
+                    self.new_fetch_task.set()
+                    self.new_fetch_task.clear()
                 else:
                     await self.index.commit_events()
                     self.delete_fetcher_task(fetch_task)
@@ -343,6 +352,8 @@ class PanClient(AsyncClient):
                 self.pan_store.save_fetcher_task(self.server_name, self.user_id, task)
 
                 await self.history_fetch_queue.put(task)
+                self.new_fetch_task.set()
+                self.new_fetch_task.clear()
 
     async def keys_query_cb(self, response):
         if response.changed:
