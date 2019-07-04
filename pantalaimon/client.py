@@ -276,7 +276,7 @@ class PanClient(AsyncClient):
                         limit=self.pan_conf.indexing_batch_size,
                     )
                 except ClientConnectionError:
-                    self.history_fetch_queue.put(fetch_task)
+                    await self.history_fetch_queue.put(fetch_task)
 
                 # The chunk was empty, we're at the start of the timeline.
                 if not response.chunk:
