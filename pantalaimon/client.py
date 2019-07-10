@@ -24,6 +24,7 @@ from nio import (
     AsyncClient,
     ClientConfig,
     EncryptionError,
+    Event,
     KeysQueryResponse,
     KeyVerificationEvent,
     KeyVerificationKey,
@@ -32,7 +33,6 @@ from nio import (
     LocalProtocolError,
     MegolmEvent,
     RoomContextError,
-    RoomEncryptedEvent,
     RoomEncryptedMedia,
     RoomMessageMedia,
     RoomMessageText,
@@ -621,7 +621,7 @@ class PanClient(AsyncClient):
 
     def pan_decrypt_event(self, event_dict, room_id=None, ignore_failures=True):
         # type: (Dict[Any, Any], Optional[str], bool) -> (bool)
-        event = RoomEncryptedEvent.parse_event(event_dict)
+        event = Event.parse_encrypted_event(event_dict)
 
         if not isinstance(event, MegolmEvent):
             logger.warn(

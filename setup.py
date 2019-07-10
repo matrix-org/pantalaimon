@@ -32,7 +32,7 @@ setup(
         "prompt_toolkit",
         "notify2",
         "typing;python_version<'3.5'",
-        "matrix-nio[e2e]"
+        "matrix-nio[e2e] >= 0.4"
     ],
     extras_require={
         "e2e_search":  [
