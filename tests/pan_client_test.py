@@ -453,7 +453,7 @@ class TestClass(object):
 
         await client.loop_stop()
 
-    async def test_start_loop(self, client, aioresponse):
+    async def test_history_fetching_tasks(self, client, aioresponse):
         sync_url = re.compile(
             r'^https://example\.org/_matrix/client/r0/sync\?access_token=.*'
         )
