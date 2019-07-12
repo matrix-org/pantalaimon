@@ -259,7 +259,8 @@ class ProxyDaemon:
 
     async def send_ui_message(self, message):
         """Send a thread message to the UI thread."""
-        await self.send_queue.put(message)
+        if self.send_queue:
+            await self.send_queue.put(message)
 
     async def receive_message(self, message):
         client = self.pan_clients.get(message.pan_user)

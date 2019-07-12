@@ -222,7 +222,8 @@ class PanClient(AsyncClient):
 
     async def send_message(self, message):
         """Send a thread message to the UI thread."""
-        await self.queue.put(message)
+        if self.queue:
+            await self.queue.put(message)
 
     async def send_update_devices(self, devices):
         """Send a dictionary of devices to the UI thread."""
