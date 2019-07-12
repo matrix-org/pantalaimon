@@ -14,7 +14,7 @@
 
 from importlib import util
 
-if util.find_spec("pybdubs") and util.find_spec("gi.repository") and False:
+if util.find_spec("pybdubs") and util.find_spec("gi.repository"):
     from collections import defaultdict
     from queue import Empty
 
