@@ -1,0 +1,4 @@
+include contrib/pantalaimon.service
+include doc/man/pantalaimon.8
+include doc/man/pantalaimon.5
+include doc/man/panctl.1
