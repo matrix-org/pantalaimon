@@ -25,18 +25,20 @@ setup(
         "keyring",
         "logbook",
         "peewee",
-        "dbus-python",
-        "PyGObject",
-        "pydbus",
         "janus",
         "prompt_toolkit",
-        "notify2",
         "typing;python_version<'3.5'",
         "matrix-nio[e2e] >= 0.4"
     ],
     extras_require={
         "e2e_search":  [
             "tantivy",
+        ],
+        "ui": [
+            "dbus-python",
+            "PyGObject",
+            "pydbus",
+            "notify2",
         ]
     },
     entry_points={

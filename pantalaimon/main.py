@@ -28,7 +28,7 @@ from pantalaimon.config import PanConfig, PanConfigError, parse_log_level
 from pantalaimon.daemon import ProxyDaemon
 from pantalaimon.log import logger
 from pantalaimon.thread_messages import DaemonResponse
-from pantalaimon.ui import GlibT
+from pantalaimon.ui import UI_ENABLED
 
 
 def create_dirs(data_dir, conf_dir):
@@ -50,8 +50,8 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
         server_conf.homeserver,
         server_conf,
         data_dir,
-        send_queue=send_queue,
-        recv_queue=recv_queue,
+        send_queue=send_queue.async_q if send_queue else None,
+        recv_queue=recv_queue.async_q if recv_queue else None,
         proxy=server_conf.proxy.geturl() if server_conf.proxy else None,
         ssl=None if server_conf.ssl is True else False,
     )
@@ -154,17 +154,36 @@ def main(context, log_level, config):
     logger.level = pan_conf.log_level
     StderrHandler().push_application()
 
-    pan_queue = janus.Queue(loop=loop)
-    ui_queue = janus.Queue(loop=loop)
-
     servers = []
     proxies = []
+
+    if UI_ENABLED:
+        from pantalaimon.ui import GlibT
+
+        pan_queue = janus.Queue(loop=loop)
+        ui_queue = janus.Queue(loop=loop)
+
+        glib_thread = GlibT(
+            pan_queue.sync_q, ui_queue.sync_q, data_dir, pan_conf.servers.values(), pan_conf
+        )
+
+        glib_fut = loop.run_in_executor(None, glib_thread.run)
+        message_router_task = loop.create_task(
+            message_router(ui_queue.async_q, pan_queue.async_q, proxies)
+        )
+
+    else:
+        glib_thread = None
+        glib_fut = None
+        pan_queue = None
+        ui_queue = None
+        message_router_task = None
 
     try:
 
         for server_conf in pan_conf.servers.values():
             proxy, runner, site = loop.run_until_complete(
-                init(data_dir, server_conf, pan_queue.async_q, ui_queue.async_q)
+                init(data_dir, server_conf, pan_queue, ui_queue)
             )
             servers.append((proxy, runner, site))
             proxies.append(proxy)
@@ -172,19 +191,9 @@ def main(context, log_level, config):
     except keyring.errors.KeyringError as e:
         context.fail(f"Error initializing keyring: {e}")
 
-    glib_thread = GlibT(
-        pan_queue.sync_q, ui_queue.sync_q, data_dir, pan_conf.servers.values(), pan_conf
-    )
-
-    glib_fut = loop.run_in_executor(None, glib_thread.run)
-
     async def wait_for_glib(glib_thread, fut):
         glib_thread.stop()
         await fut
-
-    message_router_task = loop.create_task(
-        message_router(ui_queue.async_q, pan_queue.async_q, proxies)
-    )
 
     home = os.path.expanduser("~")
     os.chdir(home)
@@ -208,9 +217,13 @@ def main(context, log_level, config):
         for _, runner, _ in servers:
             loop.run_until_complete(runner.cleanup())
 
-        loop.run_until_complete(wait_for_glib(glib_thread, glib_fut))
-        message_router_task.cancel()
-        loop.run_until_complete(asyncio.wait({message_router_task}))
+        if glib_fut:
+            loop.run_until_complete(wait_for_glib(glib_thread, glib_fut))
+
+        if message_router_task:
+            message_router_task.cancel()
+            loop.run_until_complete(asyncio.wait({message_router_task}))
+
         loop.close()
 
 
