@@ -38,7 +38,7 @@ class Provider(BaseProvider):
     def avatar_url(self):
         return "mxc://{}/{}#auto".format(
             faker.hostname(),
-            "".join(choice(ascii_letters) for i in range(24))
+            "".join(choices(ascii_letters) for i in range(24))
         )
 
     def olm_key_pair(self):
