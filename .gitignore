@@ -1,3 +1,6 @@
 __pycache__
 dist
 pantalaimon.egg-info/
+.tox
+.mypy_cache
+.coverage
