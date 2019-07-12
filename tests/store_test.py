@@ -1,11 +1,12 @@
 import asyncio
 import pdb
 import pprint
+import pytest
 
 from nio import RoomMessage
 
 from conftest import faker
-from pantalaimon.index import Index, IndexStore
+from pantalaimon.index import INDEXING_ENABLED
 from pantalaimon.store import FetchTask
 
 TEST_ROOM = "!SVkFJHzfwvuaIEawgC:localhost"
@@ -95,6 +96,10 @@ class TestClass(object):
         assert task2 in tasks
 
     async def test_new_indexstore(self, tempdir):
+        if not INDEXING_ENABLED:
+            pytest.skip("Indexing needs to be enabled to test this")
+
+        from pantalaimon.index import Index, IndexStore
         loop = asyncio.get_event_loop()
 
         store = IndexStore("example", tempdir)

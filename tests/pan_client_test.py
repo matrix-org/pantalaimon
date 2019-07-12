@@ -19,6 +19,7 @@ from nio import (
 from pantalaimon.client import PanClient
 from pantalaimon.config import ServerConfig
 from pantalaimon.store import PanStore
+from pantalaimon.index import INDEXING_ENABLED
 
 TEST_ROOM_ID = "!SVkFJHzfwvuaIEawgC:localhost"
 TEST_ROOM2 = "!testroom:localhost"
@@ -453,7 +454,10 @@ class TestClass(object):
 
         await client.loop_stop()
 
-    async def test_history_fetching_tasks(self, client, aioresponse):
+    async def test_history_fetching_tasks(self, client, aioresponse, loop):
+        if not INDEXING_ENABLED:
+            pytest.skip("Indexing needs to be enabled to test this")
+
         sync_url = re.compile(
             r'^https://example\.org/_matrix/client/r0/sync\?access_token=.*'
         )
