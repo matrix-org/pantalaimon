@@ -132,7 +132,7 @@ class ProxyDaemon:
             self.pan_clients[user_id] = pan_client
 
             loop.create_task(
-                self.send_queue.put(
+                self.send_ui_message(
                     UpdateUsersMessage(self.name, user_id, pan_client.device_id)
                 )
             )
@@ -255,6 +255,10 @@ class ProxyDaemon:
     async def send_response(self, message_id, pan_user, code, message):
         """Send a thread response message to the UI thread."""
         message = DaemonResponse(message_id, pan_user, code, message)
+        await self.send_ui_message(message)
+
+    async def send_ui_message(self, message):
+        """Send a thread message to the UI thread."""
         await self.send_queue.put(message)
 
     async def receive_message(self, message):
@@ -547,7 +551,7 @@ class ProxyDaemon:
 
         logger.info(f"Succesfully started new background sync client for " f"{user_id}")
 
-        await self.send_queue.put(
+        await self.send_ui_message(
             UpdateUsersMessage(self.name, user_id, pan_client.device_id)
         )
 
@@ -827,7 +831,7 @@ class ProxyDaemon:
                     client.user_id, room_id, room.display_name
                 )
 
-                await self.send_queue.put(message)
+                await self.send_ui_message(message)
 
                 try:
                     response = await asyncio.wait_for(
