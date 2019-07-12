@@ -242,7 +242,7 @@ class PanClient(AsyncClient):
                 dict_devices[device.user_id][device.id] = device_dict
 
         message = UpdateDevicesMessage(self.user_id, dict_devices)
-        await self.queue.put(message)
+        await self.send_message(message)
 
     async def send_update_device(self, device):
         """Send a single device to the UI thread to be updated."""
@@ -387,7 +387,7 @@ class PanClient(AsyncClient):
                 self.user_id, event.sender, event.from_device, event.transaction_id
             )
 
-            await self.queue.put(message)
+            await self.send_message(message)
 
         elif isinstance(event, KeyVerificationKey):
             sas = self.key_verifications.get(event.transaction_id, None)
@@ -401,7 +401,7 @@ class PanClient(AsyncClient):
                 self.user_id, device.user_id, device.id, sas.transaction_id, emoji
             )
 
-            await self.queue.put(message)
+            await self.send_message(message)
 
         elif isinstance(event, KeyVerificationMac):
             sas = self.key_verifications.get(event.transaction_id, None)
