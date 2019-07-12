@@ -23,7 +23,7 @@ matrix:
         - python: 3.7
           env: TOXENV=coverage
 
-install: pip install tox-travis PyGObject dbus-python
+install: pip install tox-travis PyGObject dbus-python aioresponses
 script: tox
 
 after_success:
