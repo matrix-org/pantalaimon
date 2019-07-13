@@ -28,7 +28,7 @@ setup(
         "janus",
         "prompt_toolkit",
         "typing;python_version<'3.5'",
-        "matrix-nio[e2e] >= 0.4"
+        "matrix-nio[e2e] >= 0.4.1"
     ],
     extras_require={
         "e2e_search":  [
