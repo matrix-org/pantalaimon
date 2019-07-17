@@ -14,7 +14,10 @@
 
 from importlib import util
 
-if util.find_spec("pybdubs") and util.find_spec("gi.repository"):
+UI_ENABLED = (util.find_spec("gi.repository") is not None
+              and util.find_spec("pydbus") is not None)
+
+if UI_ENABLED:
     from collections import defaultdict
     from queue import Empty
 
@@ -579,6 +582,3 @@ if util.find_spec("pybdubs") and util.find_spec("gi.repository"):
             if self.loop:
                 self.loop.quit()
                 self.loop = None
-
-else:
-    UI_ENABLED = False
