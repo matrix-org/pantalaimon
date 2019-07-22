@@ -14,8 +14,9 @@
 
 from importlib import util
 
-UI_ENABLED = (util.find_spec("gi.repository") is not None
-              and util.find_spec("pydbus") is not None)
+UI_ENABLED = (
+    util.find_spec("gi.repository") is not None and util.find_spec("pydbus") is not None
+)
 
 if UI_ENABLED:
     from collections import defaultdict
@@ -64,7 +65,6 @@ if UI_ENABLED:
             self._message_id += 1
 
             return ret
-
 
     class Control:
         """
@@ -156,7 +156,6 @@ if UI_ENABLED:
             message = CancelSendingMessage(self.message_id, pan_user, room_id)
             self.queue.put(message)
             return message.message_id
-
 
     class Devices:
         """
@@ -312,12 +311,16 @@ if UI_ENABLED:
             return message.message_id
 
         def Unverify(self, pan_user, user_id, device_id):
-            message = DeviceUnverifyMessage(self.message_id, pan_user, user_id, device_id)
+            message = DeviceUnverifyMessage(
+                self.message_id, pan_user, user_id, device_id
+            )
             self.queue.put(message)
             return message.message_id
 
         def Blacklist(self, pan_user, user_id, device_id):
-            message = DeviceBlacklistMessage(self.message_id, pan_user, user_id, device_id)
+            message = DeviceBlacklistMessage(
+                self.message_id, pan_user, user_id, device_id
+            )
             self.queue.put(message)
             return message.message_id
 
@@ -364,7 +367,6 @@ if UI_ENABLED:
 
                     device.pop("deleted")
                     device_list[device["user_id"]][device["device_id"]] = device
-
 
     @attr.s
     class GlibT:

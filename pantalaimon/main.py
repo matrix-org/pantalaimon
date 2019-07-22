@@ -164,7 +164,11 @@ def main(context, log_level, config):
         ui_queue = janus.Queue(loop=loop)
 
         glib_thread = GlibT(
-            pan_queue.sync_q, ui_queue.sync_q, data_dir, pan_conf.servers.values(), pan_conf
+            pan_queue.sync_q,
+            ui_queue.sync_q,
+            data_dir,
+            pan_conf.servers.values(),
+            pan_conf,
         )
 
         glib_fut = loop.run_in_executor(None, glib_thread.run)
