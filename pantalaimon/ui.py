@@ -54,7 +54,6 @@ if UI_ENABLED:
 
     UI_ENABLED = True
 
-
     class IdCounter:
         def __init__(self):
             self._message_id = 0
