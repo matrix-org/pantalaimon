@@ -283,7 +283,8 @@ class PanClient(AsyncClient):
                         fetch_task.token,
                         limit=self.pan_conf.indexing_batch_size,
                     )
-                except ClientConnectionError:
+                except ClientConnectionError as e:
+                    logger.debug("Error fetching room history: ", e)
                     await self.history_fetch_queue.put(fetch_task)
 
                 # The chunk was empty, we're at the start of the timeline.
