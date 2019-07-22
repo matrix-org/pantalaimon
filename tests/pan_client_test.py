@@ -1,4 +1,5 @@
 import asyncio
+import os
 import re
 
 import janus
@@ -548,3 +549,115 @@ class TestClass(object):
         assert not tasks
 
         await client.loop_stop()
+
+    async def test_history_fetching_resume(self, client, aioresponse, loop):
+        if not INDEXING_ENABLED:
+            pytest.skip("Indexing needs to be enabled to test this")
+
+        sync_url = re.compile(
+            r'^https://example\.org/_matrix/client/r0/sync\?access_token=.*'
+        )
+
+        aioresponse.get(
+            sync_url,
+            status=200,
+            payload=self.initial_sync_response,
+        )
+
+        aioresponse.get(
+            sync_url,
+            status=200,
+            payload=self.empty_sync,
+            repeat=True
+        )
+
+        aioresponse.post(
+            "https://example.org/_matrix/client/r0/keys/upload?access_token=abc123",
+            status=200,
+            payload=self.keys_upload_response,
+            repeat=True
+        )
+
+        aioresponse.post(
+            "https://example.org/_matrix/client/r0/keys/query?access_token=abc123",
+            status=200,
+            payload=self.keys_query_response,
+            repeat=True
+        )
+
+        messages_url = re.compile(
+            r'^https://example\.org/_matrix/client/r0/rooms/{}/messages\?.*'.format(TEST_ROOM_ID)
+        )
+
+        aioresponse.get(
+            messages_url,
+            status=200,
+            payload=self.messages_response
+        )
+
+        aioresponse.get(
+            messages_url,
+            status=200,
+            payload=self.empty_messages,
+            repeat=True
+        )
+
+        await client.receive_response(self.login_response)
+
+        client.start_loop(100)
+
+        await client.new_fetch_task.wait()
+        await client.new_fetch_task.wait()
+
+        await client.loop_stop()
+
+        index_path = os.path.join(
+            client.store_path,
+            client.server_name,
+            client.user_id
+        )
+
+        # Remove the lock file since the GC won't do it for us
+        writer_lock = os.path.join(index_path, ".tantivy-writer.lock")
+        os.remove(writer_lock)
+
+        # Create a new client
+        client2 = PanClient(
+            client.server_name,
+            client.pan_store,
+            client.pan_conf,
+            client.homeserver,
+            client.queue,
+            client.user_id,
+            client.device_id,
+            client.store_path,
+        )
+        client2.user_id = client.user_id
+        client2.access_token = client.access_token
+
+        tasks = client2.pan_store.load_fetcher_tasks(
+            client2.server_name,
+            client2.user_id
+        )
+        assert len(tasks) == 1
+
+        # Check that the task is our end token from the messages resposne
+        assert tasks[0].room_id == TEST_ROOM_ID
+        assert tasks[0].token == "t47409-4357353_219380_26003_2265"
+
+        client2.start_loop(100)
+
+        # We wait for two events here because the event gets fired at the start
+        # of the loop
+        await client2.fetch_loop_event.wait()
+        await client2.fetch_loop_event.wait()
+
+        tasks = client2.pan_store.load_fetcher_tasks(
+            client2.server_name,
+            client2.user_id
+        )
+        # Check that there are no more tasks since we reached the start of the
+        # room timeline.
+        assert not tasks
+
+        await client2.loop_stop()
