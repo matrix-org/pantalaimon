@@ -20,6 +20,7 @@ from typing import Any, Dict, Optional
 
 from aiohttp.client_exceptions import ClientConnectionError
 from jsonschema import Draft4Validator, FormatChecker, validators
+from playhouse.sqliteq import SqliteQueueDatabase
 from nio import (
     AsyncClient,
     ClientConfig,
@@ -121,6 +122,18 @@ class InvalidLimit(Exception):
     pass
 
 
+class SqliteQStore(SqliteStore):
+    def _create_database(self):
+        return SqliteQueueDatabase(
+            self.database_path,
+            pragmas=(("foregign_keys", 1), ("secure_delete", 1))
+        )
+
+    def close(self):
+        self.database.stop()
+
+
+
 class PanClient(AsyncClient):
     """A wrapper class around a nio AsyncClient extending its functionality."""
 
@@ -137,8 +150,9 @@ class PanClient(AsyncClient):
         config=None,
         ssl=None,
         proxy=None,
+        store_class=None,
     ):
-        config = config or ClientConfig(store=SqliteStore, store_name="pan.db")
+        config = config or ClientConfig(store=store_class or SqliteQStore, store_name="pan.db")
         super().__init__(homeserver, user_id, device_id, store_path, config, ssl, proxy)
 
         index_dir = os.path.join(store_path, server_name, user_id)
@@ -618,6 +632,9 @@ class PanClient(AsyncClient):
                 pass
 
             self.history_fetcher_task = None
+
+        if isinstance(self.store, SqliteQueueDatabase):
+            self.store.close()
 
         self.history_fetch_queue = asyncio.Queue()
 

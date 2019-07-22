@@ -16,6 +16,7 @@ from nio import (
     SyncResponse,
     Timeline,
 )
+from nio.store import SqliteStore
 
 from pantalaimon.client import PanClient
 from pantalaimon.config import ServerConfig
@@ -45,7 +46,8 @@ async def client(tmpdir, loop):
         queue.async_q,
         "@example:example.org",
         "DEVICEID",
-        tmpdir
+        tmpdir,
+        store_class=SqliteStore
     )
 
     yield pan_client

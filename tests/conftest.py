@@ -129,7 +129,8 @@ async def pan_proxy_server(tempdir, aiohttp_server):
         send_queue=pan_queue.async_q,
         recv_queue=ui_queue.async_q,
         proxy=None,
-        ssl=False
+        ssl=False,
+        client_store_class=SqliteStore
     )
 
     app.add_routes([
