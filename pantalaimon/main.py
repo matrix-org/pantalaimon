@@ -121,7 +121,7 @@ async def message_router(receive_queue, send_queue, proxies):
         "connect to pantalaimon."
     )
 )
-@click.version_option(version="0.1", prog_name="pantalaimon")
+@click.version_option(version="0.2", prog_name="pantalaimon")
 @click.option(
     "--log-level",
     type=click.Choice(["error", "warning", "info", "debug"]),
