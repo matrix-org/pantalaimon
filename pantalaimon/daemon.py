@@ -34,7 +34,6 @@ from pantalaimon.client import (
     PanClient,
     UnknownRoomError,
     validate_json,
-    SqliteQStore
 )
 from pantalaimon.index import INDEXING_ENABLED, InvalidQueryError
 from pantalaimon.log import logger
@@ -78,7 +77,7 @@ class ProxyDaemon:
     recv_queue = attr.ib()
     proxy = attr.ib(default=None)
     ssl = attr.ib(default=None)
-    client_store_class = attr.ib(default=SqliteQStore)
+    client_store_class = attr.ib(default=None)
 
     decryption_timeout = 10
     unverified_send_timeout = 60
