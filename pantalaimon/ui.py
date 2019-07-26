@@ -364,6 +364,7 @@ if UI_ENABLED:
                             device_list[device["user_id"]].pop(device["device_id"])
                         except KeyError:
                             pass
+                        continue
 
                     device.pop("deleted")
                     device_list[device["user_id"]][device["device_id"]] = device
