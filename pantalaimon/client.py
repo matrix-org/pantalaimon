@@ -340,7 +340,7 @@ class PanClient(AsyncClient):
                     await self.index.commit_events()
                     self.delete_fetcher_task(fetch_task)
 
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, KeyboardInterrupt):
                 return
 
     async def sync_tasks(self, response):
