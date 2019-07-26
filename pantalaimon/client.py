@@ -290,7 +290,8 @@ class PanClient(AsyncClient):
 
                 try:
                     logger.debug(
-                        "Fetching room history for {}".format(room.display_name)
+                        f"Fetching room history for {room.display_name} "
+                        f"({room.room_id}), token {fetch_task.token}."
                     )
                     response = await self.room_messages(
                         fetch_task.room_id,
