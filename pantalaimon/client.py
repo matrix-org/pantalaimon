@@ -152,7 +152,7 @@ class PanClient(AsyncClient):
         proxy=None,
         store_class=None,
     ):
-        config = config or ClientConfig(store=store_class or SqliteQStore, store_name="pan.db")
+        config = config or ClientConfig(store=store_class or SqliteStore, store_name="pan.db")
         super().__init__(homeserver, user_id, device_id, store_path, config, ssl, proxy)
 
         index_dir = os.path.join(store_path, server_name, user_id)
