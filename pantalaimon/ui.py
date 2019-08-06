@@ -30,7 +30,6 @@ if UI_ENABLED:
     from pydbus.generic import signal
 
     from pantalaimon.log import logger
-    from pantalaimon.store import PanStore
     from pantalaimon.thread_messages import (
         AcceptSasMessage,
         CancelSasMessage,
@@ -119,10 +118,9 @@ if UI_ENABLED:
         Response = signal()
         UnverifiedDevices = signal()
 
-        def __init__(self, queue, store, server_list, id_counter):
-            self.server_list = server_list
-            self.store = store
+        def __init__(self, queue, server_list, id_counter):
             self.queue = queue
+            self.server_list = server_list
             self.id_counter = id_counter
             self.users = defaultdict(set)
 
@@ -268,8 +266,7 @@ if UI_ENABLED:
         VerificationString = signal()
         VerificationDone = signal()
 
-        def __init__(self, queue, store, id_counter):
-            self.store = store
+        def __init__(self, queue, id_counter):
             self.device_list = dict()
             self.queue = queue
             self.id_counter = id_counter
@@ -389,14 +386,12 @@ if UI_ENABLED:
         def __attrs_post_init__(self):
             self.loop = None
 
-            self.store = PanStore(self.data_dir)
-
             id_counter = IdCounter()
 
             self.control_if = Control(
-                self.send_queue, self.store, self.server_list, id_counter
+                self.send_queue, self.server_list, id_counter
             )
-            self.device_if = Devices(self.send_queue, self.store, id_counter)
+            self.device_if = Devices(self.send_queue, id_counter)
 
             self.bus = SessionBus()
             self.bus.publish("org.pantalaimon1", self.control_if, self.device_if)
