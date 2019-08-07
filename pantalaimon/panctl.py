@@ -120,6 +120,16 @@ class PanctlParser:
         cancel_sending.add_argument("pan_user", type=str)
         cancel_sending.add_argument("room_id", type=str)
 
+        continue_key_share = subparsers.add_parser("continue-keyshare")
+        continue_key_share.add_argument("pan_user", type=str)
+        continue_key_share.add_argument("user_id", type=str)
+        continue_key_share.add_argument("device_id", type=str)
+
+        cancel_key_share = subparsers.add_parser("cancel-keyshare")
+        cancel_key_share.add_argument("pan_user", type=str)
+        cancel_key_share.add_argument("user_id", type=str)
+        cancel_key_share.add_argument("device_id", type=str)
+
     def parse_args(self, argv):
         return self.parser.parse_args(argv)
 
@@ -272,6 +282,9 @@ class PanCompleter(Completer):
                 else:
                     return ""
 
+            elif command in ["cancel-keyshare", "continue-keyshare"]:
+                return self.complete_verification(command, last_word, words)
+
         return ""
 
 
@@ -370,6 +383,15 @@ class PanCtl:
             "Export end-to-end encryption keys to the given file "
             "for the given pan-user."
         ),
+        "continue-keyshare": (
+            "Export end-to-end encryption keys to the given file "
+            "for the given pan-user."
+        ),
+        "cancel-keyshare": (
+            "Export end-to-end encryption keys to the given file "
+            "for the given pan-user."
+        ),
+
     }
 
     commands = list(command_help.keys())
@@ -392,6 +414,9 @@ class PanCtl:
         self.devices.VerificationString.connect(self.show_sas)
         self.devices.VerificationDone.connect(self.sas_done)
 
+        self.devices.KeyRequest.connect(self.show_key_request)
+        self.devices.KeyRequestCancel.connect(self.show_key_request_cancel)
+
     def show_help(self, command):
         print(self.command_help[command])
 
@@ -411,6 +436,23 @@ class PanCtl:
         self.own_message_ids.remove(response_id)
 
         print(message["message"])
+
+    def show_key_request(self, pan_user, user_id, device_id, request_id):
+        print(
+            f"{user_id} has requested room keys from our pan "
+            f"user {pan_user}, but the requesting device "
+            f"{device_id} is unverified\n"
+            f"After verifying the device accept the key share request with "
+            f"the continue-keyshare, alternatively cancel the "
+            f"request with the cancel-keyshare command."
+        )
+
+    def show_key_request_cancel(self, pan_user, user_id, device_id, request_id):
+        print(
+            f"{user_id} via {device_id} has "
+            f"canceled the room key request from our pan user "
+            f"{pan_user}."
+        )
 
     def sas_done(self, pan_user, user_id, device_id, _):
         print(
@@ -618,6 +660,20 @@ class PanCtl:
             elif command == "confirm-verification":
                 self.own_message_ids.append(
                     self.devices.ConfirmKeyVerification(
+                        args.pan_user, args.user_id, args.device_id
+                    )
+                )
+
+            elif command == "continue-keyshare":
+                self.own_message_ids.append(
+                    self.devices.ContinueKeyShare(
+                        args.pan_user, args.user_id, args.device_id
+                    )
+                )
+
+            elif command == "cancel-keyshare":
+                self.own_message_ids.append(
+                    self.devices.CancelKeyShare(
                         args.pan_user, args.user_id, args.device_id
                     )
                 )
