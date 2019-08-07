@@ -56,6 +56,8 @@ from pantalaimon.thread_messages import (
     UnverifiedDevicesSignal,
     UnverifiedResponse,
     UpdateUsersMessage,
+    ContinueKeyShare,
+    CancelKeyShare,
 )
 
 CORS_HEADERS = {
@@ -374,6 +376,10 @@ class ProxyDaemon:
 
             queue = client.send_decision_queues[message.room_id]
             await queue.put(message)
+
+        elif isinstance(message, (ContinueKeyShare, CancelKeyShare)):
+            client = self.pan_clients[message.pan_user]
+            await client.handle_key_request_message(message)
 
     def get_access_token(self, request):
         # type: (aiohttp.web.BaseRequest) -> str

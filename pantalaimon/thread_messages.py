@@ -45,6 +45,30 @@ class CancelSendingMessage(UnverifiedResponse):
 
 
 @attr.s
+class KeyRequestMessage(Message):
+    pan_user = attr.ib(type=str)
+    event = attr.ib()
+
+
+@attr.s
+class _KeyShare(Message):
+    message_id = attr.ib()
+    pan_user = attr.ib()
+    user_id = attr.ib()
+    device_id = attr.ib()
+
+
+@attr.s
+class ContinueKeyShare(_KeyShare):
+    pass
+
+
+@attr.s
+class CancelKeyShare(_KeyShare):
+    pass
+
+
+@attr.s
 class DaemonResponse(Message):
     message_id = attr.ib()
     pan_user = attr.ib()

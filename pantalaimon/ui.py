@@ -29,6 +29,8 @@ if UI_ENABLED:
     from pydbus import SessionBus
     from pydbus.generic import signal
 
+    from nio import RoomKeyRequest, RoomKeyRequestCancellation
+
     from pantalaimon.log import logger
     from pantalaimon.thread_messages import (
         AcceptSasMessage,
@@ -50,6 +52,9 @@ if UI_ENABLED:
         UnverifiedDevicesSignal,
         UpdateDevicesMessage,
         UpdateUsersMessage,
+        KeyRequestMessage,
+        ContinueKeyShare,
+        CancelKeyShare,
     )
 
     UI_ENABLED = True
@@ -257,6 +262,34 @@ if UI_ENABLED:
                     <arg direction="out" type="s" name="transaction_id"/>
                 </signal>
 
+                <method name='ContinueKeyShare'>
+                    <arg type='s' name='pan_user' direction='in'/>
+                    <arg type='s' name='user_id' direction='in'/>
+                    <arg type='s' name='device_id' direction='in'/>
+                    <arg type='u' name='id' direction='out'/>
+                </method>
+
+                <method name='CancelKeyShare'>
+                    <arg type='s' name='pan_user' direction='in'/>
+                    <arg type='s' name='user_id' direction='in'/>
+                    <arg type='s' name='device_id' direction='in'/>
+                    <arg type='u' name='id' direction='out'/>
+                </method>
+
+                <signal name="KeyRequest">
+                    <arg direction="out" type="s" name="pan_user"/>
+                    <arg direction="out" type="s" name="user_id"/>
+                    <arg direction="out" type="s" name="device_id"/>
+                    <arg direction="out" type="s" name="request_id"/>
+                </signal>
+
+                <signal name="KeyRequestCancel">
+                    <arg direction="out" type="s" name="pan_user"/>
+                    <arg direction="out" type="s" name="user_id"/>
+                    <arg direction="out" type="s" name="device_id"/>
+                    <arg direction="out" type="s" name="request_id"/>
+                </signal>
+
             </interface>
         </node>
         """
@@ -266,10 +299,15 @@ if UI_ENABLED:
         VerificationString = signal()
         VerificationDone = signal()
 
+        KeyRequest = signal()
+        KeyRequestCancel = signal()
+
         def __init__(self, queue, id_counter):
             self.device_list = dict()
             self.queue = queue
             self.id_counter = id_counter
+
+            self.key_requests = dict()
 
         @property
         def message_id(self):
@@ -348,6 +386,16 @@ if UI_ENABLED:
             self.queue.put(message)
             return message.message_id
 
+        def ContinueKeyShare(self, pan_user, user_id, device_id):
+            message = ContinueKeyShare(self.message_id, pan_user, user_id, device_id)
+            self.queue.put(message)
+            return message.message_id
+
+        def CancelKeyShare(self, pan_user, user_id, device_id):
+            message = CancelKeyShare(self.message_id, pan_user, user_id, device_id)
+            self.queue.put(message)
+            return message.message_id
+
         def update_devices(self, message):
             if message.pan_user not in self.device_list:
                 self.device_list[message.pan_user] = defaultdict(dict)
@@ -365,6 +413,28 @@ if UI_ENABLED:
 
                     device.pop("deleted")
                     device_list[device["user_id"]][device["device_id"]] = device
+
+        def update_key_requests(self, message):
+            # type: (KeyRequestMessage) -> None
+            event = message.event
+
+            if isinstance(event, RoomKeyRequest):
+                self.key_requests[event.request_id] = event
+                self.KeyRequest(
+                    message.pan_user,
+                    event.sender,
+                    event.requesting_device_id,
+                    event.request_id,
+                )
+
+            elif isinstance(event, RoomKeyRequestCancellation):
+                self.key_requests.pop(event.request_id, None)
+                self.KeyRequestCancel(
+                    message.pan_user,
+                    event.sender,
+                    event.requesting_device_id,
+                    event.request_id,
+                )
 
     @attr.s
     class GlibT:
@@ -554,6 +624,9 @@ if UI_ENABLED:
                     message.pan_user,
                     {"code": message.code, "message": message.message},
                 )
+
+            elif isinstance(message, KeyRequestMessage):
+                self.device_if.update_key_requests(message)
 
             self.receive_queue.task_done()
             return True

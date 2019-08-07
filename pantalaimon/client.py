@@ -39,6 +39,8 @@ from nio import (
     RoomMessageText,
     RoomNameEvent,
     RoomTopicEvent,
+    RoomKeyRequest,
+    RoomKeyRequestCancellation,
     SyncResponse,
 )
 from nio.crypto import Sas
@@ -53,6 +55,9 @@ from pantalaimon.thread_messages import (
     SasDoneSignal,
     ShowSasSignal,
     UpdateDevicesMessage,
+    KeyRequestMessage,
+    ContinueKeyShare,
+    CancelKeyShare,
 )
 
 SEARCH_KEYS = ["content.body", "content.name", "content.topic"]
@@ -191,7 +196,14 @@ class PanClient(AsyncClient):
         self.history_fetcher_task = None
         self.history_fetch_queue = asyncio.Queue()
 
-        self.add_to_device_callback(self.key_verification_cb, KeyVerificationEvent)
+        self.add_to_device_callback(
+            self.key_verification_cb,
+            KeyVerificationEvent
+        )
+        self.add_to_device_callback(
+            self.key_request_cb,
+            (RoomKeyRequest, RoomKeyRequestCancellation)
+        )
         self.add_event_callback(self.undecrypted_event_cb, MegolmEvent)
 
         if INDEXING_ENABLED:
@@ -391,6 +403,28 @@ class PanClient(AsyncClient):
                 await self.request_room_key(event)
             except ClientConnectionError:
                 pass
+
+    async def key_request_cb(self, event):
+        if isinstance(event, RoomKeyRequest):
+            logger.info(
+                f"{event.sender} via {event.requesting_device_id} has "
+                f" requested room keys from  us."
+            )
+
+            message = KeyRequestMessage(self.user_id, event)
+            await self.send_message(message)
+
+        elif isinstance(event, RoomKeyRequestCancellation):
+            logger.info(
+                f"{event.sender} via {event.requesting_device_id} has "
+                f" canceled its key request."
+            )
+
+            message = KeyRequestMessage(self.user_id, event)
+            await self.send_message(message)
+
+        else:
+            assert False
 
     async def key_verification_cb(self, event):
         logger.info("Received key verification event: {}".format(event))
@@ -607,6 +641,79 @@ class PanClient(AsyncClient):
                     self.user_id,
                     "m.ok",
                     f"Waiting for {device.user_id} to confirm.",
+                )
+            )
+
+    async def handle_key_request_message(self, message):
+        if isinstance(message, ContinueKeyShare):
+            continued = False
+            for share in self.get_active_key_requests(
+                    message.user_id,
+                    message.device_id):
+
+                continued = True
+
+                if not self.continue_key_share(share):
+                    await self.send_message(
+                        DaemonResponse(
+                            message.message_id,
+                            self.user_id,
+                            "m.error",
+                            (f"Unable to continue the key sharing for "
+                             f"{message.user_id} via {message.device_id}: The "
+                             f"device is still not verified.")
+                        )
+                    )
+                    return
+
+            if continued:
+                try:
+                    await self.send_to_device_messages()
+                except ClientConnectionError:
+                    # We can safely ignore this since this will be retried
+                    # after the next sync in the sync_forever method.
+                    pass
+
+                response = (f"Succesfully continued the key requests from "
+                            f"{message.user_id} via {message.device_id}")
+                ret = "m.ok"
+            else:
+                response = (f"No active key requests from {message.user_id} "
+                            f"via {message.device_id} found.")
+                ret = "m.error"
+
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    ret,
+                    response
+                )
+            )
+
+        elif isinstance(message, CancelKeyShare):
+            cancelled = False
+
+            for share in self.get_active_key_requests(
+                    message.user_id,
+                    message.device_id):
+                cancelled = self.cancel_key_share(share)
+
+            if cancelled:
+                response = (f"Succesfully cancelled key requests from "
+                            f"{message.user_id} via {message.device_id}")
+                ret = "m.ok"
+            else:
+                response = (f"No active key requests from {message.user_id} "
+                            f"via {message.device_id} found.")
+                ret = "m.error"
+
+            await self.send_message(
+                DaemonResponse(
+                    message.message_id,
+                    self.user_id,
+                    ret,
+                    response
                 )
             )
 
