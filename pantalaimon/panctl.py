@@ -309,13 +309,16 @@ def get_color(string):
 @attr.s
 class PanCtl:
     bus = attr.ib(init=False)
+    pan_bus = attr.ib(init=False)
     ctl = attr.ib(init=False)
     devices = attr.ib(init=False)
+    completer = attr.ib(init=False)
+    own_message_ids = attr.ib(init=False)
 
     command_help = {
         "help": "Display help about commands.",
         "list-servers": (
-            "List the configured homeservers and pan users on " "each homeserver."
+            "List the configured homeservers and pan users on each homeserver."
         ),
         "list-devices": (
             "List the devices of a user that are known to the " "pan-user."
@@ -341,10 +344,10 @@ class PanCtl:
         ),
         "verify-device": ("Manually mark the given device as verified."),
         "unverify-device": (
-            "Mark a previously verified device of the given " "user as unverified."
+            "Mark a previously verified device of the given user as unverified."
         ),
         "blacklist-device": (
-            "Manually mark the given device of the given " "user as blacklisted."
+            "Manually mark the given device of the given user as blacklisted."
         ),
         "unblacklist-device": (
             "Mark a previously blacklisted device of the "
