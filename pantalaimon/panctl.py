@@ -391,7 +391,6 @@ class PanCtl:
             "Export end-to-end encryption keys to the given file "
             "for the given pan-user."
         ),
-
     }
 
     commands = list(command_help.keys())

@@ -130,13 +130,11 @@ class InvalidLimit(Exception):
 class SqliteQStore(SqliteStore):
     def _create_database(self):
         return SqliteQueueDatabase(
-            self.database_path,
-            pragmas=(("foregign_keys", 1), ("secure_delete", 1))
+            self.database_path, pragmas=(("foregign_keys", 1), ("secure_delete", 1))
         )
 
     def close(self):
         self.database.stop()
-
 
 
 class PanClient(AsyncClient):
@@ -157,7 +155,9 @@ class PanClient(AsyncClient):
         proxy=None,
         store_class=None,
     ):
-        config = config or ClientConfig(store=store_class or SqliteStore, store_name="pan.db")
+        config = config or ClientConfig(
+            store=store_class or SqliteStore, store_name="pan.db"
+        )
         super().__init__(homeserver, user_id, device_id, store_path, config, ssl, proxy)
 
         index_dir = os.path.join(store_path, server_name, user_id)
@@ -196,13 +196,9 @@ class PanClient(AsyncClient):
         self.history_fetcher_task = None
         self.history_fetch_queue = asyncio.Queue()
 
+        self.add_to_device_callback(self.key_verification_cb, KeyVerificationEvent)
         self.add_to_device_callback(
-            self.key_verification_cb,
-            KeyVerificationEvent
-        )
-        self.add_to_device_callback(
-            self.key_request_cb,
-            (RoomKeyRequest, RoomKeyRequestCancellation)
+            self.key_request_cb, (RoomKeyRequest, RoomKeyRequestCancellation)
         )
         self.add_event_callback(self.undecrypted_event_cb, MegolmEvent)
 
@@ -648,8 +644,8 @@ class PanClient(AsyncClient):
         if isinstance(message, ContinueKeyShare):
             continued = False
             for share in self.get_active_key_requests(
-                    message.user_id,
-                    message.device_id):
+                message.user_id, message.device_id
+            ):
 
                 continued = True
 
@@ -659,9 +655,11 @@ class PanClient(AsyncClient):
                             message.message_id,
                             self.user_id,
                             "m.error",
-                            (f"Unable to continue the key sharing for "
-                             f"{message.user_id} via {message.device_id}: The "
-                             f"device is still not verified.")
+                            (
+                                f"Unable to continue the key sharing for "
+                                f"{message.user_id} via {message.device_id}: The "
+                                f"device is still not verified."
+                            ),
                         )
                     )
                     return
@@ -674,47 +672,45 @@ class PanClient(AsyncClient):
                     # after the next sync in the sync_forever method.
                     pass
 
-                response = (f"Succesfully continued the key requests from "
-                            f"{message.user_id} via {message.device_id}")
+                response = (
+                    f"Succesfully continued the key requests from "
+                    f"{message.user_id} via {message.device_id}"
+                )
                 ret = "m.ok"
             else:
-                response = (f"No active key requests from {message.user_id} "
-                            f"via {message.device_id} found.")
+                response = (
+                    f"No active key requests from {message.user_id} "
+                    f"via {message.device_id} found."
+                )
                 ret = "m.error"
 
             await self.send_message(
-                DaemonResponse(
-                    message.message_id,
-                    self.user_id,
-                    ret,
-                    response
-                )
+                DaemonResponse(message.message_id, self.user_id, ret, response)
             )
 
         elif isinstance(message, CancelKeyShare):
             cancelled = False
 
             for share in self.get_active_key_requests(
-                    message.user_id,
-                    message.device_id):
+                message.user_id, message.device_id
+            ):
                 cancelled = self.cancel_key_share(share)
 
             if cancelled:
-                response = (f"Succesfully cancelled key requests from "
-                            f"{message.user_id} via {message.device_id}")
+                response = (
+                    f"Succesfully cancelled key requests from "
+                    f"{message.user_id} via {message.device_id}"
+                )
                 ret = "m.ok"
             else:
-                response = (f"No active key requests from {message.user_id} "
-                            f"via {message.device_id} found.")
+                response = (
+                    f"No active key requests from {message.user_id} "
+                    f"via {message.device_id} found."
+                )
                 ret = "m.error"
 
             await self.send_message(
-                DaemonResponse(
-                    message.message_id,
-                    self.user_id,
-                    ret,
-                    response
-                )
+                DaemonResponse(message.message_id, self.user_id, ret, response)
             )
 
     async def loop_stop(self):

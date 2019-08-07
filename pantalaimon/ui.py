@@ -458,9 +458,7 @@ if UI_ENABLED:
 
             id_counter = IdCounter()
 
-            self.control_if = Control(
-                self.send_queue, self.server_list, id_counter
-            )
+            self.control_if = Control(self.send_queue, self.server_list, id_counter)
             self.device_if = Devices(self.send_queue, id_counter)
 
             self.bus = SessionBus()
