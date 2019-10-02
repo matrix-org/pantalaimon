@@ -67,6 +67,30 @@ cd notification-daemon-mac-py
 ./notify.py
 ```
 
+### Docker
+
+An experimental Docker image can be built for Pantalaimon, primarily for use in bots.
+
+```bash
+docker build -t pantalaimon .
+# Create a pantalaimon.conf before running. The directory mentioned in the
+# volume below is for where Pantalaimon should dump some data.
+docker run -it --rm -v /path/to/pantalaimon/dir:/data -p 8008:8008 pantalaimon
+```
+
+An example `pantalaimon.conf` for Docker is:
+```conf
+[Default]
+LogLevel = Debug
+SSL = True
+
+[local-matrix]
+Homeserver = https://matrix.org
+ListenAddress = 0.0.0.0
+ListenPort = 8008
+SSL = False
+```
+
 ### Experimental E2E search support.
 
 Pantalaimon can handle the search endpoint of a Matrix server as well, providing
