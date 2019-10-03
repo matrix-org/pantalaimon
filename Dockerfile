@@ -15,4 +15,4 @@ RUN pip install . gobject PyGObject "matrix-nio@git+https://github.com/poljar/ma
 
 VOLUME /data
 ENTRYPOINT ["pantalaimon"]
-CMD ["-c", "/data/pantalaimon.conf"]
+CMD ["-c", "/data/pantalaimon.conf", "--data-path", "/data"]
