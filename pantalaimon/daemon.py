@@ -101,7 +101,6 @@ class ProxyDaemon:
         accounts = self.store.load_users(self.name)
 
         for user_id, device_id in accounts:
-            token = False
             if self.conf.keyring:
                 try:
                     token = keyring.get_password(
@@ -109,7 +108,7 @@ class ProxyDaemon:
                     )
                 except RuntimeError as e:
                     logger.error(e)
-            if not token:
+            else:
                 token = self.store.load_access_token(user_id, device_id)
 
             if not token:
@@ -571,7 +570,6 @@ class ProxyDaemon:
 
         self.pan_clients[user_id] = pan_client
 
-        token_stored = False
         if self.conf.keyring:
             try:
                 keyring.set_password(
@@ -579,10 +577,9 @@ class ProxyDaemon:
                     f"{user_id}-{pan_client.device_id}-token",
                     pan_client.access_token,
                 )
-                token_stored = True
             except RuntimeError as e:
                 logger.error(e)
-        if not token_stored:
+        else:
             self.store.save_access_token(
                 user_id, pan_client.device_id, pan_client.access_token
             )
