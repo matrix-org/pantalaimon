@@ -853,9 +853,12 @@ class ProxyDaemon:
                 await self.send_ui_message(message)
 
                 try:
-                    response = await asyncio.wait_for(
-                        queue.get(), self.unverified_send_timeout
-                    )
+                    if self.send_queue:
+                        response = await asyncio.wait_for(
+                            queue.get(), self.unverified_send_timeout
+                        )
+                    else:
+                        response = SendAnywaysMessage("irrelevant_message_ID", client, room_id)
 
                     if isinstance(response, CancelSendingMessage):
                         # The send was canceled notify the client that sent the
