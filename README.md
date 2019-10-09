@@ -89,6 +89,8 @@ Homeserver = https://matrix.org
 ListenAddress = 0.0.0.0
 ListenPort = 8008
 SSL = False
+UseKeyring = False
+IgnoreVerification = True
 ```
 
 ### Experimental E2E search support.
