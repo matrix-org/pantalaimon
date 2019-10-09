@@ -11,7 +11,7 @@ RUN wget https://gitlab.matrix.org/matrix-org/olm/-/archive/master/olm-master.ta
     && rm -r olm-master
 
 COPY . /app
-RUN pip install . gobject PyGObject "matrix-nio@git+https://github.com/poljar/matrix-nio.git@dev#egg=matrix-nio-0" && python setup.py install
+RUN pip install . PyGObject && python setup.py install
 
 VOLUME /data
 ENTRYPOINT ["pantalaimon"]
