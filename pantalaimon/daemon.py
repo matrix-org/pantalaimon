@@ -15,6 +15,7 @@
 import asyncio
 import json
 import os
+import urllib.parse
 from json import JSONDecodeError
 from typing import Any, Dict
 
@@ -452,12 +453,8 @@ class ProxyDaemon:
 
         assert session
 
-        path = request.path
+        path = urllib.parse.quote(request.path)  # re-encode path stuff like room aliases
         method = request.method
-
-        # This is very much a dirty hack, but it is fine for now
-        if "#" in path:
-            path = path.replace("#", "%23")
 
         headers = CIMultiDict(request.headers)
         headers.pop("Host", None)
