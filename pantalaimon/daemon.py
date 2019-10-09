@@ -455,6 +455,10 @@ class ProxyDaemon:
         path = request.path
         method = request.method
 
+        # This is very much a dirty hack, but it is fine for now
+        if "#" in path:
+            path = path.replace("#", "%23")
+
         headers = CIMultiDict(request.headers)
         headers.pop("Host", None)
 
