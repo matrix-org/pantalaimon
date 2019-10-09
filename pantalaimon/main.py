@@ -128,8 +128,9 @@ async def message_router(receive_queue, send_queue, proxies):
     default=None,
 )
 @click.option("-c", "--config", type=click.Path(exists=True))
+@click.option("--data-path", type=click.Path(exists=True))
 @click.pass_context
-def main(context, log_level, config):
+def main(context, log_level, config, data_path):
     loop = asyncio.get_event_loop()
 
     conf_dir = user_config_dir("pantalaimon", "")
@@ -137,6 +138,7 @@ def main(context, log_level, config):
     create_dirs(data_dir, conf_dir)
 
     config = config or os.path.join(conf_dir, "pantalaimon.conf")
+    data_dir = data_path or data_dir
 
     if log_level:
         log_level = parse_log_level(log_level)
