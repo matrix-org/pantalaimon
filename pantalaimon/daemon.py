@@ -790,6 +790,12 @@ class ProxyDaemon:
         except KeyError:
             return await self.forward_to_web(request, token=client.access_token)
 
+        # Don't encrypt reactions for now - they are weird and clients
+        # need to support them like this.
+        # TODO: Fix when MSC1849 is fully supported by clients.
+        if request.match_info["event_type"] == "m.reaction":
+            encrypt = False
+
         # The room isn't encrypted just forward the message.
         if not encrypt:
             return await self.forward_to_web(request, token=client.access_token)
