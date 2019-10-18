@@ -8,7 +8,10 @@ PANTALAIMON(8) - System Manager's Manual
 
 **pantalaimon**
 \[**-c**&nbsp;*config*]
-\[**-log-level**]
+\[**--log-level**&nbsp;*level*]
+\[**--data-path**&nbsp;*path*]
+\[**--version**]
+\[**--help**]
 
 # DESCRIPTION
 
@@ -63,6 +66,19 @@ are as follows:
 > Defaults to
 > *warning*.
 
+**--data-path** *path*
+
+> Set the directory for the pantalaimon database. This config option takes
+> precedence over the XDG environment variables.
+
+**--version**
+
+> Display the version number and exit.
+
+**--help**
+
+> Display the help and exit.
+
 # FILES
 
 **pantalaimon**
@@ -96,4 +112,4 @@ pantalaimon(5)
 was written by
 Damir Jeli&#263; &lt;[poljar@termina.org.uk](mailto:poljar@termina.org.uk)&gt;.
 
-Linux 5.1.3-arch2-1-ARCH - May 23, 2019
+Linux 5.3.5-arch1-1-ARCH - October 18, 2019
