@@ -1,4 +1,4 @@
-.Dd May 23, 2019
+.Dd Oct 18, 2019
 .Dt PANTALAIMON 8
 .Os
 .\" ---------------------------------------------------------------------------
@@ -9,7 +9,10 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl c Ar config
-.Op Fl log-level
+.Op Fl -log-level Ar level
+.Op Fl -data-path Ar path
+.Op Fl -version
+.Op Fl -help
 .\" ---------------------------------------------------------------------------
 .Sh DESCRIPTION
 .Nm
@@ -58,6 +61,13 @@ Set the log level of the daemon, can be one of
 .Ar debug .
 Defaults to
 .Ar warning .
+.It Fl -data-path Ar path
+Set the directory for the pantalaimon database. This config option takes
+precedence over the XDG environment variables.
+.It Fl -version
+Display the version number and exit.
+.It Fl -help
+Display the help and exit.
 .El
 .\" ---------------------------------------------------------------------------
 .Sh FILES
