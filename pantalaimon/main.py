@@ -20,6 +20,8 @@ from typing import Optional
 import click
 import janus
 import keyring
+import logbook
+import nio
 from aiohttp import web
 from appdirs import user_config_dir, user_data_dir
 from logbook import StderrHandler
@@ -127,10 +129,11 @@ async def message_router(receive_queue, send_queue, proxies):
     type=click.Choice(["error", "warning", "info", "debug"]),
     default=None,
 )
+@click.option("--debug-encryption", is_flag=True)
 @click.option("-c", "--config", type=click.Path(exists=True))
 @click.option("--data-path", type=click.Path(exists=True))
 @click.pass_context
-def main(context, log_level, config, data_path):
+def main(context, log_level, debug_encryption, config, data_path):
     loop = asyncio.get_event_loop()
 
     conf_dir = user_config_dir("pantalaimon", "")
@@ -154,6 +157,10 @@ def main(context, log_level, config, data_path):
         context.fail("Homeserver is not configured.")
 
     logger.level = pan_conf.log_level
+
+    if pan_conf.debug_encryption or debug_encryption:
+        nio.crypto.logger.level = logbook.DEBUG
+
     StderrHandler().push_application()
 
     servers = []

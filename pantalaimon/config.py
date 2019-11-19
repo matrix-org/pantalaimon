@@ -38,6 +38,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "IndexEncryptedOnly": "True",
                 "IndexingBatchSize": "100",
                 "HistoryFetchDelay": "3000",
+                "DebugEncryption": "False",
             },
             converters={
                 "address": parse_address,
@@ -146,11 +147,14 @@ class PanConfig:
         config_path (str): The path where we should search for a configuration
             file.
         filename (str): The name of the file that we should read.
+        debug_encryption (bool): Should debug logs be enabled for the Matrix
+            encryption support.
     """
 
     config_file = attr.ib()
 
     log_level = attr.ib(default=None)
+    debug_encryption = attr.ib(type=bool, default=None)
     notifications = attr.ib(default=None)
     servers = attr.ib(init=False, default=attr.Factory(dict))
 
@@ -171,6 +175,8 @@ class PanConfig:
 
         if self.notifications is None:
             self.notifications = config["Default"].getboolean("Notifications")
+
+        self.debug_encryption = config["Default"].getboolean("DebugEncryption")
 
         listen_set = set()
 
