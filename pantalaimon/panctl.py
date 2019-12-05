@@ -24,14 +24,18 @@ from typing import List
 import attr
 import click
 from gi.repository import GLib
+from prompt_toolkit import __version__ as ptk_version
 from prompt_toolkit import HTML, PromptSession, print_formatted_text
 from prompt_toolkit.completion import Completer, Completion, PathCompleter
 from prompt_toolkit.document import Document
-from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
 from prompt_toolkit.patch_stdout import patch_stdout
 from pydbus import SessionBus
 
-use_asyncio_event_loop()
+PTK2 = ptk_version.startswith('2.')
+
+if PTK2:
+    from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
+    use_asyncio_event_loop()
 
 
 class ParseError(Exception):
@@ -568,7 +572,10 @@ class PanCtl:
         while True:
             with patch_stdout():
                 try:
-                    result = await promptsession.prompt(async_=True)
+                    if PTK2:
+                        result = await promptsession.prompt(async_=True)
+                    else:
+                        result = await promptsession.prompt_async()
                 except EOFError:
                     break
 
