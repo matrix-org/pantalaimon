@@ -1,4 +1,4 @@
-FROM python:3.7-slim-stretch
+FROM python:3.8-slim-buster
 
 # Many of these dependencies are required to build the app's dependencies, so staging these out doesn't help much
 RUN mkdir -p /app
