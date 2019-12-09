@@ -26,12 +26,14 @@ from nio import (
     ClientConfig,
     EncryptionError,
     Event,
+    ToDeviceEvent,
     KeysQueryResponse,
     KeyVerificationEvent,
     KeyVerificationKey,
     KeyVerificationMac,
     KeyVerificationStart,
     LocalProtocolError,
+    OlmEvent,
     MegolmEvent,
     RoomContextError,
     RoomEncryptedMedia,
@@ -812,6 +814,17 @@ class PanClient(AsyncClient):
         Returns the json response with decrypted events.
         """
         logger.info("Decrypting sync")
+
+        for event in body["to_device"]["events"]:
+            if event["type"] != "m.room.encrypted":
+                continue
+            event = ToDeviceEvent.parse_encrypted_event(event)
+
+            if not isinstance(event, OlmEvent):
+                continue
+
+            self.olm.handle_to_device_event(event)
+
         for room_id, room_dict in body["rooms"]["join"].items():
             try:
                 if not self.rooms[room_id].encrypted:
