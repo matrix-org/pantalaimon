@@ -538,3 +538,67 @@ class TestClass(object):
         assert not tasks
 
         await client2.loop_stop()
+
+    async def test_room_key_on_client_sync_stream(self, client):
+        await client.receive_response(self.login_response)
+        await client.receive_response(
+            SyncResponse.from_dict(self.initial_sync_response)
+        )
+        await client.receive_response(
+            KeysUploadResponse.from_dict(self.keys_upload_response)
+        )
+        await client.receive_response(
+            KeysQueryResponse.from_dict(self.keys_query_response)
+        )
+
+        BobId = "@bob:example.org"
+        Bob_device = "BOBDEVICE"
+
+        bob_olm = Olm(BobId, Bob_device, SqliteMemoryStore("ephemeral", "DEVICEID"))
+
+        alice_device = OlmDevice(
+            client.user_id, client.device_id, client.olm.account.identity_keys
+        )
+
+        bob_device = OlmDevice(
+            bob_olm.user_id, bob_olm.device_id, bob_olm.account.identity_keys
+        )
+
+        client.olm.device_store.add(bob_device)
+        bob_olm.device_store.add(alice_device)
+        bob_olm.store.save_device_keys(
+            {client.user_id: {client.device_id: alice_device}}
+        )
+
+        client.olm.account.generate_one_time_keys(1)
+        one_time = list(client.olm.account.one_time_keys["curve25519"].values())[0]
+        client.olm.account.mark_keys_as_published()
+
+        bob_olm.create_session(one_time, alice_device.curve25519)
+
+        _, to_device = bob_olm.share_group_session(
+            TEST_ROOM_ID, [client.user_id], ignore_unverified_devices=True
+        )
+        outbound_session = bob_olm.outbound_group_sessions[TEST_ROOM_ID]
+        olm_content = to_device["messages"][client.user_id][client.device_id]
+
+        payload = {
+            "sender": bob_olm.user_id,
+            "type": "m.room.encrypted",
+            "content": olm_content,
+        }
+
+        sync_response = self.empty_sync
+        sync_response["to_device"]["events"].append(payload)
+
+        session = client.olm.inbound_group_store.get(
+            TEST_ROOM_ID, bob_device.curve25519, outbound_session.id
+        )
+        assert not session
+
+        client.handle_to_device_from_sync_body(sync_response)
+
+        session = client.olm.inbound_group_store.get(
+            TEST_ROOM_ID, bob_device.curve25519, outbound_session.id
+        )
+        assert session
