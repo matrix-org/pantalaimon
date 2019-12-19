@@ -23,7 +23,7 @@ from jsonschema import Draft4Validator, FormatChecker, validators
 from playhouse.sqliteq import SqliteQueueDatabase
 from nio import (
     AsyncClient,
-    ClientConfig,
+    AsyncClientConfig,
     EncryptionError,
     Event,
     ToDeviceEvent,
@@ -157,7 +157,7 @@ class PanClient(AsyncClient):
         proxy=None,
         store_class=None,
     ):
-        config = config or ClientConfig(
+        config = config or AsyncClientConfig(
             store=store_class or SqliteStore, store_name="pan.db"
         )
         super().__init__(homeserver, user_id, device_id, store_path, config, ssl, proxy)
