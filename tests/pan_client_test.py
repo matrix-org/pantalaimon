@@ -1,21 +1,16 @@
-import asyncio
 import os
 import re
 
 import janus
 import pytest
 from nio import (
-    DeviceList,
-    DeviceOneTimeKeyCount,
     LoginResponse,
-    RoomEncryptionEvent,
-    RoomInfo,
-    RoomMemberEvent,
-    Rooms,
-    RoomSummary,
+    KeysQueryResponse,
+    KeysUploadResponse,
     SyncResponse,
-    Timeline,
 )
+from nio.crypto import Olm, OlmDevice
+from nio.store import SqliteMemoryStore
 from nio.store import SqliteStore
 
 from pantalaimon.client import PanClient
@@ -47,7 +42,7 @@ async def client(tmpdir, loop):
         "@example:example.org",
         "DEVICEID",
         tmpdir,
-        store_class=SqliteStore
+        store_class=SqliteStore,
     )
 
     yield pan_client
@@ -63,7 +58,7 @@ class TestClass(object):
                 "access_token": "abc123",
                 "device_id": "DEVICEID",
                 "home_server": "example.org",
-                "user_id": "@example:example.org"
+                "user_id": "@example:example.org",
             }
         )
 
@@ -72,30 +67,20 @@ class TestClass(object):
         return {
             "device_one_time_keys_count": {},
             "next_batch": "s526_47314_0_7_1_1_1_11444_1",
-            "device_lists": {
-                "changed": [
-                    "@example:example.org"
-                ],
-                "left": []
-            },
-
+            "device_lists": {"changed": ["@example:example.org"], "left": []},
             "rooms": {
                 "invite": {},
                 "join": {
                     "!SVkFJHzfwvuaIEawgC:localhost": {
-                        "account_data": {
-                            "events": []
-                        },
-                        "ephemeral": {
-                            "events": []
-                        },
+                        "account_data": {"events": []},
+                        "ephemeral": {"events": []},
                         "state": {
                             "events": [
                                 {
                                     "content": {
                                         "avatar_url": None,
                                         "displayname": "example",
-                                        "membership": "join"
+                                        "membership": "join",
                                     },
                                     "event_id": "$151800140517rfvjc:localhost",
                                     "membership": "join",
@@ -105,54 +90,38 @@ class TestClass(object):
                                     "type": "m.room.member",
                                     "unsigned": {
                                         "age": 2970366338,
-                                        "replaces_state": "$151800111315tsynI:localhost"
-                                    }
+                                        "replaces_state": "$151800111315tsynI:localhost",
+                                    },
                                 },
                                 {
-                                    "content": {
-                                        "history_visibility": "shared"
-                                    },
+                                    "content": {"history_visibility": "shared"},
                                     "event_id": "$15139375515VaJEY:localhost",
                                     "origin_server_ts": 1513937551613,
                                     "sender": "@example:localhost",
                                     "state_key": "",
                                     "type": "m.room.history_visibility",
-                                    "unsigned": {
-                                        "age": 7034220281
-                                    }
+                                    "unsigned": {"age": 7034220281},
                                 },
                                 {
-                                    "content": {
-                                        "creator": "@example:localhost"
-                                    },
+                                    "content": {"creator": "@example:localhost"},
                                     "event_id": "$15139375510KUZHi:localhost",
                                     "origin_server_ts": 1513937551203,
                                     "sender": "@example:localhost",
                                     "state_key": "",
                                     "type": "m.room.create",
-                                    "unsigned": {
-                                        "age": 7034220691
-                                    }
+                                    "unsigned": {"age": 7034220691},
                                 },
                                 {
-                                    "content": {
-                                        "aliases": [
-                                            "#tutorial:localhost"
-                                        ]
-                                    },
+                                    "content": {"aliases": ["#tutorial:localhost"]},
                                     "event_id": "$15139375516NUgtD:localhost",
                                     "origin_server_ts": 1513937551720,
                                     "sender": "@example:localhost",
                                     "state_key": "localhost",
                                     "type": "m.room.aliases",
-                                    "unsigned": {
-                                        "age": 7034220174
-                                    }
+                                    "unsigned": {"age": 7034220174},
                                 },
                                 {
-                                    "content": {
-                                        "topic": "\ud83d\ude00"
-                                    },
+                                    "content": {"topic": "\ud83d\ude00"},
                                     "event_id": "$151957878228ssqrJ:localhost",
                                     "origin_server_ts": 1519578782185,
                                     "sender": "@example:localhost",
@@ -160,12 +129,10 @@ class TestClass(object):
                                     "type": "m.room.topic",
                                     "unsigned": {
                                         "age": 1392989709,
-                                        "prev_content": {
-                                            "topic": "test"
-                                        },
+                                        "prev_content": {"topic": "test"},
                                         "prev_sender": "@example:localhost",
-                                        "replaces_state": "$151957069225EVYKm:localhost"
-                                    }
+                                        "replaces_state": "$151957069225EVYKm:localhost",
+                                    },
                                 },
                                 {
                                     "content": {
@@ -175,45 +142,37 @@ class TestClass(object):
                                             "m.room.canonical_alias": 50,
                                             "m.room.history_visibility": 100,
                                             "m.room.name": 50,
-                                            "m.room.power_levels": 100
+                                            "m.room.power_levels": 100,
                                         },
                                         "events_default": 0,
                                         "invite": 0,
                                         "kick": 50,
                                         "redact": 50,
                                         "state_default": 50,
-                                        "users": {
-                                            "@example:localhost": 100
-                                        },
-                                        "users_default": 0
+                                        "users": {"@example:localhost": 100},
+                                        "users_default": 0,
                                     },
                                     "event_id": "$15139375512JaHAW:localhost",
                                     "origin_server_ts": 1513937551359,
                                     "sender": "@example:localhost",
                                     "state_key": "",
                                     "type": "m.room.power_levels",
-                                    "unsigned": {
-                                        "age": 7034220535
-                                    }
+                                    "unsigned": {"age": 7034220535},
                                 },
                                 {
-                                    "content": {
-                                        "alias": "#tutorial:localhost"
-                                    },
+                                    "content": {"alias": "#tutorial:localhost"},
                                     "event_id": "$15139375513VdeRF:localhost",
                                     "origin_server_ts": 1513937551461,
                                     "sender": "@example:localhost",
                                     "state_key": "",
                                     "type": "m.room.canonical_alias",
-                                    "unsigned": {
-                                        "age": 7034220433
-                                    }
+                                    "unsigned": {"age": 7034220433},
                                 },
                                 {
                                     "content": {
                                         "avatar_url": None,
                                         "displayname": "example2",
-                                        "membership": "join"
+                                        "membership": "join",
                                     },
                                     "event_id": "$152034824468gOeNB:localhost",
                                     "membership": "join",
@@ -223,18 +182,16 @@ class TestClass(object):
                                     "type": "m.room.member",
                                     "unsigned": {
                                         "age": 623527289,
-                                        "prev_content": {
-                                            "membership": "leave"
-                                        },
+                                        "prev_content": {"membership": "leave"},
                                         "prev_sender": "@example:localhost",
-                                        "replaces_state": "$152034819067QWJxM:localhost"
-                                    }
+                                        "replaces_state": "$152034819067QWJxM:localhost",
+                                    },
                                 },
                                 {
                                     "content": {
                                         "algorithm": "m.megolm.v1.aes-sha2",
                                         "rotation_period_ms": 604800000,
-                                        "rotation_period_msgs": 100
+                                        "rotation_period_msgs": 100,
                                     },
                                     "event_id": "$143273582443PhrSn:example.org",
                                     "origin_server_ts": 1432735824653,
@@ -242,10 +199,8 @@ class TestClass(object):
                                     "sender": "@example:example.org",
                                     "state_key": "",
                                     "type": "m.room.encryption",
-                                    "unsigned": {
-                                        "age": 1234
-                                    }
-                                }
+                                    "unsigned": {"age": 1234},
+                                },
                             ]
                         },
                         "timeline": {
@@ -255,147 +210,109 @@ class TestClass(object):
                                         "body": "baba",
                                         "format": "org.matrix.custom.html",
                                         "formatted_body": "<strong>baba</strong>",
-                                        "msgtype": "m.text"
+                                        "msgtype": "m.text",
                                     },
                                     "event_id": "$152037280074GZeOm:localhost",
                                     "origin_server_ts": 1520372800469,
                                     "sender": "@example:localhost",
                                     "type": "m.room.message",
-                                    "unsigned": {
-                                        "age": 598971425
-                                    }
+                                    "unsigned": {"age": 598971425},
                                 }
                             ],
                             "limited": True,
-                            "prev_batch": "t392-516_47314_0_7_1_1_1_11444_1"
+                            "prev_batch": "t392-516_47314_0_7_1_1_1_11444_1",
                         },
                         "unread_notifications": {
                             "highlight_count": 0,
-                            "notification_count": 11
-                        }
+                            "notification_count": 11,
+                        },
                     }
                 },
-                "leave": {}
+                "leave": {},
             },
-            "to_device": {
-                "events": []
-            }
-    }
+            "to_device": {"events": []},
+        }
 
     @property
     def keys_upload_response(self):
-        return {
-          "one_time_key_counts": {
-              "curve25519": 10,
-              "signed_curve25519": 20
-          }
-        }
+        return {"one_time_key_counts": {"curve25519": 10, "signed_curve25519": 20}}
 
     @property
     def keys_query_response(self):
         return {
-          "device_keys": {
-              "@alice:example.org": {
-                  "JLAFKJWSCS": {
-                      "algorithms": [
-                          "m.olm.v1.curve25519-aes-sha2",
-                          "m.megolm.v1.aes-sha2"
-                      ],
-                      "device_id": "JLAFKJWSCS",
-                      "user_id": "@alice:example.org",
-                      "keys": {
-                          "curve25519:JLAFKJWSCS": "wjLpTLRqbqBzLs63aYaEv2Boi6cFEbbM/sSRQ2oAKk4",
-                          "ed25519:JLAFKJWSCS": "nE6W2fCblxDcOFmeEtCHNl8/l8bXcu7GKyAswA4r3mM"
-                      },
-                      "signatures": {
-                          "@alice:example.org": {
-                              "ed25519:JLAFKJWSCS": "m53Wkbh2HXkc3vFApZvCrfXcX3AI51GsDHustMhKwlv3TuOJMj4wistcOTM8q2+e/Ro7rWFUb9ZfnNbwptSUBA"
-                          }
-                      }
-                  }
-              }
-          },
-          "failures": {}
+            "device_keys": {
+                "@alice:example.org": {
+                    "JLAFKJWSCS": {
+                        "algorithms": [
+                            "m.olm.v1.curve25519-aes-sha2",
+                            "m.megolm.v1.aes-sha2",
+                        ],
+                        "device_id": "JLAFKJWSCS",
+                        "user_id": "@alice:example.org",
+                        "keys": {
+                            "curve25519:JLAFKJWSCS": "wjLpTLRqbqBzLs63aYaEv2Boi6cFEbbM/sSRQ2oAKk4",
+                            "ed25519:JLAFKJWSCS": "nE6W2fCblxDcOFmeEtCHNl8/l8bXcu7GKyAswA4r3mM",
+                        },
+                        "signatures": {
+                            "@alice:example.org": {
+                                "ed25519:JLAFKJWSCS": "m53Wkbh2HXkc3vFApZvCrfXcX3AI51GsDHustMhKwlv3TuOJMj4wistcOTM8q2+e/Ro7rWFUb9ZfnNbwptSUBA"
+                            }
+                        },
+                    }
+                }
+            },
+            "failures": {},
         }
 
     @property
     def empty_sync(self):
         return {
-            "account_data": {
-                "events": []
-            },
-            "device_lists": {
-                "changed": [],
-                "left": []
-            },
-            "device_one_time_keys_count": {
-                "signed_curve25519": 50
-            },
-            "groups": {
-                "invite": {},
-                "join": {},
-                "leave": {}
-            },
+            "account_data": {"events": []},
+            "device_lists": {"changed": [], "left": []},
+            "device_one_time_keys_count": {"signed_curve25519": 50},
+            "groups": {"invite": {}, "join": {}, "leave": {}},
             "next_batch": "s1059_133339_44_763_246_1_586_12411_1",
-            "presence": {
-                "events": []
-            },
-            "rooms": {
-                "invite": {},
-                "join": {},
-                "leave": {}
-            },
-            "to_device": {
-                "events": []
-            }
+            "presence": {"events": []},
+            "rooms": {"invite": {}, "join": {}, "leave": {}},
+            "to_device": {"events": []},
         }
 
     @property
     def messages_response(self):
         return {
             "chunk": [
-              {
-                "age": 1042,
-                "content": {
-                  "body": "hello world",
-                  "msgtype": "m.text"
+                {
+                    "age": 1042,
+                    "content": {"body": "hello world", "msgtype": "m.text"},
+                    "event_id": "$1444812213350496Caaaa:example.com",
+                    "origin_server_ts": 1444812213737,
+                    "room_id": "!Xq3620DUiqCaoxq:example.com",
+                    "sender": "@alice:example.com",
+                    "type": "m.room.message",
                 },
-                "event_id": "$1444812213350496Caaaa:example.com",
-                "origin_server_ts": 1444812213737,
-                "room_id": "!Xq3620DUiqCaoxq:example.com",
-                "sender": "@alice:example.com",
-                "type": "m.room.message"
-              },
-              {
-                "age": 20123,
-                "content": {
-                  "body": "the world is big",
-                  "msgtype": "m.text"
+                {
+                    "age": 20123,
+                    "content": {"body": "the world is big", "msgtype": "m.text"},
+                    "event_id": "$1444812213350496Cbbbb:example.com",
+                    "origin_server_ts": 1444812194656,
+                    "room_id": "!Xq3620DUiqCaoxq:example.com",
+                    "sender": "@alice:example.com",
+                    "type": "m.room.message",
                 },
-                "event_id": "$1444812213350496Cbbbb:example.com",
-                "origin_server_ts": 1444812194656,
-                "room_id": "!Xq3620DUiqCaoxq:example.com",
-                "sender": "@alice:example.com",
-                "type": "m.room.message"
-              },
-              {
-                "age": 50789,
-                "content": {
-                  "name": "New room name"
+                {
+                    "age": 50789,
+                    "content": {"name": "New room name"},
+                    "event_id": "$1444812213350496Ccccc:example.com",
+                    "origin_server_ts": 1444812163990,
+                    "prev_content": {"name": "Old room name"},
+                    "room_id": "!Xq3620DUiqCaoxq:example.com",
+                    "sender": "@alice:example.com",
+                    "state_key": "",
+                    "type": "m.room.name",
                 },
-                "event_id": "$1444812213350496Ccccc:example.com",
-                "origin_server_ts": 1444812163990,
-                "prev_content": {
-                  "name": "Old room name"
-                },
-                "room_id": "!Xq3620DUiqCaoxq:example.com",
-                "sender": "@alice:example.com",
-                "state_key": "",
-                "type": "m.room.name"
-              }
             ],
             "end": "t47409-4357353_219380_26003_2265",
-            "start": "t47429-4392820_219380_26003_2265"
+            "start": "t47429-4392820_219380_26003_2265",
         }
 
     @property
@@ -403,7 +320,7 @@ class TestClass(object):
         return {
             "chunk": [],
             "end": "t47429-4392820_219380_26003_2277",
-            "start": "t47409-4357353_219380_26003_2265"
+            "start": "t47409-4357353_219380_26003_2265",
         }
 
     async def test_login(self, client):
@@ -412,28 +329,25 @@ class TestClass(object):
 
     async def test_start_loop(self, client, aioresponse):
         sync_url = re.compile(
-            r'^https://example\.org/_matrix/client/r0/sync\?access_token=.*'
+            r"^https://example\.org/_matrix/client/r0/sync\?access_token=.*"
         )
 
         aioresponse.get(
-            sync_url,
-            status=200,
-            payload=self.initial_sync_response,
-            repeat=True
+            sync_url, status=200, payload=self.initial_sync_response, repeat=True
         )
 
         aioresponse.post(
             "https://example.org/_matrix/client/r0/keys/upload?access_token=abc123",
             status=200,
             payload=self.keys_upload_response,
-            repeat=True
+            repeat=True,
         )
 
         aioresponse.post(
             "https://example.org/_matrix/client/r0/keys/query?access_token=abc123",
             status=200,
             payload=self.keys_query_response,
-            repeat=True
+            repeat=True,
         )
 
         await client.receive_response(self.login_response)
@@ -462,51 +376,39 @@ class TestClass(object):
             pytest.skip("Indexing needs to be enabled to test this")
 
         sync_url = re.compile(
-            r'^https://example\.org/_matrix/client/r0/sync\?access_token=.*'
+            r"^https://example\.org/_matrix/client/r0/sync\?access_token=.*"
         )
 
         aioresponse.get(
-            sync_url,
-            status=200,
-            payload=self.initial_sync_response,
+            sync_url, status=200, payload=self.initial_sync_response,
         )
 
-        aioresponse.get(
-            sync_url,
-            status=200,
-            payload=self.empty_sync,
-            repeat=True
-        )
+        aioresponse.get(sync_url, status=200, payload=self.empty_sync, repeat=True)
 
         aioresponse.post(
             "https://example.org/_matrix/client/r0/keys/upload?access_token=abc123",
             status=200,
             payload=self.keys_upload_response,
-            repeat=True
+            repeat=True,
         )
 
         aioresponse.post(
             "https://example.org/_matrix/client/r0/keys/query?access_token=abc123",
             status=200,
             payload=self.keys_query_response,
-            repeat=True
+            repeat=True,
         )
 
         messages_url = re.compile(
-            r'^https://example\.org/_matrix/client/r0/rooms/{}/messages\?.*'.format(TEST_ROOM_ID)
+            r"^https://example\.org/_matrix/client/r0/rooms/{}/messages\?.*".format(
+                TEST_ROOM_ID
+            )
         )
 
-        aioresponse.get(
-            messages_url,
-            status=200,
-            payload=self.messages_response
-        )
+        aioresponse.get(messages_url, status=200, payload=self.messages_response)
 
         aioresponse.get(
-            messages_url,
-            status=200,
-            payload=self.empty_messages,
-            repeat=True
+            messages_url, status=200, payload=self.empty_messages, repeat=True
         )
 
         await client.receive_response(self.login_response)
@@ -516,10 +418,7 @@ class TestClass(object):
         await client.new_fetch_task.wait()
 
         # Load the currently waiting task
-        tasks = client.pan_store.load_fetcher_tasks(
-            client.server_name,
-            client.user_id
-        )
+        tasks = client.pan_store.load_fetcher_tasks(client.server_name, client.user_id)
         assert len(tasks) == 1
 
         # Check that the task is our prev_batch from the sync resposne
@@ -529,10 +428,7 @@ class TestClass(object):
         # Let's wait for the next fetch task
         await client.new_fetch_task.wait()
 
-        tasks = client.pan_store.load_fetcher_tasks(
-            client.server_name,
-            client.user_id
-        )
+        tasks = client.pan_store.load_fetcher_tasks(client.server_name, client.user_id)
         assert len(tasks) == 1
 
         # Check that the task is our end token from the messages resposne
@@ -542,10 +438,7 @@ class TestClass(object):
         # Wait for the next fetch loop iteration.
         await client.fetch_loop_event.wait()
 
-        tasks = client.pan_store.load_fetcher_tasks(
-            client.server_name,
-            client.user_id
-        )
+        tasks = client.pan_store.load_fetcher_tasks(client.server_name, client.user_id)
         # Check that there are no more tasks since we reached the start of the
         # room timeline.
         assert not tasks
@@ -557,51 +450,39 @@ class TestClass(object):
             pytest.skip("Indexing needs to be enabled to test this")
 
         sync_url = re.compile(
-            r'^https://example\.org/_matrix/client/r0/sync\?access_token=.*'
+            r"^https://example\.org/_matrix/client/r0/sync\?access_token=.*"
         )
 
         aioresponse.get(
-            sync_url,
-            status=200,
-            payload=self.initial_sync_response,
+            sync_url, status=200, payload=self.initial_sync_response,
         )
 
-        aioresponse.get(
-            sync_url,
-            status=200,
-            payload=self.empty_sync,
-            repeat=True
-        )
+        aioresponse.get(sync_url, status=200, payload=self.empty_sync, repeat=True)
 
         aioresponse.post(
             "https://example.org/_matrix/client/r0/keys/upload?access_token=abc123",
             status=200,
             payload=self.keys_upload_response,
-            repeat=True
+            repeat=True,
         )
 
         aioresponse.post(
             "https://example.org/_matrix/client/r0/keys/query?access_token=abc123",
             status=200,
             payload=self.keys_query_response,
-            repeat=True
+            repeat=True,
         )
 
         messages_url = re.compile(
-            r'^https://example\.org/_matrix/client/r0/rooms/{}/messages\?.*'.format(TEST_ROOM_ID)
+            r"^https://example\.org/_matrix/client/r0/rooms/{}/messages\?.*".format(
+                TEST_ROOM_ID
+            )
         )
 
-        aioresponse.get(
-            messages_url,
-            status=200,
-            payload=self.messages_response
-        )
+        aioresponse.get(messages_url, status=200, payload=self.messages_response)
 
         aioresponse.get(
-            messages_url,
-            status=200,
-            payload=self.empty_messages,
-            repeat=True
+            messages_url, status=200, payload=self.empty_messages, repeat=True
         )
 
         await client.receive_response(self.login_response)
@@ -613,11 +494,7 @@ class TestClass(object):
 
         await client.loop_stop()
 
-        index_path = os.path.join(
-            client.store_path,
-            client.server_name,
-            client.user_id
-        )
+        index_path = os.path.join(client.store_path, client.server_name, client.user_id)
 
         # Remove the lock file since the GC won't do it for us
         writer_lock = os.path.join(index_path, ".tantivy-writer.lock")
@@ -638,8 +515,7 @@ class TestClass(object):
         client2.access_token = client.access_token
 
         tasks = client2.pan_store.load_fetcher_tasks(
-            client2.server_name,
-            client2.user_id
+            client2.server_name, client2.user_id
         )
         assert len(tasks) == 1
 
@@ -655,8 +531,7 @@ class TestClass(object):
         await client2.fetch_loop_event.wait()
 
         tasks = client2.pan_store.load_fetcher_tasks(
-            client2.server_name,
-            client2.user_id
+            client2.server_name, client2.user_id
         )
         # Check that there are no more tasks since we reached the start of the
         # room timeline.
