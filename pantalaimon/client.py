@@ -811,12 +811,9 @@ class PanClient(AsyncClient):
             return
 
         for event in to_device_events["events"]:
-            if event.get("type") != "m.room.encrypted":
-                continue
-
             event = ToDeviceEvent.parse_encrypted_event(event)
 
-            if not isinstance(event, OlmEvent):
+            if not isinstance(event, ToDeviceEvent):
                 continue
 
             self.olm.handle_to_device_event(event)
