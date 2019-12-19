@@ -804,6 +804,23 @@ class PanClient(AsyncClient):
 
         return body
 
+    def handle_to_device_from_sync_body(self, body):
+        to_device_events = body.get("to_device")
+
+        if not to_device_events or "events" not in to_device_events:
+            return
+
+        for event in to_device_events["events"]:
+            if event.get("type") != "m.room.encrypted":
+                continue
+
+            event = ToDeviceEvent.parse_encrypted_event(event)
+
+            if not isinstance(event, OlmEvent):
+                continue
+
+            self.olm.handle_to_device_event(event)
+
     def decrypt_sync_body(self, body, ignore_failures=True):
         # type: (Dict[Any, Any], bool) -> Dict[Any, Any]
         """Go through a json sync response and decrypt megolm encrypted events.
@@ -815,15 +832,7 @@ class PanClient(AsyncClient):
         """
         logger.info("Decrypting sync")
 
-        for event in body["to_device"]["events"]:
-            if event["type"] != "m.room.encrypted":
-                continue
-            event = ToDeviceEvent.parse_encrypted_event(event)
-
-            if not isinstance(event, OlmEvent):
-                continue
-
-            self.olm.handle_to_device_event(event)
+        self.handle_to_device_from_sync_body(body)
 
         for room_id, room_dict in body["rooms"]["join"].items():
             try:
