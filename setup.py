@@ -26,7 +26,7 @@ setup(
         "logbook",
         "peewee",
         "janus",
-        "prompt_toolkit>2<3",
+        "prompt_toolkit>2<4",
         "typing;python_version<'3.5'",
         "matrix-nio[e2e] >= 0.4.1"
     ],
