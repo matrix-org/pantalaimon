@@ -338,7 +338,7 @@ class PanCtl:
             "List the configured homeservers and pan users on each homeserver."
         ),
         "list-devices": (
-            "List the devices of a user that are known to the " "pan-user."
+            "List the devices of a user that are known to the pan-user."
         ),
         "start-verification": (
             "Start an interactive key verification between "
@@ -466,7 +466,7 @@ class PanCtl:
     def show_sas_invite(self, pan_user, user_id, device_id, _):
         print(
             f"{user_id} has started an interactive device "
-            f"verification for his device {device_id} with pan user "
+            f"verification for their device {device_id} with pan user "
             f"{pan_user}\n"
             f"Accept the invitation with the accept-verification command."
         )
