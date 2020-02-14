@@ -70,6 +70,8 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
                 proxy.send_message,
             ),
             web.post("/_matrix/client/r0/user/{user_id}/filter", proxy.filter),
+            web.post("/.well-known/matrix/client", proxy.well_known),
+            web.get("/.well-known/matrix/client", proxy.well_known),
             web.post("/_matrix/client/r0/search", proxy.search),
             web.options("/_matrix/client/r0/search", proxy.search_opts),
         ]

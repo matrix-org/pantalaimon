@@ -987,6 +987,14 @@ class ProxyDaemon:
 
         return web.json_response(result, headers=CORS_HEADERS, status=200)
 
+    async def well_known(self, _):
+        """Intercept well-known requests
+
+        Clients might make this request before logging in and override the
+        homeserver setting set by the user.
+        """
+        return web.Response(status=404)
+
     async def shutdown(self, _):
         """Shut the daemon down closing all the client sessions it has.
 
