@@ -19,7 +19,7 @@ class InvalidQueryError(Exception):
     pass
 
 
-if util.find_spec("tantivy"):
+if False:
     import asyncio
     import datetime
     import json

@@ -32,9 +32,6 @@ setup(
         "matrix-nio[e2e] >= 0.4.1"
     ],
     extras_require={
-        "e2e_search":  [
-            "tantivy",
-        ],
         "ui": [
             "dbus-python",
             "PyGObject",
