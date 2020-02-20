@@ -27,12 +27,25 @@ from nio.store import (
     use_database_atomic,
 )
 from peewee import SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase, TextField
+from cachetools import LRUCache
+
+
+MAX_LOADED_MEDIA = 10000
 
 
 @attr.s
 class FetchTask:
     room_id = attr.ib(type=str)
     token = attr.ib(type=str)
+
+
+@attr.s
+class MediaInfo:
+    mxc_server = attr.ib(type=str)
+    mxc_path = attr.ib(type=str)
+    key = attr.ib(type=dict)
+    iv = attr.ib(type=str)
+    hashes = attr.ib(type=dict)
 
 
 class DictField(TextField):
@@ -86,6 +99,20 @@ class PanFetcherTasks(Model):
         constraints = [SQL("UNIQUE(user_id, room_id, token)")]
 
 
+class PanMediaInfo(Model):
+    server = ForeignKeyField(
+        model=Servers, column_name="server_id", backref="media", on_delete="CASCADE"
+    )
+    mxc_server = TextField()
+    mxc_path = TextField()
+    key = DictField()
+    hashes = DictField()
+    iv = TextField()
+
+    class Meta:
+        constraints = [SQL("UNIQUE(server_id, mxc_server, mxc_path)")]
+
+
 @attr.s
 class ClientInfo:
     user_id = attr.ib(type=str)
@@ -107,6 +134,7 @@ class PanStore:
         DeviceTrustState,
         PanSyncTokens,
         PanFetcherTasks,
+        PanMediaInfo,
     ]
 
     def __attrs_post_init__(self):
@@ -133,6 +161,46 @@ class PanStore:
             )
         except DoesNotExist:
             return None
+
+    @use_database
+    def save_media(self, server, media):
+        server = Servers.get(name=server)
+
+        PanMediaInfo.insert(
+            server=server,
+            mxc_server=media.mxc_server,
+            mxc_path=media.mxc_path,
+            key=media.key,
+            iv=media.iv,
+            hashes=media.hashes,
+        ).on_conflict_ignore().execute()
+
+    @use_database
+    def load_media(self, server, mxc_server=None, mxc_path=None):
+        server, _ = Servers.get_or_create(name=server)
+
+        if not mxc_path:
+            media_cache = LRUCache(maxsize=MAX_LOADED_MEDIA)
+
+            for i, m in enumerate(server.media):
+                if i > MAX_LOADED_MEDIA:
+                    break
+
+                media = MediaInfo(m.mxc_server, m.mxc_path, m.key, m.iv, m.hashes)
+                media_cache[(m.mxc_server, m.mxc_path)] = media
+
+            return media_cache
+        else:
+            m = PanMediaInfo.get_or_none(
+                PanMediaInfo.server == server,
+                PanMediaInfo.mxc_server == mxc_server,
+                PanMediaInfo.mxc_path == mxc_path,
+            )
+
+            if not m:
+                return None
+
+            return MediaInfo(m.mxc_server, m.mxc_path, m.key, m.iv, m.hashes)
 
     @use_database_atomic
     def replace_fetcher_task(self, server, pan_user, old_task, new_task):
@@ -169,6 +237,7 @@ class PanStore:
 
         return tasks
 
+    @use_database
     def delete_fetcher_task(self, server, pan_user, task):
         server = Servers.get(name=server)
         user = ServerUsers.get(server=server, user_id=pan_user)
