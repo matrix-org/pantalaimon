@@ -15,9 +15,9 @@
 from importlib import util
 
 UI_ENABLED = (
-    util.find_spec("gi") is not None and
-        util.find_spec("gi.repository") is not None and
-        util.find_spec("pydbus") is not None
+    util.find_spec("gi") is not None
+    and util.find_spec("gi.repository") is not None
+    and util.find_spec("pydbus") is not None
 )
 
 if UI_ENABLED:
