@@ -91,6 +91,7 @@ class ProxyDaemon:
     pan_clients = attr.ib(init=False, default=attr.Factory(dict))
     client_info = attr.ib(init=False, default=attr.Factory(dict), type=dict)
     default_session = attr.ib(init=False, default=None)
+    media_info = attr.ib(init=False, default=None)
     database_name = "pan.db"
 
     def __attrs_post_init__(self):
@@ -100,6 +101,7 @@ class ProxyDaemon:
         self.hostname = self.homeserver.hostname
         self.store = PanStore(self.data_dir)
         accounts = self.store.load_users(self.name)
+        self.media_info = self.store.load_media(self.name)
 
         for user_id, device_id in accounts:
             if self.conf.keyring:
@@ -133,6 +135,7 @@ class ProxyDaemon:
                 ssl=self.ssl,
                 proxy=self.proxy,
                 store_class=self.client_store_class,
+                media_info=self.media_info,
             )
             pan_client.user_id = user_id
             pan_client.access_token = token
@@ -453,7 +456,9 @@ class ProxyDaemon:
 
         assert session
 
-        path = urllib.parse.quote(request.path)  # re-encode path stuff like room aliases
+        path = urllib.parse.quote(
+            request.path
+        )  # re-encode path stuff like room aliases
         method = request.method
 
         headers = CIMultiDict(request.headers)
@@ -556,6 +561,7 @@ class ProxyDaemon:
             ssl=self.ssl,
             proxy=self.proxy,
             store_class=self.client_store_class,
+            media_info=self.media_info,
         )
         response = await pan_client.login(password, "pantalaimon")
 

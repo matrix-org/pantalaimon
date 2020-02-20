@@ -33,7 +33,6 @@ from nio import (
     KeyVerificationMac,
     KeyVerificationStart,
     LocalProtocolError,
-    OlmEvent,
     MegolmEvent,
     RoomContextError,
     RoomEncryptedMedia,
@@ -156,6 +155,7 @@ class PanClient(AsyncClient):
         ssl=None,
         proxy=None,
         store_class=None,
+        media_info=None,
     ):
         config = config or AsyncClientConfig(
             store=store_class or SqliteStore, store_name="pan.db"
@@ -172,6 +172,7 @@ class PanClient(AsyncClient):
         self.server_name = server_name
         self.pan_store = pan_store
         self.pan_conf = pan_conf
+        self.media_info = media_info
 
         if INDEXING_ENABLED:
             logger.info("Indexing enabled.")
