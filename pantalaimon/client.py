@@ -37,6 +37,9 @@ from nio import (
     MegolmEvent,
     RoomContextError,
     RoomEncryptedMedia,
+    RoomEncryptedImage,
+    RoomEncryptedFile,
+    RoomEncryptedVideo,
     RoomMessageMedia,
     RoomMessageText,
     RoomNameEvent,
@@ -206,6 +209,10 @@ class PanClient(AsyncClient):
         )
         self.add_event_callback(self.undecrypted_event_cb, MegolmEvent)
         self.add_event_callback(self.store_media_cb, RoomEncryptedMedia)
+        self.add_event_callback(
+            self.store_thumbnail_cb,
+            (RoomEncryptedImage, RoomEncryptedVideo, RoomEncryptedFile),
+        )
 
         if INDEXING_ENABLED:
             self.add_event_callback(
@@ -232,6 +239,36 @@ class PanClient(AsyncClient):
             return
 
         self.index.add_event(event, room.room_id, display_name, avatar_url)
+
+    def store_thumbnail_cb(self, room, event):
+        if not (
+            event.thumbnail_url
+            and event.thumbnail_key
+            and event.thumbnail_iv
+            and event.thumbnail_hashes
+        ):
+            return
+
+        try:
+            mxc = urlparse(event.thumbnail_url)
+        except ValueError:
+            return
+
+        if mxc is None:
+            return
+
+        mxc_server = mxc.netloc.strip("/")
+        mxc_path = mxc.path.strip("/")
+
+        media = MediaInfo(
+            mxc_server,
+            mxc_path,
+            event.thumbnail_key,
+            event.thumbnail_iv,
+            event.thumbnail_hashes,
+        )
+        self.media_info[(mxc_server, mxc_path)] = media
+        self.pan_store.save_media(self.server_name, media)
 
     def store_media_cb(self, room, event):
         try:
