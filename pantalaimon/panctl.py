@@ -31,10 +31,11 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.patch_stdout import patch_stdout
 from pydbus import SessionBus
 
-PTK2 = ptk_version.startswith('2.')
+PTK2 = ptk_version.startswith("2.")
 
 if PTK2:
     from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
+
     use_asyncio_event_loop()
 
 
@@ -337,9 +338,7 @@ class PanCtl:
         "list-servers": (
             "List the configured homeservers and pan users on each homeserver."
         ),
-        "list-devices": (
-            "List the devices of a user that are known to the pan-user."
-        ),
+        "list-devices": ("List the devices of a user that are known to the pan-user."),
         "start-verification": (
             "Start an interactive key verification between "
             "the given pan-user and user."
