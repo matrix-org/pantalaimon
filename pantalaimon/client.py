@@ -17,6 +17,7 @@ import os
 from collections import defaultdict
 from pprint import pformat
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 from aiohttp.client_exceptions import ClientConnectionError
 from jsonschema import Draft4Validator, FormatChecker, validators
@@ -49,7 +50,7 @@ from nio.store import SqliteStore
 
 from pantalaimon.index import INDEXING_ENABLED
 from pantalaimon.log import logger
-from pantalaimon.store import FetchTask
+from pantalaimon.store import FetchTask, MediaInfo
 from pantalaimon.thread_messages import (
     DaemonResponse,
     InviteSasSignal,
@@ -204,6 +205,7 @@ class PanClient(AsyncClient):
             self.key_request_cb, (RoomKeyRequest, RoomKeyRequestCancellation)
         )
         self.add_event_callback(self.undecrypted_event_cb, MegolmEvent)
+        self.add_event_callback(self.store_media_cb, RoomEncryptedMedia)
 
         if INDEXING_ENABLED:
             self.add_event_callback(
@@ -230,6 +232,24 @@ class PanClient(AsyncClient):
             return
 
         self.index.add_event(event, room.room_id, display_name, avatar_url)
+
+    def store_media_cb(self, room, event):
+        try:
+            mxc = urlparse(event.url)
+        except ValueError:
+            return
+
+        if mxc is None:
+            return
+
+        mxc_server = mxc.netloc.strip("/")
+        mxc_path = mxc.path.strip("/")
+
+        logger.info(f"Adding media info for {mxc_server}/{mxc_path} to the store")
+
+        media = MediaInfo(mxc_server, mxc_path, event.key, event.iv, event.hashes)
+        self.media_info[(mxc_server, mxc_path)] = media
+        self.pan_store.save_media(self.server_name, media)
 
     @property
     def unable_to_decrypt(self):
