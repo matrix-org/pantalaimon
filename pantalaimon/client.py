@@ -899,8 +899,10 @@ class PanClient(AsyncClient):
                     )
                     continue
             except KeyError:
-                logger.info("Unknown room {} skipping...".format(room_id))
-                continue
+                # We don't know if the room is encrypted or not, probably
+                # because the client sync stream got to join the room before the
+                # pan sync stream did. Let's assume that the room is encrypted.
+                pass
 
             for event in room_dict["timeline"]["events"]:
                 if "type" not in event:
