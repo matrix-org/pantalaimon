@@ -819,6 +819,13 @@ class PanClient(AsyncClient):
         try:
             decrypted_event = self.decrypt_event(event)
             logger.debug("Decrypted event: {}".format(decrypted_event))
+            logger.info(
+                "Decrypted event from {} in {}, event id: {}".format(
+                    decrypted_event.sender,
+                    decrypted_event.room_id,
+                    decrypted_event.event_id,
+                )
+            )
 
             event_dict.update(decrypted_event.source)
             event_dict["decrypted"] = True
