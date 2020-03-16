@@ -98,7 +98,8 @@ Usage
 
 While pantalaimon is a daemon, it is meant to be run as your own user. It won't
 verify devices for you automatically, unless configured to do so, and requires
-user interaction to verify, ignore or blacklist devices.
+user interaction to verify, ignore or blacklist devices. A more complete
+description of Pantalaimon can be found in the [man page](docs/man/pantalaimon.8.md).
 
 Pantalaimon requires a configuration file to run. The configuration file
 specifies one or more homeservers for pantalaimon to connect to.
@@ -114,7 +115,7 @@ ListenPort = 8009
 The configuration file should be placed in `~/.config/pantalaimon/pantalaimon.conf`.
 
 The full documentation for the pantalaimons configuration can be found in
-the man page `pantalaimon(5)`.
+the [man page](docs/man/pantalaimon.5.md) `pantalaimon(5)`.
 
 Now that pantalaimon is configured it can be run:
 
