@@ -827,6 +827,17 @@ class PanClient(AsyncClient):
                 )
             )
 
+            if isinstance(decrypted_event, RoomEncryptedMedia):
+                decrypted_event.source["content"]["url"] = decrypted_event.url
+
+                if (
+                    "info" in decrypted_event.source
+                    and "thumbnail_file" in decrypted_event.source["info"]
+                ):
+                    decrypted_event.source["content"]["info"][
+                        "thumbnail_url"
+                    ] = decrypted_event.source["thumbnail_file"].get("url")
+
             event_dict.update(decrypted_event.source)
             event_dict["decrypted"] = True
             event_dict["verified"] = decrypted_event.verified
