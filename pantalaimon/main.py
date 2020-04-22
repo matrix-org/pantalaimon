@@ -75,6 +75,13 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
             web.post("/_matrix/client/r0/search", proxy.search),
             web.options("/_matrix/client/r0/search", proxy.search_opts),
             web.get(
+                "/_matrix/media/v1/download/{server_name}/{media_id}", proxy.download
+            ),
+            web.get(
+                "/_matrix/media/v1/download/{server_name}/{media_id}/{file_name}",
+                proxy.download,
+            ),
+            web.get(
                 "/_matrix/media/r0/download/{server_name}/{media_id}", proxy.download
             ),
             web.get(
