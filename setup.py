@@ -18,14 +18,14 @@ setup(
     license="Apache License, Version 2.0",
     packages=find_packages(),
     install_requires=[
-        "attrs",
-        "aiohttp",
-        "appdirs",
-        "click",
-        "keyring",
-        "logbook",
-        "peewee",
-        "janus",
+        "attrs <= 19.3.0",
+        "aiohttp <= 3.6.2",
+        "appdirs <= 1.4.3",
+        "click <= 7.1.1",
+        "keyring <= 21.2.0",
+        "logbook <= 1.5.3",
+        "peewee <= 3.1.13",
+        "janus <= 0.4.0",
         "cachetools >= 3.0.0"
         "prompt_toolkit>2<4",
         "typing;python_version<'3.5'",
@@ -33,10 +33,10 @@ setup(
     ],
     extras_require={
         "ui": [
-            "dbus-python",
-            "PyGObject",
-            "pydbus",
-            "notify2",
+            "dbus-python <= 1.2.16",
+            "PyGObject <= 3.36.0",
+            "pydbus <= 0.6.0",
+            "notify2 <= 0.3.1",
         ]
     },
     entry_points={
