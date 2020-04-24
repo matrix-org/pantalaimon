@@ -24,7 +24,7 @@ setup(
         "click <= 7.1.1",
         "keyring <= 21.2.0",
         "logbook <= 1.5.3",
-        "peewee <= 3.1.13",
+        "peewee <= 3.13.3",
         "janus <= 0.4.0",
         "cachetools >= 3.0.0"
         "prompt_toolkit>2<4",
