@@ -132,24 +132,7 @@ async def message_router(receive_queue, send_queue, proxies):
         await proxy.receive_message(message)
 
 
-@click.command(
-    help=(
-        "pantalaimon is a reverse proxy for matrix homeservers that "
-        "transparently encrypts and decrypts messages for clients that "
-        "connect to pantalaimon."
-    )
-)
-@click.version_option(version="0.5.1", prog_name="pantalaimon")
-@click.option(
-    "--log-level",
-    type=click.Choice(["error", "warning", "info", "debug"]),
-    default=None,
-)
-@click.option("--debug-encryption", is_flag=True)
-@click.option("-c", "--config", type=click.Path(exists=True))
-@click.option("--data-path", type=click.Path(exists=True))
-@click.pass_context
-def main(context, log_level, debug_encryption, config, data_path):
+async def daemon(context, log_level, debug_encryption, config, data_path):
     loop = asyncio.get_event_loop()
 
     conf_dir = user_config_dir("pantalaimon", "")
@@ -185,8 +168,8 @@ def main(context, log_level, debug_encryption, config, data_path):
     if UI_ENABLED:
         from pantalaimon.ui import GlibT
 
-        pan_queue = janus.Queue(loop=loop)
-        ui_queue = janus.Queue(loop=loop)
+        pan_queue = janus.Queue()
+        ui_queue = janus.Queue()
 
         glib_thread = GlibT(
             pan_queue.sync_q,
@@ -197,7 +180,7 @@ def main(context, log_level, debug_encryption, config, data_path):
         )
 
         glib_fut = loop.run_in_executor(None, glib_thread.run)
-        message_router_task = loop.create_task(
+        message_router_task = asyncio.create_task(
             message_router(ui_queue.async_q, pan_queue.async_q, proxies)
         )
 
@@ -209,11 +192,8 @@ def main(context, log_level, debug_encryption, config, data_path):
         message_router_task = None
 
     try:
-
         for server_conf in pan_conf.servers.values():
-            proxy, runner, site = loop.run_until_complete(
-                init(data_dir, server_conf, pan_queue, ui_queue)
-            )
+            proxy, runner, site = await init(data_dir, server_conf, pan_queue, ui_queue)
             servers.append((proxy, runner, site))
             proxies.append(proxy)
 
@@ -227,6 +207,8 @@ def main(context, log_level, debug_encryption, config, data_path):
     home = os.path.expanduser("~")
     os.chdir(home)
 
+    event = asyncio.Event()
+
     def handler(signum, frame):
         raise KeyboardInterrupt
 
@@ -238,23 +220,48 @@ def main(context, log_level, debug_encryption, config, data_path):
                 f"======== Starting daemon for homeserver "
                 f"{proxy.name} on {site.name} ========"
             )
-            loop.run_until_complete(site.start())
+            await site.start()
 
         click.echo("(Press CTRL+C to quit)")
-        loop.run_forever()
-    except KeyboardInterrupt:
+        await event.wait()
+    except (KeyboardInterrupt, asyncio.CancelledError):
         for _, runner, _ in servers:
-            loop.run_until_complete(runner.cleanup())
+            await runner.cleanup()
 
         if glib_fut:
-            loop.run_until_complete(wait_for_glib(glib_thread, glib_fut))
+            await wait_for_glib(glib_thread, glib_fut)
 
         if message_router_task:
             message_router_task.cancel()
-            loop.run_until_complete(asyncio.wait({message_router_task}))
+            await asyncio.wait({message_router_task})
 
-        loop.close()
+        raise
 
+@click.command(
+    help=(
+        "pantalaimon is a reverse proxy for matrix homeservers that "
+        "transparently encrypts and decrypts messages for clients that "
+        "connect to pantalaimon."
+    )
+)
+@click.version_option(version="0.5.1", prog_name="pantalaimon")
+@click.option(
+    "--log-level",
+    type=click.Choice(["error", "warning", "info", "debug"]),
+    default=None,
+)
+@click.option("--debug-encryption", is_flag=True)
+@click.option("-c", "--config", type=click.Path(exists=True))
+@click.option("--data-path", type=click.Path(exists=True))
+@click.pass_context
+def main(context, log_level, debug_encryption, config, data_path):
+    event = asyncio.Event()
+    try:
+        asyncio.run(daemon(context, log_level, debug_encryption, config, data_path))
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        pass
+
+    return
 
 if __name__ == "__main__":
     main()
