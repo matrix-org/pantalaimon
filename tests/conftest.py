@@ -118,8 +118,8 @@ async def pan_proxy_server(tempdir, aiohttp_server):
 
     config = ServerConfig(server_name, urlparse("https://example.org"))
 
-    pan_queue = janus.Queue(loop=loop)
-    ui_queue = janus.Queue(loop=loop)
+    pan_queue = janus.Queue()
+    ui_queue = janus.Queue()
 
     proxy = ProxyDaemon(
         config.name,

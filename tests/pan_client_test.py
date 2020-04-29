@@ -27,7 +27,7 @@ ALICE_ID = "@alice:example.org"
 @pytest.fixture
 async def client(tmpdir, loop):
     store = PanStore(tmpdir)
-    queue = janus.Queue(loop=loop)
+    queue = janus.Queue()
     conf = ServerConfig("example", "https://exapmle.org")
     conf.history_fetch_delay = 0.1
 
