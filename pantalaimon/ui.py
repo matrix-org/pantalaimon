@@ -646,6 +646,9 @@ if UI_ENABLED:
                     self.notifications = False
 
             GLib.timeout_add(100, self.message_callback)
+            if not self.loop:
+                return
+
             self.loop.run()
 
         def stop(self):
