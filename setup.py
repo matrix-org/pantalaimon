@@ -25,9 +25,9 @@ setup(
         "keyring <= 21.2.0",
         "logbook <= 1.5.3",
         "peewee <= 3.13.3",
-        "janus <= 0.4.0",
+        "janus <= 0.5.0",
         "cachetools >= 3.0.0"
-        "prompt_toolkit>2<4",
+        "prompt_toolkit > 2 < 4",
         "typing;python_version<'3.5'",
         "matrix-nio[e2e] >= 0.8.0"
     ],
