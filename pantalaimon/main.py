@@ -237,6 +237,7 @@ async def daemon(context, log_level, debug_encryption, config, data_path):
 
         raise
 
+
 @click.command(
     help=(
         "pantalaimon is a reverse proxy for matrix homeservers that "
@@ -255,13 +256,13 @@ async def daemon(context, log_level, debug_encryption, config, data_path):
 @click.option("--data-path", type=click.Path(exists=True))
 @click.pass_context
 def main(context, log_level, debug_encryption, config, data_path):
-    event = asyncio.Event()
     try:
         asyncio.run(daemon(context, log_level, debug_encryption, config, data_path))
     except (KeyboardInterrupt, asyncio.CancelledError):
         pass
 
     return
+
 
 if __name__ == "__main__":
     main()

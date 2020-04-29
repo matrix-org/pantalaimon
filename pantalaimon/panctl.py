@@ -530,7 +530,7 @@ class PanCtl:
                 )
 
             if user_list:
-                print(f" - Pan users:")
+                print(" - Pan users:")
                 user_string = "\n".join(user_list)
                 print_formatted_text(HTML(user_string))
 
@@ -541,11 +541,11 @@ class PanCtl:
 
         for device in devices:
             if device["trust_state"] == "verified":
-                trust_state = f"<ansigreen>Verified</ansigreen>"
+                trust_state = "<ansigreen>Verified</ansigreen>"
             elif device["trust_state"] == "blacklisted":
-                trust_state = f"<ansired>Blacklisted</ansired>"
+                trust_state = "<ansired>Blacklisted</ansired>"
             elif device["trust_state"] == "ignored":
-                trust_state = f"Ignored"
+                trust_state = "Ignored"
             else:
                 trust_state = "Unset"
 
