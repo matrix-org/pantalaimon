@@ -7,7 +7,7 @@ with open("README.md", encoding="utf-8") as f:
 
 setup(
     name="pantalaimon",
-    version="0.5.1",
+    version="0.6.0",
     url="https://github.com/matrix-org/pantalaimon",
     author="The Matrix.org Team",
     author_email="poljar@termina.org.uk",
