@@ -18,25 +18,25 @@ setup(
     license="Apache License, Version 2.0",
     packages=find_packages(),
     install_requires=[
-        "attrs <= 19.3.0",
-        "aiohttp <= 3.6.2",
-        "appdirs <= 1.4.3",
-        "click <= 7.1.1",
-        "keyring <= 21.2.0",
-        "logbook <= 1.5.3",
-        "peewee <= 3.13.3",
-        "janus <= 0.5.0",
-        "cachetools >= 3.0.0"
+        "attrs <= 19.3",
+        "aiohttp <= 3.6",
+        "appdirs <= 1.4",
+        "click <= 7.1",
+        "keyring <= 21.2",
+        "logbook <= 1.5",
+        "peewee <= 3.13",
+        "janus <= 0.5",
+        "cachetools >= 3.0"
         "prompt_toolkit>2<4",
         "typing;python_version<'3.5'",
-        "matrix-nio[e2e] >= 0.8.0"
+        "matrix-nio[e2e] <= 0.12"
     ],
     extras_require={
         "ui": [
-            "dbus-python <= 1.2.16",
-            "PyGObject <= 3.36.0",
-            "pydbus <= 0.6.0",
-            "notify2 <= 0.3.1",
+            "dbus-python <= 1.2",
+            "PyGObject <= 3.36",
+            "pydbus <= 0.6",
+            "notify2 <= 0.3",
         ]
     },
     entry_points={
