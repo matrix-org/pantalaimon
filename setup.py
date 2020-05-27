@@ -18,15 +18,15 @@ setup(
     license="Apache License, Version 2.0",
     packages=find_packages(),
     install_requires=[
-        "attrs <= 19.3",
-        "aiohttp <= 3.6",
-        "appdirs <= 1.4",
-        "click <= 7.1",
-        "keyring <= 21.2",
-        "logbook <= 1.5",
-        "peewee <= 3.13",
-        "janus <= 0.5",
-        "cachetools >= 3.0"
+        "attrs >= 19.3.0",
+        "aiohttp >= 3.6.2",
+        "appdirs >= 1.4.4",
+        "click >= 7.1.2",
+        "keyring >= 21.2.1",
+        "logbook >= 1.5.3",
+        "peewee >= 3.13.1",
+        "janus >= 0.5",
+        "cachetools >= 3.0.0"
         "prompt_toolkit>2<4",
         "typing;python_version<'3.5'",
         "matrix-nio[e2e] <= 0.12"
