@@ -19,7 +19,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "attrs >= 19.3.0",
-        "aiohttp >= 3.6.2",
+        "aiohttp >= 3.6, < 4.0",
         "appdirs >= 1.4.4",
         "click >= 7.1.2",
         "keyring >= 21.2.1",
