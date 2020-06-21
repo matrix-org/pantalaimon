@@ -29,7 +29,7 @@ setup(
         "cachetools >= 3.0.0"
         "prompt_toolkit>2<4",
         "typing;python_version<'3.5'",
-        "matrix-nio[e2e] <= 0.13"
+        "matrix-nio[e2e] <= 0.14"
     ],
     extras_require={
         "ui": [
