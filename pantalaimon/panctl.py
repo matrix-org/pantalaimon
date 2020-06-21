@@ -690,7 +690,7 @@ class PanCtl:
         "the pantalaimon daemon."
     )
 )
-@click.version_option(version="0.6.3", prog_name="panctl")
+@click.version_option(version="0.6.4", prog_name="panctl")
 def main():
     loop = asyncio.get_event_loop()
     glib_loop = GLib.MainLoop()
