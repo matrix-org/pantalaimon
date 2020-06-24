@@ -69,6 +69,10 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
                 r"/_matrix/client/r0/rooms/{room_id}/send/{event_type}/{txnid}",
                 proxy.send_message,
             ),
+            web.post(
+                r"/_matrix/client/r0/rooms/{room_id}/send/{event_type}",
+                proxy.send_message,
+            ),
             web.post("/_matrix/client/r0/user/{user_id}/filter", proxy.filter),
             web.post("/.well-known/matrix/client", proxy.well_known),
             web.get("/.well-known/matrix/client", proxy.well_known),

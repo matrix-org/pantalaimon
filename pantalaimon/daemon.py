@@ -19,6 +19,7 @@ import urllib.parse
 import concurrent.futures
 from json import JSONDecodeError
 from typing import Any, Dict
+from uuid import uuid4
 
 import aiohttp
 import attr
@@ -817,7 +818,7 @@ class ProxyDaemon:
             return await self.forward_to_web(request, token=client.access_token)
 
         msgtype = request.match_info["event_type"]
-        txnid = request.match_info["txnid"]
+        txnid = request.match_info.get("txnid", uuid4())
 
         try:
             content = await request.json()
