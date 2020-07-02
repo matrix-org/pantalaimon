@@ -249,7 +249,7 @@ async def daemon(context, log_level, debug_encryption, config, data_path):
         "connect to pantalaimon."
     )
 )
-@click.version_option(version="0.6.4", prog_name="pantalaimon")
+@click.version_option(version="0.6.5", prog_name="pantalaimon")
 @click.option(
     "--log-level",
     type=click.Choice(["error", "warning", "info", "debug"]),
