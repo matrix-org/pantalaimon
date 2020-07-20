@@ -208,7 +208,6 @@ class PanClient(AsyncClient):
             self.key_request_cb, (RoomKeyRequest, RoomKeyRequestCancellation)
         )
         self.add_event_callback(self.undecrypted_event_cb, MegolmEvent)
-        self.add_event_callback(self.store_media_cb, RoomEncryptedMedia)
         self.add_event_callback(
             self.store_thumbnail_cb,
             (RoomEncryptedImage, RoomEncryptedVideo, RoomEncryptedFile),
@@ -270,7 +269,7 @@ class PanClient(AsyncClient):
         self.media_info[(mxc_server, mxc_path)] = media
         self.pan_store.save_media(self.server_name, media)
 
-    def store_media_cb(self, room, event):
+    def store_event_media(self, event):
         try:
             mxc = urlparse(event.url)
         except ValueError:
@@ -828,6 +827,8 @@ class PanClient(AsyncClient):
             )
 
             if isinstance(decrypted_event, RoomEncryptedMedia):
+                self.store_event_media(decrypted_event)
+
                 decrypted_event.source["content"]["url"] = decrypted_event.url
 
                 if decrypted_event.thumbnail_url:
