@@ -116,7 +116,7 @@ async def pan_proxy_server(tempdir, aiohttp_server):
 
     server_name = faker.hostname()
 
-    config = ServerConfig(server_name, urlparse("https://example.org"))
+    config = ServerConfig(server_name, urlparse("https://example.org"), keyring=False)
 
     pan_queue = janus.Queue()
     ui_queue = janus.Queue()
