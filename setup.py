@@ -7,7 +7,7 @@ with open("README.md", encoding="utf-8") as f:
 
 setup(
     name="pantalaimon",
-    version="0.6.5",
+    version="0.7.0",
     url="https://github.com/matrix-org/pantalaimon",
     author="The Matrix.org Team",
     author_email="poljar@termina.org.uk",
@@ -29,7 +29,7 @@ setup(
         "cachetools >= 3.0.0"
         "prompt_toolkit>2<4",
         "typing;python_version<'3.5'",
-        "matrix-nio[e2e] >= 0.14, < 0.15"
+        "matrix-nio[e2e] >= 0.14, < 0.16"
     ],
     extras_require={
         "ui": [

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.7.0 2020-09-02
+
+### Fixed
+
+- [[#60]] Sanitize the GET /rooms/{room_id}/messages filters as well.
+- [[#62]] Store media info when decrypting instead of using a event callback.
+
+### Changed
+
+- [[d425e2d]] Increase the max POST size.
+
+[#62]: https://github.com/matrix-org/pantalaimon/pull/62
+[#60]: https://github.com/matrix-org/pantalaimon/pull/60
+[d425e2d]: https://github.com/matrix-org/pantalaimon/commit/d425e2d188aed32c3fe87cac210c0943fd51b085
+
 ## 0.6.5 2020-07-02
 
 ### Fixed
