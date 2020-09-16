@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.X.X XXXX-XX-XX
+
+### Changed
+
+- [[#69]] If no password is provided to /login, the daemon will re-use the original login response.
+
+[#69]: https://github.com/matrix-org/pantalaimon/pull/69
+
 ## 0.7.0 2020-09-02
 
 ### Fixed
