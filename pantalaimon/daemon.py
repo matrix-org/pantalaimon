@@ -581,7 +581,8 @@ class ProxyDaemon:
 
         if password == "":
             if device_id is None:
-                raise ValueError("Empty password provided, but device_id was also None")
+                logger.warn(f"Empty password provided and device_id was also None")
+                return
             # If password is blank, we cannot login normally and must
             # fall back to using the provided device_id.
             pan_client.restore_login(user_id, device_id, access_token)
