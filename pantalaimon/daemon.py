@@ -581,7 +581,10 @@ class ProxyDaemon:
 
         if password == "":
             if device_id is None:
-                logger.warn(f"Empty password provided and device_id was also None")
+                logger.warn(
+                    "Empty password provided and device_id was also None, not "
+                    "starting background sync client "
+                )
                 return
             # If password is blank, we cannot login normally and must
             # fall back to using the provided device_id.
