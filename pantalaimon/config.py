@@ -121,6 +121,8 @@ class ServerConfig:
             the room history.
         history_fetch_delay (int): The delay between room history fetching
             requests in seconds.
+        store_forgetful (bool): Enable or disable discarding of previous sessions
+            from the store.
     """
 
     name = attr.ib(type=str)
@@ -137,7 +139,7 @@ class ServerConfig:
     index_encrypted_only = attr.ib(type=bool, default=True)
     indexing_batch_size = attr.ib(type=int, default=100)
     history_fetch_delay = attr.ib(type=int, default=3)
-
+    store_forgetful = attr.ib(type=bool, default=False)
 
 @attr.s
 class PanConfig:
@@ -201,7 +203,7 @@ class PanConfig:
                 proxy = section.geturl("Proxy")
                 search_requests = section.getboolean("SearchRequests")
                 index_encrypted_only = section.getboolean("IndexEncryptedOnly")
-
+                store_forgetful = config["Default"].getboolean("StoreForgetful")
                 indexing_batch_size = section.getint("IndexingBatchSize")
 
                 if not 1 < indexing_batch_size <= 1000:
@@ -243,6 +245,7 @@ class PanConfig:
                     index_encrypted_only,
                     indexing_batch_size,
                     history_fetch_delay / 1000,
+                    store_forgetful,
                 )
 
                 self.servers[section_name] = server_conf

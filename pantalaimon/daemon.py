@@ -150,6 +150,7 @@ class ProxyDaemon:
             pan_client.user_id = user_id
             pan_client.access_token = token
             pan_client.load_store()
+            pan_client.store.forgetful = self.conf.store_forgetful
             self.pan_clients[user_id] = pan_client
 
             loop.create_task(
