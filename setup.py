@@ -33,10 +33,10 @@ setup(
     ],
     extras_require={
         "ui": [
-            "dbus-python <= 1.2",
-            "PyGObject <= 3.36",
-            "pydbus <= 0.6",
-            "notify2 <= 0.3",
+            "dbus-python >= 1.2, < 1.3",
+            "PyGObject >= 3.36, < 3.37",
+            "pydbus >= 0.6, < 0.7",
+            "notify2 >= 0.3, < 0.4",
         ]
     },
     entry_points={
