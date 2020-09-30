@@ -553,7 +553,9 @@ class ProxyDaemon:
 
         return user
 
-    async def start_pan_client(self, access_token, user, user_id, password, device_id=None):
+    async def start_pan_client(
+        self, access_token, user, user_id, password, device_id=None
+    ):
         client = ClientInfo(user_id, access_token)
         self.client_info[access_token] = client
         self.store.save_server_user(self.name, user_id)
@@ -665,7 +667,9 @@ class ProxyDaemon:
                     f"User: {user} succesfully logged in, starting "
                     f"a background sync client."
                 )
-                await self.start_pan_client(access_token, user, user_id, password, device_id)
+                await self.start_pan_client(
+                    access_token, user, user_id, password, device_id
+                )
 
         return web.Response(
             status=response.status,
