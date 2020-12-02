@@ -226,6 +226,7 @@ class PanStore:
             user=user, room_id=task.room_id, token=task.token
         ).execute()
 
+    @use_database
     def load_fetcher_tasks(self, server, pan_user):
         server = Servers.get(name=server)
         user = ServerUsers.get(server=server, user_id=pan_user)
