@@ -27,14 +27,14 @@ setup(
         "peewee >= 3.13.1",
         "janus >= 0.5",
         "cachetools >= 3.0.0",
-        "prompt_toolkit>2<4",
+        "prompt_toolkit > 2, < 4",
         "typing;python_version<'3.5'",
         "matrix-nio[e2e] >= 0.14, < 0.16"
     ],
     extras_require={
         "ui": [
             "dbus-python >= 1.2, < 1.3",
-            "PyGObject >= 3.36, < 3.37",
+            "PyGObject >= 3.36, < 3.39",
             "pydbus >= 0.6, < 0.7",
             "notify2 >= 0.3, < 0.4",
         ]
