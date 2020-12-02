@@ -26,7 +26,7 @@ setup(
         "logbook >= 1.5.3",
         "peewee >= 3.13.1",
         "janus >= 0.5",
-        "cachetools >= 3.0.0"
+        "cachetools >= 3.0.0",
         "prompt_toolkit>2<4",
         "typing;python_version<'3.5'",
         "matrix-nio[e2e] >= 0.14, < 0.16"
