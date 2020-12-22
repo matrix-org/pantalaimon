@@ -48,6 +48,11 @@ class MediaInfo:
     hashes = attr.ib(type=dict)
 
 
+@attr.s
+class UploadInfo:
+    content_uri = attr.ib(type=str)
+
+
 class DictField(TextField):
     def python_value(self, value):  # pragma: no cover
         return json.loads(value)
@@ -112,6 +117,10 @@ class PanMediaInfo(Model):
     class Meta:
         constraints = [SQL("UNIQUE(server_id, mxc_server, mxc_path)")]
 
+class PanUploadInfo(Model):
+    content_uri = TextField()
+    class Meta:
+        constraints = [SQL("UNIQUE(content_uri)")]
 
 @attr.s
 class ClientInfo:
@@ -161,6 +170,23 @@ class PanStore:
             )
         except DoesNotExist:
             return None
+
+    @use_database
+    def save_upload(self, content_uri):
+        PanUploadInfo.insert(
+            content_uri=content_uri,
+        ).on_conflict_ignore().execute()
+
+    @use_database
+    def load_upload(self, content_uri):
+            u = PanUploadInfo.get_or_none(
+                PanUploadInfo.content_uri == content_uri,
+            )
+
+            if not u:
+                return None
+
+            return UploadInfo(u.content_uri)
 
     @use_database
     def save_media(self, server, media):
