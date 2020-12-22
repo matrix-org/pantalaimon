@@ -911,6 +911,7 @@ class ProxyDaemon:
             if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"]:
                 try:
                     content = await self._map_media_upload(content, request, client)
+                    return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
                 except ValueError:
                     return await self.forward_to_web(request, token=client.access_token)
 
