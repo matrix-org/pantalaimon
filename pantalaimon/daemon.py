@@ -868,7 +868,7 @@ class ProxyDaemon:
                 media_id = mxc.path.strip("/")
                 file_name = request.match_info.get("file_name")
 
-                response, decrypted_file, error = self._load_media(server_name, media_id, file_name, request)
+                response, decrypted_file, error = await self._load_media(server_name, media_id, file_name, request)
 
                 if response is None and decrypted_file is None and error is None:
                     return await self.forward_to_web(request, token=client.access_token)
@@ -1108,7 +1108,7 @@ class ProxyDaemon:
             return web.Response(status=503, text=str(e))
 
 
-    def _load_media(self, server_name, media_id, file_name, request):
+    async def _load_media(self, server_name, media_id, file_name, request):
         try:
             media_info = self.media_info[(server_name, media_id)]
         except KeyError:
@@ -1116,7 +1116,7 @@ class ProxyDaemon:
 
             if not media_info:
                 logger.info(f"No media info found for {server_name}/{media_id}")
-                return await self.forward_to_web(request)
+                return None, None, None
 
             self.media_info[(server_name, media_id)] = media_info
 
@@ -1157,7 +1157,7 @@ class ProxyDaemon:
         media_id = request.match_info["media_id"]
         file_name = request.match_info.get("file_name")
 
-        response, decrypted_file, error = self._load_media(server_name, media_id, file_name, request)
+        response, decrypted_file, error = await self._load_media(server_name, media_id, file_name, request)
 
         if response is None and decrypted_file is None and error is None:
             return await self.forward_to_web(request)
