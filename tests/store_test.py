@@ -189,7 +189,7 @@ class TestClass(object):
 
         upload_cache = panstore.load_upload(event.url)
 
-        assert (event.url) in upload_cache
+        assert (event.url, event.key, event.iv, event.hashes) in upload_cache
         upload_info = upload_cache[(event.url)]
         assert upload_info == upload
         assert upload_info == panstore.load_upload(event.url)
