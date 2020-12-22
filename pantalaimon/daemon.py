@@ -19,6 +19,7 @@ import urllib.parse
 import concurrent.futures
 from json import JSONDecodeError
 from typing import Any, Dict
+from urllib.parse import urlparse
 from uuid import uuid4
 
 import aiohttp
@@ -862,8 +863,9 @@ class ProxyDaemon:
                 if upload is None:
                     return await self.forward_to_web(request, token=client.access_token)
 
-                server_name = request.match_info["server_name"]
-                media_id = content_uri
+                mxc = urlparse(content_uri)
+                server_name = mxc.netloc.strip("/")
+                media_id = mxc.path.strip("/")
                 file_name = request.match_info.get("file_name")
 
                 response, decrypted_file, error = self._load_media(server_name, media_id, file_name, request)
