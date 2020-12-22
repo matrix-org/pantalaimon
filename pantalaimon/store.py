@@ -182,12 +182,12 @@ class PanStore:
             return None
 
     @use_database
-    def save_upload(self, content_uri, media):
+    def save_upload(self, content_uri, upload):
         PanUploadInfo.insert(
             content_uri=content_uri,
-            key=media["key"],
-            iv=media["iv"],
-            hashes=media["hashes"],
+            key=upload["key"],
+            iv=upload["iv"],
+            hashes=upload["hashes"],
         ).on_conflict_ignore().execute()
 
     @use_database

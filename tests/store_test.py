@@ -185,7 +185,7 @@ class TestClass(object):
 
         upload = UploadInfo(event.url, event.key, event.iv, event.hashes)
 
-        panstore.save_upload(event.url)
+        panstore.save_upload(event.url, {"key": event.key, "iv": event.iv, "hashes": event.hashes})
 
         upload_cache = panstore.load_upload(event.url)
 
