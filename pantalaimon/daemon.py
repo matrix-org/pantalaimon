@@ -827,7 +827,7 @@ class ProxyDaemon:
             body=await response.read(),
         )
 
-    def _map_media_upload(self, content, request, client):
+    async def _map_media_upload(self, content, request, client):
         content_uri = content["url"]
 
         upload = self.store.load_upload(content_uri)
@@ -843,8 +843,7 @@ class ProxyDaemon:
 
         media = MediaInfo(mxc_server, mxc_path, upload.key, upload.iv, upload.hashes)
         self.media_info[(mxc_server, mxc_path)] = media
-        client = next(iter(self.pan_clients.values()))
-        self.store.save_media(client.server_name, media)
+        self.store.save_media(self.name, media)
 
         try:
             response, decrypted_file, error = await self._load_media(mxc_server, mxc_path, file_name, request)
@@ -859,7 +858,7 @@ class ProxyDaemon:
         if not isinstance(response, DownloadResponse):
             return await self.forward_to_web(request, token=client.access_token)
 
-        decrypted_upload = await client.upload(
+        decrypted_upload, maybe_keys = await client.upload(
             data_provider=BufferedReader(BytesIO(decrypted_file)),
             content_type=response.content_type,
             filename=file_name,
@@ -911,7 +910,7 @@ class ProxyDaemon:
             content_msgtype = content["msgtype"]
             if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"]:
                 try:
-                    content = self._map_media_upload(content, request, client)
+                    content = await self._map_media_upload(content, request, client)
                 except ValueError:
                     return await self.forward_to_web(request, token=client.access_token)
 
@@ -1104,28 +1103,28 @@ class ProxyDaemon:
 
         body = await request.read()
         try:
-            response = await client.upload(
+            response, maybe_keys = await client.upload(
                 data_provider=BufferedReader(BytesIO(body)),
                 content_type=content_type,
                 filename=file_name,
                 encrypt=True,
             )
 
-            if not isinstance(response[0], UploadResponse):
+            if not isinstance(response, UploadResponse):
                 return web.Response(
-                    status=response[0].transport_response.status,
-                    content_type=response[0].transport_response.content_type,
+                    status=response.transport_response.status,
+                    content_type=response.transport_response.content_type,
                     headers=CORS_HEADERS,
-                    body=await response[0].transport_response.read(),
+                    body=await response.transport_response.read(),
                 )
 
-            self.store.save_upload(response[0].content_uri, response[1])
+            self.store.save_upload(response.content_uri, maybe_keys)
 
             return web.Response(
-                status=response[0].transport_response.status,
-                content_type=response[0].transport_response.content_type,
+                status=response.transport_response.status,
+                content_type=response.transport_response.content_type,
                 headers=CORS_HEADERS,
-                body=await response[0].transport_response.read(),
+                body=await response.transport_response.read(),
             )
 
         except ClientConnectionError as e:
