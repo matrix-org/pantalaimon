@@ -51,6 +51,9 @@ class MediaInfo:
 @attr.s
 class UploadInfo:
     content_uri = attr.ib(type=str)
+    key = attr.ib(type=dict)
+    iv = attr.ib(type=str)
+    hashes = attr.ib(type=dict)
 
 
 class DictField(TextField):
@@ -117,10 +120,16 @@ class PanMediaInfo(Model):
     class Meta:
         constraints = [SQL("UNIQUE(server_id, mxc_server, mxc_path)")]
 
+
 class PanUploadInfo(Model):
     content_uri = TextField()
+    key = DictField()
+    hashes = DictField()
+    iv = TextField()
+
     class Meta:
         constraints = [SQL("UNIQUE(content_uri)")]
+
 
 @attr.s
 class ClientInfo:
@@ -144,6 +153,7 @@ class PanStore:
         PanSyncTokens,
         PanFetcherTasks,
         PanMediaInfo,
+        PanUploadInfo,
     ]
 
     def __attrs_post_init__(self):
@@ -172,9 +182,12 @@ class PanStore:
             return None
 
     @use_database
-    def save_upload(self, content_uri):
+    def save_upload(self, content_uri, media):
         PanUploadInfo.insert(
             content_uri=content_uri,
+            key=media["key"],
+            iv=media["iv"],
+            hashes=media["hashes"],
         ).on_conflict_ignore().execute()
 
     @use_database
@@ -186,7 +199,7 @@ class PanStore:
             if not u:
                 return None
 
-            return UploadInfo(u.content_uri)
+            return UploadInfo(u.content_uri, u.key, u.iv, u.hashes)
 
     @use_database
     def save_media(self, server, media):
