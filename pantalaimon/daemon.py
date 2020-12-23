@@ -856,7 +856,7 @@ class ProxyDaemon:
         self.store.save_media(self.name, media)
 
         try:
-            response, decrypted_file = await self._load_media(mxc_server, mxc_path, file_name, request)
+            response, decrypted_file = await self._load_media(mxc_server, mxc_path, file_name)
 
             if response is None and decrypted_file is None:
                 return await self.forward_to_web(request, token=client.access_token)
