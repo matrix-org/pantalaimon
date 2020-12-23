@@ -105,6 +105,7 @@ class ProxyDaemon:
     client_info = attr.ib(init=False, default=attr.Factory(dict), type=dict)
     default_session = attr.ib(init=False, default=None)
     media_info = attr.ib(init=False, default=None)
+    upload_info = attr.ib(init=False, default=None)
     database_name = "pan.db"
 
     def __attrs_post_init__(self):
@@ -115,6 +116,7 @@ class ProxyDaemon:
         self.store = PanStore(self.data_dir)
         accounts = self.store.load_users(self.name)
         self.media_info = self.store.load_media(self.name)
+        self.upload_info = self.store.load_upload(self.name)
 
         for user_id, device_id in accounts:
             if self.conf.keyring:
@@ -830,9 +832,17 @@ class ProxyDaemon:
     async def _map_media_upload(self, content, request, client):
         content_uri = content["url"]
 
-        upload = self.store.load_upload(content_uri)
-        if upload is None:
-            return await self.forward_to_web(request, token=client.access_token)
+        try:
+            upload_info = self.upload_info[content_uri]
+        except KeyError:
+            upload_info = self.store.load_upload(self.name, content_uri)
+            if not upload_info:
+                logger.info(f"No upload info found for {self.name}/{content_uri}")
+
+                return await self.forward_to_web(request, token=client.access_token)
+
+            self.upload_info[content_uri] = upload_info
+
 
         mxc = urlparse(content_uri)
         mxc_server = mxc.netloc.strip("/")
@@ -841,7 +851,7 @@ class ProxyDaemon:
 
         logger.info(f"Adding media info for {mxc_server}/{mxc_path} to the store")
 
-        media = MediaInfo(mxc_server, mxc_path, upload.key, upload.iv, upload.hashes)
+        media = MediaInfo(mxc_server, mxc_path, upload_info.key, upload_info.iv, upload_info.hashes)
         self.media_info[(mxc_server, mxc_path)] = media
         self.store.save_media(self.name, media)
 
@@ -1119,7 +1129,7 @@ class ProxyDaemon:
                     body=await response.transport_response.read(),
                 )
 
-            self.store.save_upload(response.content_uri, maybe_keys)
+            self.store.save_upload(self.name, response.content_uri, maybe_keys)
 
             return web.Response(
                 status=response.transport_response.status,
@@ -1133,7 +1143,7 @@ class ProxyDaemon:
         except SendRetryError as e:
             return web.Response(status=503, text=str(e))
 
-    async def _load_media(self, server_name, media_id, file_name, request):
+    async def _load_media(self, server_name, media_id, file_name):
         try:
             media_info = self.media_info[(server_name, media_id)]
         except KeyError:

@@ -179,14 +179,21 @@ class TestClass(object):
         assert media_info == panstore.load_media(server_name, mxc_server, mxc_path)
 
     def test_upload_storage(self, panstore):
+        server_name = "test"
+        upload_cache = panstore.load_upload(server_name)
+        assert not upload_cache
+
         event = self.encrypted_media_event
 
-        assert not panstore.load_upload(event.url)
+        assert not panstore.load_upload(server_name, event.url)
 
         upload = UploadInfo(event.url, event.key, event.iv, event.hashes)
 
-        panstore.save_upload(event.url, {"key": event.key, "iv": event.iv, "hashes": event.hashes})
+        panstore.save_upload(server_name, event.url, {"key": event.key, "iv": event.iv, "hashes": event.hashes})
 
-        upload_info = panstore.load_upload(event.url)
+        upload_cache = panstore.load_upload(server_name)
 
+        assert (event.url) in upload_cache
+        upload_info = upload_cache[event.url]
         assert upload_info == upload
+        assert upload_info == panstore.load_upload(server_name, event.url)

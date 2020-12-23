@@ -31,6 +31,7 @@ from cachetools import LRUCache
 
 
 MAX_LOADED_MEDIA = 10000
+MAX_LOADED_UPLOAD = 10000
 
 
 @attr.s
@@ -122,13 +123,16 @@ class PanMediaInfo(Model):
 
 
 class PanUploadInfo(Model):
+    server = ForeignKeyField(
+        model=Servers, column_name="server_id", backref="upload", on_delete="CASCADE"
+    )
     content_uri = TextField()
     key = DictField()
     hashes = DictField()
     iv = TextField()
 
     class Meta:
-        constraints = [SQL("UNIQUE(content_uri)")]
+        constraints = [SQL("UNIQUE(server_id, content_uri)")]
 
 
 @attr.s
@@ -182,8 +186,11 @@ class PanStore:
             return None
 
     @use_database
-    def save_upload(self, content_uri, upload):
+    def save_upload(self, server, content_uri, upload):
+        server = Servers.get(name=server)
+
         PanUploadInfo.insert(
+            server=server,
             content_uri=content_uri,
             key=upload["key"],
             iv=upload["iv"],
@@ -191,8 +198,23 @@ class PanStore:
         ).on_conflict_ignore().execute()
 
     @use_database
-    def load_upload(self, content_uri):
+    def load_upload(self, server, content_uri=None):
+        server, _ = Servers.get_or_create(name=server)
+
+        if not content_uri:
+            upload_cache = LRUCache(maxsize=MAX_LOADED_UPLOAD)
+
+            for i, u in enumerate(server.upload):
+                if i > MAX_LOADED_UPLOAD:
+                    break
+
+                upload = UploadInfo(u.content_uri, u.key, u.iv, u.hashes)
+                upload_cache[u.content_uri] = upload
+
+            return upload_cache
+        else:
             u = PanUploadInfo.get_or_none(
+                PanUploadInfo.server == server,
                 PanUploadInfo.content_uri == content_uri,
             )
 
