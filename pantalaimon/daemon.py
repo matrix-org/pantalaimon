@@ -829,8 +829,8 @@ class ProxyDaemon:
             body=await response.read(),
         )
 
-    async def _map_media_upload(self, content, request, client):
-        content_uri = content["url"]
+    async def _map_media_upload(self, content_key, content, request, client):
+        content_uri = content[content_key]
 
         try:
             upload_info = self.upload_info[content_uri]
@@ -878,7 +878,7 @@ class ProxyDaemon:
         if not isinstance(decrypted_upload, UploadResponse):
             raise ValueError
 
-        content["url"] = decrypted_upload.content_uri
+        content[content_key] = decrypted_upload.content_uri
 
         return content
 
@@ -918,9 +918,9 @@ class ProxyDaemon:
                 return self._not_json
 
             content_msgtype = content["msgtype"]
-            if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"]:
+            if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"] or msgtype == "m.room.avatar":
                 try:
-                    content = await self._map_media_upload(content, request, client)
+                    content = await self._map_media_upload("url", content, request, client)
                     return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
                 except ValueError:
                     return await self.forward_to_web(request, token=client.access_token)
@@ -1186,6 +1186,40 @@ class ProxyDaemon:
 
         return response, decrypted_file
 
+
+    async def profile(self, request):
+        access_token = self.get_access_token(request)
+
+        if not access_token:
+            return self._missing_token
+
+        client = await self._find_client(access_token)
+        if not client:
+            return self._unknown_token
+
+        room_id = request.match_info["room_id"]
+
+        # The room is not in the joined rooms list, just forward it.
+        try:
+            room = client.rooms[room_id]
+            encrypt = room.encrypted
+        except KeyError:
+            return await self.forward_to_web(request, token=client.access_token)
+
+        # The room isn't encrypted just forward the message.
+        if not encrypt:
+            try:
+                content = await request.json()
+            except (JSONDecodeError, ContentTypeError):
+                return self._not_json
+
+            try:
+                content = await self._map_media_upload("avatar_url", content, request, client)
+                return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
+            except ValueError:
+                return await self.forward_to_web(request, token=client.access_token)
+
+        return await self.forward_to_web(request, token=client.access_token)
 
     async def download(self, request):
         server_name = request.match_info["server_name"]
