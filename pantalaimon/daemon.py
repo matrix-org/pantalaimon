@@ -909,14 +909,14 @@ class ProxyDaemon:
 
         msgtype = request.match_info["event_type"]
 
+        content = ""
+        try:
+            content = await request.json()
+        except (JSONDecodeError, ContentTypeError):
+            return self._not_json
+
         # The room isn't encrypted just forward the message.
         if not encrypt:
-            content = ""
-            try:
-                content = await request.json()
-            except (JSONDecodeError, ContentTypeError):
-                return self._not_json
-
             content_msgtype = content["msgtype"]
             if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"] or msgtype == "m.room.avatar":
                 try:
