@@ -1197,29 +1197,16 @@ class ProxyDaemon:
         if not client:
             return self._unknown_token
 
-        room_id = request.match_info["room_id"]
-
-        # The room is not in the joined rooms list, just forward it.
         try:
-            room = client.rooms[room_id]
-            encrypt = room.encrypted
-        except KeyError:
+            content = await request.json()
+        except (JSONDecodeError, ContentTypeError):
+            return self._not_json
+
+        try:
+            content = await self._map_media_upload("avatar_url", content, request, client)
+            return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
+        except ValueError:
             return await self.forward_to_web(request, token=client.access_token)
-
-        # The room isn't encrypted just forward the message.
-        if not encrypt:
-            try:
-                content = await request.json()
-            except (JSONDecodeError, ContentTypeError):
-                return self._not_json
-
-            try:
-                content = await self._map_media_upload("avatar_url", content, request, client)
-                return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
-            except ValueError:
-                return await self.forward_to_web(request, token=client.access_token)
-
-        return await self.forward_to_web(request, token=client.access_token)
 
     async def download(self, request):
         server_name = request.match_info["server_name"]

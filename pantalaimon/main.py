@@ -97,7 +97,7 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
                 r"/_matrix/media/r0/upload",
                 proxy.upload,
             ),
-            web.post(
+            web.put(
                 r"/_matrix/client/r0/profile/{userId}/avatar_url",
                 proxy.profile,
             ),
