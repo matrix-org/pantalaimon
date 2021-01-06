@@ -15,7 +15,7 @@
 import json
 import os
 from collections import defaultdict
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import attr
 from nio.crypto import TrustState
@@ -48,6 +48,23 @@ class MediaInfo:
     iv = attr.ib(type=str)
     hashes = attr.ib(type=dict)
 
+    def to_content(self, file_name: str, msgtype: str, mime_type: str) -> Dict[Any, Any]:
+        content = {
+            "body": file_name,
+            "file": {
+                "v": "v2",
+                "key": self.key,
+                "iv": self.iv,
+                "hashes": self.hashes,
+                "url": self.url,
+                "mimetype": mime_type,
+            }
+        }
+
+        if msgtype:
+            content["msgtype"] = msgtype
+
+        return content
 
 @attr.s
 class UploadInfo:
@@ -55,6 +72,7 @@ class UploadInfo:
     key = attr.ib(type=dict)
     iv = attr.ib(type=str)
     hashes = attr.ib(type=dict)
+    mimetype = attr.ib(type=str)
 
 
 class DictField(TextField):
@@ -186,7 +204,7 @@ class PanStore:
             return None
 
     @use_database
-    def save_upload(self, server, content_uri, upload):
+    def save_upload(self, server, content_uri, upload, mimetype):
         server = Servers.get(name=server)
 
         PanUploadInfo.insert(
@@ -195,6 +213,7 @@ class PanStore:
             key=upload["key"],
             iv=upload["iv"],
             hashes=upload["hashes"],
+            mimetype=mimetype,
         ).on_conflict_ignore().execute()
 
     @use_database
@@ -208,7 +227,7 @@ class PanStore:
                 if i > MAX_LOADED_UPLOAD:
                     break
 
-                upload = UploadInfo(u.content_uri, u.key, u.iv, u.hashes)
+                upload = UploadInfo(u.content_uri, u.key, u.iv, u.hashes, u.mimetype)
                 upload_cache[u.content_uri] = upload
 
             return upload_cache
@@ -221,7 +240,7 @@ class PanStore:
             if not u:
                 return None
 
-            return UploadInfo(u.content_uri, u.key, u.iv, u.hashes)
+            return UploadInfo(u.content_uri, u.key, u.iv, u.hashes, u.mimetype)
 
     @use_database
     def save_media(self, server, media):

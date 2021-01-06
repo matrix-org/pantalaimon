@@ -187,9 +187,9 @@ class TestClass(object):
 
         assert not panstore.load_upload(server_name, event.url)
 
-        upload = UploadInfo(event.url, event.key, event.iv, event.hashes)
+        upload = UploadInfo(event.url, event.key, event.iv, event.hashes, event.mimetype)
 
-        panstore.save_upload(server_name, event.url, {"key": event.key, "iv": event.iv, "hashes": event.hashes})
+        panstore.save_upload(server_name, event.url, {"key": event.key, "iv": event.iv, "hashes": event.hashes}, event.mimetype)
 
         upload_cache = panstore.load_upload(server_name)
 
