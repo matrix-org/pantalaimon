@@ -829,7 +829,7 @@ class ProxyDaemon:
             body=await response.read(),
         )
 
-    def _get_upload_and_media_info(self, content_key, content, request):
+    def _get_upload_and_media_info(self, content_key, content):
         content_uri = content[content_key]
 
         try:
@@ -852,17 +852,15 @@ class ProxyDaemon:
 
         self.media_info[(mxc_server, mxc_path)] = media_info
 
-        file_name = request.match_info.get("file_name")
-
-        return upload_info, media_info, file_name
+        return upload_info, media_info
 
     async def _map_decrypted_uri(self, content_key, content, request, client):
         try:
-            upload_info, media_info, file_name = self._get_upload_and_media_info(content_key, content, request)
+            upload_info, media_info = self._get_upload_and_media_info(content_key, content)
             if not upload_info or not media_info:
                 return await self.forward_to_web(request, token=client.access_token)
 
-            response, decrypted_file = await self._load_decrypted_file(media_info.mcx_server, media_info.mxc_path, file_name)
+            response, decrypted_file = await self._load_decrypted_file(media_info.mcx_server, media_info.mxc_path, upload_info.filename)
 
             if response is None and decrypted_file is None:
                 return await self.forward_to_web(request, token=client.access_token)
@@ -877,7 +875,7 @@ class ProxyDaemon:
         decrypted_upload, _ = await client.upload(
             data_provider=BufferedReader(BytesIO(decrypted_file)),
             content_type=response.content_type,
-            filename=file_name,
+            filename=upload_info.filename,
             encrypt=False,
             filesize=len(decrypted_file),
         )
@@ -939,7 +937,7 @@ class ProxyDaemon:
             try:
                 content_msgtype = content["msgtype"]
                 if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"] or msgtype == "m.room.avatar":
-                    upload_info, media_info, file_name = self._get_upload_and_media_info("url", content, request)
+                    upload_info, media_info = self._get_upload_and_media_info("url", content)
                     if not upload_info or not media_info:
                         response = await client.room_send(
                             room_id, msgtype, content, txnid, ignore_unverified
@@ -953,7 +951,7 @@ class ProxyDaemon:
                         )
 
                     media_content = media_info.to_content(content["url"],
-                                                    file_name,
+                                                    upload_info.filename,
                                                     content_msgtype,
                                                     upload_info.mimetype
                                                     ),

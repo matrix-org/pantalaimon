@@ -69,6 +69,7 @@ class MediaInfo:
 @attr.s
 class UploadInfo:
     content_uri = attr.ib(type=str)
+    filename = attr.ib(type=str)
     mimetype = attr.ib(type=str)
 
 
@@ -142,6 +143,7 @@ class PanUploadInfo(Model):
         model=Servers, column_name="server_id", backref="upload", on_delete="CASCADE"
     )
     content_uri = TextField()
+    filename = TextField()
     mimetype = TextField()
 
     class Meta:
@@ -219,7 +221,7 @@ class PanStore:
                 if i > MAX_LOADED_UPLOAD:
                     break
 
-                upload = UploadInfo(u.content_uri, u.mimetype)
+                upload = UploadInfo(u.content_uri, u.filename, u.mimetype)
                 upload_cache[u.content_uri] = upload
 
             return upload_cache
@@ -232,7 +234,7 @@ class PanStore:
             if not u:
                 return None
 
-            return UploadInfo(u.content_uri, u.mimetype)
+            return UploadInfo(u.content_uri, u.filename, u.mimetype)
 
     @use_database
     def save_media(self, server, media):
