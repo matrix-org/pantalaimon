@@ -183,12 +183,13 @@ class TestClass(object):
         upload_cache = panstore.load_upload(server_name)
         assert not upload_cache
 
+        filename = "orange_cat.jpg"
         mimetype = "image/jpeg"
         event = self.encrypted_media_event
 
         assert not panstore.load_upload(server_name, event.url)
 
-        upload = UploadInfo(event.url, mimetype)
+        upload = UploadInfo(event.url, filename, mimetype)
 
         panstore.save_upload(server_name, event.url, mimetype)
 
