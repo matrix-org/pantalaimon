@@ -48,25 +48,15 @@ class MediaInfo:
     iv = attr.ib(type=str)
     hashes = attr.ib(type=dict)
 
-    def to_content(self, url: str, file_name: str, msgtype: str, mime_type: str) -> Dict[Any, Any]:
-        content = {
-            "file": {
+    def to_content(self, content: Dict, mime_type: str) -> Dict[Any, Any]:
+        content["file"] = {
                 "v": "v2",
                 "key": self.key,
                 "iv": self.iv,
                 "hashes": self.hashes,
-                "url": url,
+                "url": content["url"],
                 "mimetype": mime_type,
-            }
         }
-
-        if len(file_name) > 0:
-            content["body"] = file_name
-        else:
-            content["body"] = url
-
-        if msgtype:
-            content["msgtype"] = msgtype
 
         return content
 
