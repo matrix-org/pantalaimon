@@ -61,6 +61,9 @@ class MediaInfo:
             }
         }
 
+        if not file_name:
+            content["body"] = url
+
         if msgtype:
             content["msgtype"] = msgtype
 
