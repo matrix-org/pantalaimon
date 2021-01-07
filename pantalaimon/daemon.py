@@ -952,15 +952,19 @@ class ProxyDaemon:
                             body=await response.transport_response.read(),
                         )
 
-                    content = media_info.to_content(content["url"],
+                    media_content = media_info.to_content(content["url"],
                                                     file_name,
                                                     content_msgtype,
                                                     upload_info.mimetype
                                                     ),
 
-                response = await client.room_send(
-                    room_id, msgtype, content, txnid, ignore_unverified
-                )
+                    response = await client.room_send(
+                        room_id, msgtype, media_content, txnid, ignore_unverified
+                    )
+                else:
+                    response = await client.room_send(
+                        room_id, msgtype, content, txnid, ignore_unverified
+                    )
 
                 return web.Response(
                     status=response.transport_response.status,
