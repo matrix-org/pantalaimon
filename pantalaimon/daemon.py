@@ -860,7 +860,7 @@ class ProxyDaemon:
             if not upload_info or not media_info:
                 return await self.forward_to_web(request, token=client.access_token)
 
-            response, decrypted_file = await self._load_decrypted_file(media_info.mcx_server, media_info.mxc_path, upload_info.filename)
+            response, decrypted_file = await self._load_decrypted_file(media_info.mxc_server, media_info.mxc_path, upload_info.filename)
 
             if response is None and decrypted_file is None:
                 return await self.forward_to_web(request, token=client.access_token)
