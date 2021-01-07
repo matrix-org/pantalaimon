@@ -201,12 +201,13 @@ class PanStore:
             return None
 
     @use_database
-    def save_upload(self, server, content_uri, mimetype):
+    def save_upload(self, server, content_uri, filename, mimetype):
         server = Servers.get(name=server)
 
         PanUploadInfo.insert(
             server=server,
             content_uri=content_uri,
+            filename=filename,
             mimetype=mimetype,
         ).on_conflict_ignore().execute()
 

@@ -191,7 +191,7 @@ class TestClass(object):
 
         upload = UploadInfo(event.url, filename, mimetype)
 
-        panstore.save_upload(server_name, event.url, mimetype)
+        panstore.save_upload(server_name, event.url, filename, mimetype)
 
         upload_cache = panstore.load_upload(server_name)
 

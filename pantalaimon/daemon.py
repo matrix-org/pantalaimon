@@ -837,7 +837,7 @@ class ProxyDaemon:
         except KeyError:
             upload_info = self.store.load_upload(self.name, content_uri)
             if not upload_info:
-                return None, None, None
+                return None, None
 
         self.upload_info[content_uri] = upload_info
 
@@ -848,7 +848,7 @@ class ProxyDaemon:
 
         media_info = self.store.load_media(self.name, mxc_server, mxc_path)
         if not media_info:
-            return None, None, None
+            return None, None
 
         self.media_info[(mxc_server, mxc_path)] = media_info
 
@@ -1159,7 +1159,7 @@ class ProxyDaemon:
                     body=await response.transport_response.read(),
                 )
 
-            self.store.save_upload(self.name, response.content_uri, content_type)
+            self.store.save_upload(self.name, response.content_uri, file_name, content_type)
 
             mxc = urlparse(response.content_uri)
             mxc_server = mxc.netloc.strip("/")
