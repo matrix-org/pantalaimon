@@ -50,7 +50,6 @@ class MediaInfo:
 
     def to_content(self, url: str, file_name: str, msgtype: str, mime_type: str) -> Dict[Any, Any]:
         content = {
-            "body": file_name,
             "file": {
                 "v": "v2",
                 "key": self.key,
@@ -61,7 +60,9 @@ class MediaInfo:
             }
         }
 
-        if len(file_name) == 0:
+        if len(file_name) > 0:
+            content["body"] = file_name
+        else:
             content["body"] = url
 
         if msgtype:
