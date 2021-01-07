@@ -48,7 +48,7 @@ class MediaInfo:
     iv = attr.ib(type=str)
     hashes = attr.ib(type=dict)
 
-    def to_content(self, file_name: str, msgtype: str, mime_type: str) -> Dict[Any, Any]:
+    def to_content(self, url: str, file_name: str, msgtype: str, mime_type: str) -> Dict[Any, Any]:
         content = {
             "body": file_name,
             "file": {
@@ -56,7 +56,7 @@ class MediaInfo:
                 "key": self.key,
                 "iv": self.iv,
                 "hashes": self.hashes,
-                "url": self.url,
+                "url": url,
                 "mimetype": mime_type,
             }
         }
@@ -69,9 +69,6 @@ class MediaInfo:
 @attr.s
 class UploadInfo:
     content_uri = attr.ib(type=str)
-    key = attr.ib(type=dict)
-    iv = attr.ib(type=str)
-    hashes = attr.ib(type=dict)
     mimetype = attr.ib(type=str)
 
 
@@ -145,9 +142,7 @@ class PanUploadInfo(Model):
         model=Servers, column_name="server_id", backref="upload", on_delete="CASCADE"
     )
     content_uri = TextField()
-    key = DictField()
-    hashes = DictField()
-    iv = TextField()
+    mimetype = TextField()
 
     class Meta:
         constraints = [SQL("UNIQUE(server_id, content_uri)")]
@@ -204,15 +199,12 @@ class PanStore:
             return None
 
     @use_database
-    def save_upload(self, server, content_uri, upload, mimetype):
+    def save_upload(self, server, content_uri, mimetype):
         server = Servers.get(name=server)
 
         PanUploadInfo.insert(
             server=server,
             content_uri=content_uri,
-            key=upload["key"],
-            iv=upload["iv"],
-            hashes=upload["hashes"],
             mimetype=mimetype,
         ).on_conflict_ignore().execute()
 
@@ -227,7 +219,7 @@ class PanStore:
                 if i > MAX_LOADED_UPLOAD:
                     break
 
-                upload = UploadInfo(u.content_uri, u.key, u.iv, u.hashes, u.mimetype)
+                upload = UploadInfo(u.content_uri, u.mimetype)
                 upload_cache[u.content_uri] = upload
 
             return upload_cache
@@ -240,7 +232,7 @@ class PanStore:
             if not u:
                 return None
 
-            return UploadInfo(u.content_uri, u.key, u.iv, u.hashes, u.mimetype)
+            return UploadInfo(u.content_uri, u.mimetype)
 
     @use_database
     def save_media(self, server, media):

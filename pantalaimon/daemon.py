@@ -837,7 +837,7 @@ class ProxyDaemon:
         except KeyError:
             upload_info = self.store.load_upload(self.name, content_uri)
             if not upload_info:
-                return None, None
+                return None, None, None
 
         self.upload_info[content_uri] = upload_info
 
@@ -845,23 +845,24 @@ class ProxyDaemon:
         mxc = urlparse(content_uri)
         mxc_server = mxc.netloc.strip("/")
         mxc_path = mxc.path.strip("/")
-        file_name = request.match_info.get("file_name")
 
-        logger.info(f"Adding media info for {mxc_server}/{mxc_path} to the store")
+        media_info = self.store.load_media(self.name, mxc_server, mxc_path)
+        if not media_info:
+            return None, None, None
 
-        media_info = MediaInfo(mxc_server, mxc_path, upload_info.key, upload_info.iv, upload_info.hashes)
         self.media_info[(mxc_server, mxc_path)] = media_info
-        self.store.save_media(self.name, media_info)
+
+        file_name = request.match_info.get("file_name")
 
         return upload_info, media_info, file_name
 
-    async def _map_media_upload(self, content_key, content, request, client):
+    async def _map_decrypted_uri(self, content_key, content, request, client):
         try:
             upload_info, media_info, file_name = self._get_upload_and_media_info(content_key, content, request)
-            if not upload_info:
+            if not upload_info or not media_info:
                 return await self.forward_to_web(request, token=client.access_token)
 
-            response, decrypted_file = await self._load_media(media_info.mcx_server, media_info.mxc_path, file_name)
+            response, decrypted_file = await self._load_decrypted_file(media_info.mcx_server, media_info.mxc_path, file_name)
 
             if response is None and decrypted_file is None:
                 return await self.forward_to_web(request, token=client.access_token)
@@ -925,7 +926,7 @@ class ProxyDaemon:
             content_msgtype = content["msgtype"]
             if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"] or msgtype == "m.room.avatar":
                 try:
-                    content = await self._map_media_upload("url", content, request, client)
+                    content = await self._map_decrypted_uri("url", content, request, client)
                     return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
                 except ValueError:
                     return await self.forward_to_web(request, token=client.access_token)
@@ -939,7 +940,7 @@ class ProxyDaemon:
                 content_msgtype = content["msgtype"]
                 if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"] or msgtype == "m.room.avatar":
                     upload_info, media_info, file_name = self._get_upload_and_media_info("url", content, request)
-                    if not upload_info:
+                    if not upload_info or not media_info:
                         response = await client.room_send(
                             room_id, msgtype, content, txnid, ignore_unverified
                         )
@@ -951,7 +952,11 @@ class ProxyDaemon:
                             body=await response.transport_response.read(),
                         )
 
-                    content = media_info.to_content(file_name, content_msgtype, upload_info.mimetype),
+                    content = media_info.to_content(content["url"],
+                                                    file_name,
+                                                    content_msgtype,
+                                                    upload_info.mimetype
+                                                    ),
 
                 response = await client.room_send(
                     room_id, msgtype, content, txnid, ignore_unverified
@@ -1152,7 +1157,15 @@ class ProxyDaemon:
                     body=await response.transport_response.read(),
                 )
 
-            self.store.save_upload(self.name, response.content_uri, maybe_keys, content_type)
+            self.store.save_upload(self.name, response.content_uri, content_type)
+
+            mxc = urlparse(response.content_uri)
+            mxc_server = mxc.netloc.strip("/")
+            mxc_path = mxc.path.strip("/")
+
+            logger.info(f"Adding media info for {mxc_server}/{mxc_path} to the store")
+            media_info = MediaInfo(mxc_server, mxc_path, maybe_keys["key"], maybe_keys["iv"], maybe_keys["hashes"])
+            self.store.save_media(self.name, media_info)
 
             return web.Response(
                 status=response.transport_response.status,
@@ -1166,7 +1179,7 @@ class ProxyDaemon:
         except SendRetryError as e:
             return web.Response(status=503, text=str(e))
 
-    async def _load_media(self, server_name, media_id, file_name):
+    async def _load_decrypted_file(self, server_name, media_id, file_name):
         try:
             media_info = self.media_info[(server_name, media_id)]
         except KeyError:
@@ -1226,7 +1239,7 @@ class ProxyDaemon:
             return self._not_json
 
         try:
-            content = await self._map_media_upload("avatar_url", content, request, client)
+            content = await self._map_decrypted_uri("avatar_url", content, request, client)
             return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
         except ValueError:
             return await self.forward_to_web(request, token=client.access_token)
@@ -1237,7 +1250,7 @@ class ProxyDaemon:
         file_name = request.match_info.get("file_name")
 
         try:
-            response, decrypted_file = await self._load_media(server_name, media_id, file_name)
+            response, decrypted_file = await self._load_decrypted_file(server_name, media_id, file_name)
 
             if response is None and decrypted_file is None:
                 return await self.forward_to_web(request)
