@@ -855,22 +855,18 @@ class ProxyDaemon:
         return upload_info, media_info
 
     async def _map_decrypted_uri(self, content_key, content, request, client):
-        try:
-            upload_info, media_info = self._get_upload_and_media_info(content_key, content)
-            if not upload_info or not media_info:
-                return await self.forward_to_web(request, token=client.access_token)
+        upload_info, media_info = self._get_upload_and_media_info(content_key, content)
+        if not upload_info or not media_info:
+            raise ValueError
 
-            response, decrypted_file = await self._load_decrypted_file(media_info.mxc_server, media_info.mxc_path, upload_info.filename)
+        response, decrypted_file = await self._load_decrypted_file(media_info.mxc_server, media_info.mxc_path,
+                                                                   upload_info.filename)
 
-            if response is None and decrypted_file is None:
-                return await self.forward_to_web(request, token=client.access_token)
-        except ClientConnectionError as e:
-            return web.Response(status=500, text=str(e))
-        except KeyError:
-            return await self.forward_to_web(request, token=client.access_token)
+        if response is None and decrypted_file is None:
+            raise ValueError
 
         if not isinstance(response, DownloadResponse):
-            return await self.forward_to_web(request, token=client.access_token)
+            raise ValueError
 
         decrypted_upload, _ = await client.upload(
             data_provider=BufferedReader(BytesIO(decrypted_file)),
@@ -926,6 +922,10 @@ class ProxyDaemon:
                 try:
                     content = await self._map_decrypted_uri("url", content, request, client)
                     return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
+                except ClientConnectionError as e:
+                    return web.Response(status=500, text=str(e))
+                except KeyError:
+                    return await self.forward_to_web(request, token=client.access_token)
                 except ValueError:
                     return await self.forward_to_web(request, token=client.access_token)
 
@@ -1239,6 +1239,10 @@ class ProxyDaemon:
         try:
             content = await self._map_decrypted_uri("avatar_url", content, request, client)
             return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
+        except ClientConnectionError as e:
+            return web.Response(status=500, text=str(e))
+        except KeyError:
+            return await self.forward_to_web(request, token=client.access_token)
         except ValueError:
             return await self.forward_to_web(request, token=client.access_token)
 
