@@ -83,6 +83,16 @@ CORS_HEADERS = {
 }
 
 
+class NotDecryptedAvailableError(BaseException):
+    """ Inappropriate argument value (of correct type). """
+    def __init__(self, *args, **kwargs): # real signature unknown
+        pass
+
+    @staticmethod # known case of __new__
+    def __new__(*args, **kwargs): # real signature unknown
+        """ Create and return a new object.  See help(type) for accurate signature. """
+        pass
+
 @attr.s
 class ProxyDaemon:
     name = attr.ib()
@@ -857,16 +867,16 @@ class ProxyDaemon:
     async def _map_decrypted_uri(self, content_key, content, request, client):
         upload_info, media_info = self._get_upload_and_media_info(content_key, content)
         if not upload_info or not media_info:
-            raise ValueError
+            raise NotDecryptedAvailableError
 
         response, decrypted_file = await self._load_decrypted_file(media_info.mxc_server, media_info.mxc_path,
                                                                    upload_info.filename)
 
         if response is None and decrypted_file is None:
-            raise ValueError
+            raise NotDecryptedAvailableError
 
         if not isinstance(response, DownloadResponse):
-            raise ValueError
+            raise NotDecryptedAvailableError
 
         decrypted_upload, _ = await client.upload(
             data_provider=BufferedReader(BytesIO(decrypted_file)),
@@ -877,7 +887,7 @@ class ProxyDaemon:
         )
 
         if not isinstance(decrypted_upload, UploadResponse):
-            raise ValueError
+            raise NotDecryptedAvailableError
 
         content[content_key] = decrypted_upload.content_uri
 
@@ -924,9 +934,7 @@ class ProxyDaemon:
                     return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
                 except ClientConnectionError as e:
                     return web.Response(status=500, text=str(e))
-                except KeyError:
-                    return await self.forward_to_web(request, token=client.access_token)
-                except ValueError:
+                except (KeyError, NotDecryptedAvailableError):
                     return await self.forward_to_web(request, token=client.access_token)
 
             return await self.forward_to_web(request, token=client.access_token)
@@ -1241,9 +1249,7 @@ class ProxyDaemon:
             return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
         except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
-        except KeyError:
-            return await self.forward_to_web(request, token=client.access_token)
-        except ValueError:
+        except (KeyError, NotDecryptedAvailableError):
             return await self.forward_to_web(request, token=client.access_token)
 
     async def download(self, request):
