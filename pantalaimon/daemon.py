@@ -84,8 +84,9 @@ CORS_HEADERS = {
 
 
 class NotDecryptedAvailableError(Exception):
-        """Exception that signals that no decrypted upload is available"""
-        pass
+    """Exception that signals that no decrypted upload is available"""
+    pass
+
 
 @attr.s
 class ProxyDaemon:
@@ -1221,7 +1222,6 @@ class ProxyDaemon:
             )
 
         return response, decrypted_file
-
 
     async def profile(self, request):
         access_token = self.get_access_token(request)

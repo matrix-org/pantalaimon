@@ -60,6 +60,7 @@ class MediaInfo:
 
         return content
 
+
 @attr.s
 class UploadInfo:
     content_uri = attr.ib(type=str)
