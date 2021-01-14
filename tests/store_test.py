@@ -8,7 +8,7 @@ from nio import RoomMessage, RoomEncryptedMedia
 from urllib.parse import urlparse
 from conftest import faker
 from pantalaimon.index import INDEXING_ENABLED
-from pantalaimon.store import FetchTask, MediaInfo
+from pantalaimon.store import FetchTask, MediaInfo, UploadInfo
 
 TEST_ROOM = "!SVkFJHzfwvuaIEawgC:localhost"
 TEST_ROOM2 = "!testroom:localhost"
@@ -177,3 +177,25 @@ class TestClass(object):
         media_info = media_cache[(mxc_server, mxc_path)]
         assert media_info == media
         assert media_info == panstore.load_media(server_name, mxc_server, mxc_path)
+
+    def test_upload_storage(self, panstore):
+        server_name = "test"
+        upload_cache = panstore.load_upload(server_name)
+        assert not upload_cache
+
+        filename = "orange_cat.jpg"
+        mimetype = "image/jpeg"
+        event = self.encrypted_media_event
+
+        assert not panstore.load_upload(server_name, event.url)
+
+        upload = UploadInfo(event.url, filename, mimetype)
+
+        panstore.save_upload(server_name, event.url, filename, mimetype)
+
+        upload_cache = panstore.load_upload(server_name)
+
+        assert (event.url) in upload_cache
+        upload_info = upload_cache[event.url]
+        assert upload_info == upload
+        assert upload_info == panstore.load_upload(server_name, event.url)

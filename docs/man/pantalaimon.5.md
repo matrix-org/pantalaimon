@@ -111,7 +111,7 @@ overridden using appropriate environment variables.
 The following example shows a configured pantalaimon proxy with the name
 *Clocktown*,
 the homeserver URL is set to
-*https://example.org*,
+*https://localhost:8448*,
 the pantalaimon proxy is listening for client connections on the address
 *localhost*,
 and port

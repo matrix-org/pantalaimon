@@ -18,8 +18,10 @@ import os
 import time
 import urllib.parse
 import concurrent.futures
+from io import BufferedReader, BytesIO
 from json import JSONDecodeError
 from typing import Any, Dict
+from urllib.parse import urlparse
 from uuid import uuid4
 import aiohttp
 import attr
@@ -35,6 +37,7 @@ from nio import (
     OlmTrustError,
     SendRetryError,
     DownloadResponse,
+    UploadResponse,
 )
 from nio.crypto import decrypt_attachment
 
@@ -48,7 +51,7 @@ from pantalaimon.client import (
 )
 from pantalaimon.index import INDEXING_ENABLED, InvalidQueryError
 from pantalaimon.log import logger
-from pantalaimon.store import ClientInfo, PanStore
+from pantalaimon.store import ClientInfo, PanStore, MediaInfo
 from pantalaimon.thread_messages import (
     AcceptSasMessage,
     CancelSasMessage,
@@ -80,6 +83,11 @@ CORS_HEADERS = {
 }
 
 
+class NotDecryptedAvailableError(Exception):
+    """Exception that signals that no decrypted upload is available"""
+    pass
+
+
 @attr.s
 class ProxyDaemon:
     name = attr.ib()
@@ -102,6 +110,7 @@ class ProxyDaemon:
     client_info = attr.ib(init=False, default=attr.Factory(dict), type=dict)
     default_session = attr.ib(init=False, default=None)
     media_info = attr.ib(init=False, default=None)
+    upload_info = attr.ib(init=False, default=None)
     database_name = "pan.db"
 
     def __attrs_post_init__(self):
@@ -112,6 +121,7 @@ class ProxyDaemon:
         self.store = PanStore(self.data_dir)
         accounts = self.store.load_users(self.name)
         self.media_info = self.store.load_media(self.name)
+        self.upload_info = self.store.load_upload(self.name)
 
         for user_id, device_id in accounts:
             if self.conf.keyring:
@@ -826,6 +836,60 @@ class ProxyDaemon:
             body=await response.read(),
         )
 
+    def _get_upload_and_media_info(self, content_key, content):
+        content_uri = content[content_key]
+
+        try:
+            upload_info = self.upload_info[content_uri]
+        except KeyError:
+            upload_info = self.store.load_upload(self.name, content_uri)
+            if not upload_info:
+                return None, None
+
+        self.upload_info[content_uri] = upload_info
+
+        content_uri = content[content_key]
+        mxc = urlparse(content_uri)
+        mxc_server = mxc.netloc.strip("/")
+        mxc_path = mxc.path.strip("/")
+
+        media_info = self.store.load_media(self.name, mxc_server, mxc_path)
+        if not media_info:
+            return None, None
+
+        self.media_info[(mxc_server, mxc_path)] = media_info
+
+        return upload_info, media_info
+
+    async def _map_decrypted_uri(self, content_key, content, request, client):
+        upload_info, media_info = self._get_upload_and_media_info(content_key, content)
+        if not upload_info or not media_info:
+            raise NotDecryptedAvailableError
+
+        response, decrypted_file = await self._load_decrypted_file(media_info.mxc_server, media_info.mxc_path,
+                                                                   upload_info.filename)
+
+        if response is None and decrypted_file is None:
+            raise NotDecryptedAvailableError
+
+        if not isinstance(response, DownloadResponse):
+            raise NotDecryptedAvailableError
+
+        decrypted_upload, _ = await client.upload(
+            data_provider=BufferedReader(BytesIO(decrypted_file)),
+            content_type=response.content_type,
+            filename=upload_info.filename,
+            encrypt=False,
+            filesize=len(decrypted_file),
+        )
+
+        if not isinstance(decrypted_upload, UploadResponse):
+            raise NotDecryptedAvailableError
+
+        content[content_key] = decrypted_upload.content_uri
+
+        return content
+
     async def send_message(self, request):
         access_token = self.get_access_token(request)
 
@@ -851,23 +915,55 @@ class ProxyDaemon:
         if request.match_info["event_type"] == "m.reaction":
             encrypt = False
 
-        # The room isn't encrypted just forward the message.
-        if not encrypt:
-            return await self.forward_to_web(request, token=client.access_token)
-
         msgtype = request.match_info["event_type"]
-        txnid = request.match_info.get("txnid", uuid4())
 
         try:
             content = await request.json()
         except (JSONDecodeError, ContentTypeError):
             return self._not_json
 
+        # The room isn't encrypted just forward the message.
+        if not encrypt:
+            content_msgtype = content["msgtype"]
+            if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"] or msgtype == "m.room.avatar":
+                try:
+                    content = await self._map_decrypted_uri("url", content, request, client)
+                    return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
+                except ClientConnectionError as e:
+                    return web.Response(status=500, text=str(e))
+                except (KeyError, NotDecryptedAvailableError):
+                    return await self.forward_to_web(request, token=client.access_token)
+
+            return await self.forward_to_web(request, token=client.access_token)
+
+        txnid = request.match_info.get("txnid", uuid4())
+
         async def _send(ignore_unverified=False):
             try:
-                response = await client.room_send(
-                    room_id, msgtype, content, txnid, ignore_unverified
-                )
+                content_msgtype = content["msgtype"]
+                if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"] or msgtype == "m.room.avatar":
+                    upload_info, media_info = self._get_upload_and_media_info("url", content)
+                    if not upload_info or not media_info:
+                        response = await client.room_send(
+                            room_id, msgtype, content, txnid, ignore_unverified
+                        )
+
+                        return web.Response(
+                            status=response.transport_response.status,
+                            content_type=response.transport_response.content_type,
+                            headers=CORS_HEADERS,
+                            body=await response.transport_response.read(),
+                        )
+
+                    media_content = media_info.to_content(content, upload_info.mimetype)
+
+                    response = await client.room_send(
+                        room_id, msgtype, media_content, txnid, ignore_unverified
+                    )
+                else:
+                    response = await client.room_send(
+                        room_id, msgtype, content, txnid, ignore_unverified
+                    )
 
                 return web.Response(
                     status=response.transport_response.status,
@@ -1041,42 +1137,39 @@ class ProxyDaemon:
 
         return web.json_response(result, headers=CORS_HEADERS, status=200)
 
-    async def download(self, request):
-        server_name = request.match_info["server_name"]
-        media_id = request.match_info["media_id"]
-        file_name = request.match_info.get("file_name")
-
-        try:
-            media_info = self.media_info[(server_name, media_id)]
-        except KeyError:
-            media_info = self.store.load_media(self.name, server_name, media_id)
-
-            if not media_info:
-                logger.info(f"No media info found for {server_name}/{media_id}")
-                return await self.forward_to_web(request)
-
-            self.media_info[(server_name, media_id)] = media_info
-
-        try:
-            key = media_info.key["k"]
-            hash = media_info.hashes["sha256"]
-        except KeyError:
-            logger.warn(
-                f"Media info for {server_name}/{media_id} doesn't contain a key or hash."
-            )
-            return await self.forward_to_web(request)
-
-        if not self.pan_clients:
-            return await self.forward_to_web(request)
-
+    async def upload(self, request):
+        file_name = request.query.get("filename", "")
+        content_type = request.headers.get("Content-Type", "application/octet-stream")
         client = next(iter(self.pan_clients.values()))
 
+        body = await request.read()
         try:
-            response = await client.download(server_name, media_id, file_name)
-        except ClientConnectionError as e:
-            return web.Response(status=500, text=str(e))
+            response, maybe_keys = await client.upload(
+                data_provider=BufferedReader(BytesIO(body)),
+                content_type=content_type,
+                filename=file_name,
+                encrypt=True,
+                filesize=len(body),
+            )
 
-        if not isinstance(response, DownloadResponse):
+            if not isinstance(response, UploadResponse):
+                return web.Response(
+                    status=response.transport_response.status,
+                    content_type=response.transport_response.content_type,
+                    headers=CORS_HEADERS,
+                    body=await response.transport_response.read(),
+                )
+
+            self.store.save_upload(self.name, response.content_uri, file_name, content_type)
+
+            mxc = urlparse(response.content_uri)
+            mxc_server = mxc.netloc.strip("/")
+            mxc_path = mxc.path.strip("/")
+
+            logger.info(f"Adding media info for {mxc_server}/{mxc_path} to the store")
+            media_info = MediaInfo(mxc_server, mxc_path, maybe_keys["key"], maybe_keys["iv"], maybe_keys["hashes"])
+            self.store.save_media(self.name, media_info)
+
             return web.Response(
                 status=response.transport_response.status,
                 content_type=response.transport_response.content_type,
@@ -1084,12 +1177,98 @@ class ProxyDaemon:
                 body=await response.transport_response.read(),
             )
 
+        except ClientConnectionError as e:
+            return web.Response(status=500, text=str(e))
+        except SendRetryError as e:
+            return web.Response(status=503, text=str(e))
+
+    async def _load_decrypted_file(self, server_name, media_id, file_name):
+        try:
+            media_info = self.media_info[(server_name, media_id)]
+        except KeyError:
+            media_info = self.store.load_media(self.name, server_name, media_id)
+
+            if not media_info:
+                logger.info(f"No media info found for {server_name}/{media_id}")
+                return None, None
+
+            self.media_info[(server_name, media_id)] = media_info
+
+        try:
+            key = media_info.key["k"]
+            hash = media_info.hashes["sha256"]
+        except KeyError as e:
+            logger.warn(
+                f"Media info for {server_name}/{media_id} doesn't contain a key or hash."
+            )
+            raise e
+        if not self.pan_clients:
+            return None, None
+
+        client = next(iter(self.pan_clients.values()))
+
+        try:
+            response = await client.download(server_name, media_id, file_name)
+        except ClientConnectionError as e:
+            raise e
+
+        if not isinstance(response, DownloadResponse):
+            return response, None
+
         logger.info(f"Decrypting media {server_name}/{media_id}")
 
         loop = asyncio.get_running_loop()
         with concurrent.futures.ProcessPoolExecutor() as pool:
             decrypted_file = await loop.run_in_executor(
                 pool, decrypt_attachment, response.body, key, hash, media_info.iv
+            )
+
+        return response, decrypted_file
+
+    async def profile(self, request):
+        access_token = self.get_access_token(request)
+
+        if not access_token:
+            return self._missing_token
+
+        client = await self._find_client(access_token)
+        if not client:
+            return self._unknown_token
+
+        try:
+            content = await request.json()
+        except (JSONDecodeError, ContentTypeError):
+            return self._not_json
+
+        try:
+            content = await self._map_decrypted_uri("avatar_url", content, request, client)
+            return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
+        except ClientConnectionError as e:
+            return web.Response(status=500, text=str(e))
+        except (KeyError, NotDecryptedAvailableError):
+            return await self.forward_to_web(request, token=client.access_token)
+
+    async def download(self, request):
+        server_name = request.match_info["server_name"]
+        media_id = request.match_info["media_id"]
+        file_name = request.match_info.get("file_name")
+
+        try:
+            response, decrypted_file = await self._load_decrypted_file(server_name, media_id, file_name)
+
+            if response is None and decrypted_file is None:
+                return await self.forward_to_web(request)
+        except ClientConnectionError as e:
+            return web.Response(status=500, text=str(e))
+        except KeyError:
+            return await self.forward_to_web(request)
+
+        if not isinstance(response, DownloadResponse):
+            return web.Response(
+                status=response.transport_response.status,
+                content_type=response.transport_response.content_type,
+                headers=CORS_HEADERS,
+                body=await response.transport_response.read(),
             )
 
         return web.Response(

@@ -15,7 +15,7 @@
 import json
 import os
 from collections import defaultdict
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import attr
 from nio.crypto import TrustState
@@ -31,6 +31,7 @@ from cachetools import LRUCache
 
 
 MAX_LOADED_MEDIA = 10000
+MAX_LOADED_UPLOAD = 10000
 
 
 @attr.s
@@ -46,6 +47,25 @@ class MediaInfo:
     key = attr.ib(type=dict)
     iv = attr.ib(type=str)
     hashes = attr.ib(type=dict)
+
+    def to_content(self, content: Dict, mime_type: str) -> Dict[Any, Any]:
+        content["file"] = {
+                "v": "v2",
+                "key": self.key,
+                "iv": self.iv,
+                "hashes": self.hashes,
+                "url": content["url"],
+                "mimetype": mime_type,
+        }
+
+        return content
+
+
+@attr.s
+class UploadInfo:
+    content_uri = attr.ib(type=str)
+    filename = attr.ib(type=str)
+    mimetype = attr.ib(type=str)
 
 
 class DictField(TextField):
@@ -113,6 +133,18 @@ class PanMediaInfo(Model):
         constraints = [SQL("UNIQUE(server_id, mxc_server, mxc_path)")]
 
 
+class PanUploadInfo(Model):
+    server = ForeignKeyField(
+        model=Servers, column_name="server_id", backref="upload", on_delete="CASCADE"
+    )
+    content_uri = TextField()
+    filename = TextField()
+    mimetype = TextField()
+
+    class Meta:
+        constraints = [SQL("UNIQUE(server_id, content_uri)")]
+
+
 @attr.s
 class ClientInfo:
     user_id = attr.ib(type=str)
@@ -135,6 +167,7 @@ class PanStore:
         PanSyncTokens,
         PanFetcherTasks,
         PanMediaInfo,
+        PanUploadInfo,
     ]
 
     def __attrs_post_init__(self):
@@ -161,6 +194,43 @@ class PanStore:
             )
         except DoesNotExist:
             return None
+
+    @use_database
+    def save_upload(self, server, content_uri, filename, mimetype):
+        server = Servers.get(name=server)
+
+        PanUploadInfo.insert(
+            server=server,
+            content_uri=content_uri,
+            filename=filename,
+            mimetype=mimetype,
+        ).on_conflict_ignore().execute()
+
+    @use_database
+    def load_upload(self, server, content_uri=None):
+        server, _ = Servers.get_or_create(name=server)
+
+        if not content_uri:
+            upload_cache = LRUCache(maxsize=MAX_LOADED_UPLOAD)
+
+            for i, u in enumerate(server.upload):
+                if i > MAX_LOADED_UPLOAD:
+                    break
+
+                upload = UploadInfo(u.content_uri, u.filename, u.mimetype)
+                upload_cache[u.content_uri] = upload
+
+            return upload_cache
+        else:
+            u = PanUploadInfo.get_or_none(
+                PanUploadInfo.server == server,
+                PanUploadInfo.content_uri == content_uri,
+            )
+
+            if not u:
+                return None
+
+            return UploadInfo(u.content_uri, u.filename, u.mimetype)
 
     @use_database
     def save_media(self, server, media):
@@ -226,6 +296,7 @@ class PanStore:
             user=user, room_id=task.room_id, token=task.token
         ).execute()
 
+    @use_database
     def load_fetcher_tasks(self, server, pan_user):
         server = Servers.get(name=server)
         user = ServerUsers.get(server=server, user_id=pan_user)

@@ -30,6 +30,7 @@ if UI_ENABLED:
     from gi.repository import GLib
     from pydbus import SessionBus
     from pydbus.generic import signal
+    from dbus.mainloop.glib import DBusGMainLoop
 
     from nio import RoomKeyRequest, RoomKeyRequestCancellation
 
@@ -447,6 +448,7 @@ if UI_ENABLED:
         config = attr.ib()
 
         loop = attr.ib(init=False)
+        dbus_loop = attr.ib(init=False)
         store = attr.ib(init=False)
         users = attr.ib(init=False)
         devices = attr.ib(init=False)
@@ -457,6 +459,7 @@ if UI_ENABLED:
 
         def __attrs_post_init__(self):
             self.loop = None
+            self.dbus_loop = None
 
             id_counter = IdCounter()
 
@@ -632,11 +635,12 @@ if UI_ENABLED:
             return True
 
         def run(self):
+            self.dbus_loop = DBusGMainLoop()
             self.loop = GLib.MainLoop()
 
             if self.config.notifications:
                 try:
-                    notify2.init("pantalaimon", mainloop=self.loop)
+                    notify2.init("pantalaimon", mainloop=self.dbus_loop)
                     self.notifications = True
                 except dbus.DBusException:
                     logger.error(
@@ -646,6 +650,7 @@ if UI_ENABLED:
                     self.notifications = False
 
             GLib.timeout_add(100, self.message_callback)
+
             if not self.loop:
                 return
 
