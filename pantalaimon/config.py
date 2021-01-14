@@ -39,6 +39,8 @@ class PanConfigParser(configparser.ConfigParser):
                 "IndexingBatchSize": "100",
                 "HistoryFetchDelay": "3000",
                 "DebugEncryption": "False",
+                "SyncOnStartup": "True",
+                "StopSyncingTimeout": "0"
             },
             converters={
                 "address": parse_address,
@@ -121,6 +123,10 @@ class ServerConfig:
             the room history.
         history_fetch_delay (int): The delay between room history fetching
             requests in seconds.
+        sync_on_startup (bool): Begin syncing all accounts registered with
+            pantalaimon on startup.
+        sync_stop_after (int): The number of seconds to wait since the
+            client has requested a /sync, before stopping a sync.
     """
 
     name = attr.ib(type=str)
@@ -137,6 +143,8 @@ class ServerConfig:
     index_encrypted_only = attr.ib(type=bool, default=True)
     indexing_batch_size = attr.ib(type=int, default=100)
     history_fetch_delay = attr.ib(type=int, default=3)
+    sync_on_startup = attr.ib(type=bool, default=True)
+    sync_stop_after = attr.ib(type=int, default=0)
 
 
 @attr.s
@@ -204,6 +212,9 @@ class PanConfig:
 
                 indexing_batch_size = section.getint("IndexingBatchSize")
 
+                sync_on_startup = section.getboolean("SyncOnStartup")
+                sync_stop_after = section.getint("SyncStopAfter")
+
                 if not 1 < indexing_batch_size <= 1000:
                     raise PanConfigError(
                         "The indexing batch size needs to be "
@@ -243,6 +254,8 @@ class PanConfig:
                     index_encrypted_only,
                     indexing_batch_size,
                     history_fetch_delay / 1000,
+                    sync_on_startup,
+                    sync_stop_after,
                 )
 
                 self.servers[section_name] = server_conf
