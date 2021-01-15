@@ -922,7 +922,7 @@ class ProxyDaemon:
 
         # The room isn't encrypted just forward the message.
         if not encrypt:
-            content_msgtype = content["msgtype"]
+            content_msgtype = content.get("msgtype")
             if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"] or msgtype == "m.room.avatar":
                 try:
                     content = await self._map_decrypted_uri("url", content, request, client)
@@ -938,7 +938,7 @@ class ProxyDaemon:
 
         async def _send(ignore_unverified=False):
             try:
-                content_msgtype = content["msgtype"]
+                content_msgtype = content.get("msgtype")
                 if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"] or msgtype == "m.room.avatar":
                     upload_info, media_info = self._get_upload_and_media_info("url", content)
                     if not upload_info or not media_info:
