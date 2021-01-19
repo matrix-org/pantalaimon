@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.9.0 2021-01-19
+
+### Added
+
+- [[59051c5]] Fix the notification initialization allowing the DBUS thread to
+  start again
+- [[#79]] Support media uploads, thanks to @aspacca
+
+[59051c5]: https://github.com/matrix-org/pantalaimon/commit/59051c530a343a6887ea0f9ccddd6f6964f6d923
+[#79]: https://github.com/matrix-org/pantalaimon/pull/79
+
 ## 0.8.0 2020-09-30
 
 ### Changed
