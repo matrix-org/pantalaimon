@@ -4,11 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.9.2 2021-03-10
+
+### Changed
+
+- [[#89]] Bump the allowed nio version
+
+[#89]: https://github.com/matrix-org/pantalaimon/pull/89
+
 ## 0.9.1 2021-01-19
 
 ### Changed
 
 - [[3baae08]] Bump the allowed nio version
+
+[3baae08]: https://github.com/matrix-org/pantalaimon/commit/3baae08ac36e258632e224b655e177a765a939f3
 
 ## 0.9.0 2021-01-19
 
@@ -21,7 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [[#79]] Support media uploads, thanks to @aspacca
 
-[3baae08]: https://github.com/matrix-org/pantalaimon/commit/3baae08ac36e258632e224b655e177a765a939f3
 [59051c5]: https://github.com/matrix-org/pantalaimon/commit/59051c530a343a6887ea0f9ccddd6f6964f6d923
 [#79]: https://github.com/matrix-org/pantalaimon/pull/79
 
