@@ -39,8 +39,8 @@ class PanConfigParser(configparser.ConfigParser):
                 "IndexingBatchSize": "100",
                 "HistoryFetchDelay": "3000",
                 "DebugEncryption": "False",
-                "SyncOnStartup": "True",
-                "StopSyncingTimeout": "0"
+                "SyncOnStartup": "False",
+                "StopSyncingTimeout": "600"
             },
             converters={
                 "address": parse_address,
@@ -143,8 +143,8 @@ class ServerConfig:
     index_encrypted_only = attr.ib(type=bool, default=True)
     indexing_batch_size = attr.ib(type=int, default=100)
     history_fetch_delay = attr.ib(type=int, default=3)
-    sync_on_startup = attr.ib(type=bool, default=True)
-    sync_stop_after = attr.ib(type=int, default=0)
+    sync_on_startup = attr.ib(type=bool, default=False)
+    sync_stop_after = attr.ib(type=int, default=600)
 
 
 @attr.s
@@ -212,8 +212,8 @@ class PanConfig:
 
                 indexing_batch_size = section.getint("IndexingBatchSize")
 
-                sync_on_startup = section.getboolean("SyncOnStartup")
-                sync_stop_after = section.getint("SyncStopAfter")
+                sync_on_startup = False #section.getboolean("SyncOnStartup")
+                sync_stop_after = 600 #section.getint("SyncStopAfter")
 
                 if not 1 < indexing_batch_size <= 1000:
                     raise PanConfigError(

@@ -575,8 +575,8 @@ class PanClient(AsyncClient):
         )
         self.task = task
 
-        if self.pan_conf.sync_stop_after > 0:
-            self.last_sync_task = loop.create_task(self.can_stop_sync())
+        # if self.pan_conf.sync_stop_after > 0:
+        #     self.last_sync_task = loop.create_task(self.can_stop_sync())
             
 
         return task
