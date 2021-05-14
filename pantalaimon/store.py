@@ -60,6 +60,19 @@ class MediaInfo:
 
         return content
 
+    def to_thumbnail(self, content: Dict, mime_type: str) -> Dict[Any, Any]:
+        content["info"]["thumbnail_file"] = {
+            "v": "v2",
+            "key": self.key,
+            "iv": self.iv,
+            "hashes": self.hashes,
+            "url": content["info"]["thumbnail_url"],
+            "mimetype": mime_type,
+        }
+
+        return content
+
+
 
 @attr.s
 class UploadInfo:
