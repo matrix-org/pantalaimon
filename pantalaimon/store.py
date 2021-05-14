@@ -58,7 +58,6 @@ class MediaInfo:
                 "mimetype": mime_type,
         }
 
-        return content
 
     def to_thumbnail(self, content: Dict, mime_type: str) -> Dict[Any, Any]:
         content["info"]["thumbnail_file"] = {
@@ -69,9 +68,6 @@ class MediaInfo:
             "url": content["info"]["thumbnail_url"],
             "mimetype": mime_type,
         }
-
-        return content
-
 
 
 @attr.s

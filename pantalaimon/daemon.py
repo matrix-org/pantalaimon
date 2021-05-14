@@ -953,21 +953,21 @@ class ProxyDaemon:
                             body=await response.transport_response.read(),
                         )
 
-                    media_content = media_info.to_content(content, upload_info.mimetype)
-                    if media_content["info"].get("thumbnail_url", False):
+                    media_info.to_content(content, upload_info.mimetype)
+                    if content["info"].get("thumbnail_url", False):
                         (
                             thumb_upload_info,
                             thumb_media_info,
                         ) = self._get_upload_and_media_info(
-                            "thumbnail_url", media_content["info"]
+                            "thumbnail_url", content["info"]
                         )
                         if thumb_upload_info and thumb_media_info:
-                            media_content = thumb_media_info.to_thumbnail(
-                                media_content, thumb_upload_info.mimetype
+                            thumb_media_info.to_thumbnail(
+                                content, thumb_upload_info.mimetype
                             )
 
                     response = await client.room_send(
-                        room_id, msgtype, media_content, txnid, ignore_unverified
+                        room_id, msgtype, content, txnid, ignore_unverified
                     )
                 else:
                     response = await client.room_send(
