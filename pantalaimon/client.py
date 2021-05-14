@@ -19,7 +19,6 @@ from collections import defaultdict
 from pprint import pformat
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
-
 from aiohttp.client_exceptions import ClientConnectionError
 from jsonschema import Draft4Validator, FormatChecker, validators
 from playhouse.sqliteq import SqliteQueueDatabase
@@ -51,10 +50,9 @@ from nio import (
 )
 from nio.crypto import Sas
 from nio.store import SqliteStore
-
 from pantalaimon.index import INDEXING_ENABLED
 from pantalaimon.log import logger
-from pantalaimon.store import FetchTask, MediaInfo
+from pantalaimon.store import FetchTask, MediaInfo, PanSqliteStore
 from pantalaimon.thread_messages import (
     DaemonResponse,
     InviteSasSignal,
@@ -163,7 +161,7 @@ class PanClient(AsyncClient):
         media_info=None,
     ):
         config = config or AsyncClientConfig(
-            store=store_class or SqliteStore, store_name="pan.db"
+            store=store_class or PanSqliteStore, store_name="pan.db"
         )
         super().__init__(homeserver, user_id, device_id, store_path, config, ssl, proxy)
 

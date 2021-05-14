@@ -25,6 +25,9 @@ from nio.store import (
     DeviceTrustState,
     use_database,
     use_database_atomic,
+    SqliteStore,
+    MegolmInboundSessions,
+    ForwardedChains
 )
 from peewee import SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase, TextField
 from cachetools import LRUCache
@@ -443,3 +446,20 @@ class PanStore:
             store[account.user_id] = device_store
 
         return store
+
+class PanSqliteStore(SqliteStore):
+    forgetful = False
+
+    @use_database
+    def save_inbound_group_session(self, session):
+        """Save the provided Megolm inbound group session to the database.
+        Args:
+            session (InboundGroupSession): The session to save.
+        """
+        # Delete previous sessions
+        if self.forgetful:
+            MegolmInboundSessions.delete().where(
+                (MegolmInboundSessions.sender_key == session.sender_key) |
+                (MegolmInboundSessions.room_id == session.room_id)
+            ).execute()
+        super().save_inbound_group_session(session)

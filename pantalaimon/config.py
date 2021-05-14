@@ -127,6 +127,8 @@ class ServerConfig:
             pantalaimon on startup.
         sync_stop_after (int): The number of seconds to wait since the
             client has requested a /sync, before stopping a sync.
+        store_forgetful (bool): Enable or disable discarding of previous sessions
+            from the store.
     """
 
     name = attr.ib(type=str)
@@ -145,7 +147,7 @@ class ServerConfig:
     history_fetch_delay = attr.ib(type=int, default=3)
     sync_on_startup = attr.ib(type=bool, default=False)
     sync_stop_after = attr.ib(type=int, default=600)
-
+    store_forgetful = attr.ib(type=bool, default=False)
 
 @attr.s
 class PanConfig:
@@ -209,7 +211,7 @@ class PanConfig:
                 proxy = section.geturl("Proxy")
                 search_requests = section.getboolean("SearchRequests")
                 index_encrypted_only = section.getboolean("IndexEncryptedOnly")
-
+                store_forgetful = config["Default"].getboolean("StoreForgetful")
                 indexing_batch_size = section.getint("IndexingBatchSize")
 
                 sync_on_startup = False #section.getboolean("SyncOnStartup")
@@ -256,6 +258,7 @@ class PanConfig:
                     history_fetch_delay / 1000,
                     sync_on_startup,
                     sync_stop_after,
+                    store_forgetful,
                 )
 
                 self.servers[section_name] = server_conf
