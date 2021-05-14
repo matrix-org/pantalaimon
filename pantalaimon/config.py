@@ -147,7 +147,7 @@ class ServerConfig:
     history_fetch_delay = attr.ib(type=int, default=3)
     sync_on_startup = attr.ib(type=bool, default=False)
     sync_stop_after = attr.ib(type=int, default=600)
-    store_forgetful = attr.ib(type=bool, default=False)
+    store_forgetful = attr.ib(type=bool, default=True)
 
 @attr.s
 class PanConfig:
