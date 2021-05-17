@@ -121,7 +121,7 @@ class ProxyDaemon:
         self.hostname = self.homeserver.hostname
         self.store = PanStore(self.data_dir)
         accounts = self.store.load_users(self.name)
-        self.media_info = self.store.load_media(self.name)
+        self.media_info = self.store.load_media_cache(self.name)
         self.upload_info = self.store.load_upload(self.name)
 
         for user_id, device_id in accounts:

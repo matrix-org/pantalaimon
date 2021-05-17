@@ -255,31 +255,33 @@ class PanStore:
         ).on_conflict_ignore().execute()
 
     @use_database
+    def load_media_cache(self, server):
+        server, _ = Servers.get_or_create(name=server)
+        media_cache = LRUCache(maxsize=MAX_LOADED_MEDIA)
+
+        for i, m in enumerate(server.media):
+            if i > MAX_LOADED_MEDIA:
+                break
+
+            media = MediaInfo(m.mxc_server, m.mxc_path, m.key, m.iv, m.hashes)
+            media_cache[(m.mxc_server, m.mxc_path)] = media
+
+        return media_cache
+
+    @use_database
     def load_media(self, server, mxc_server=None, mxc_path=None):
         server, _ = Servers.get_or_create(name=server)
 
-        if not mxc_path:
-            media_cache = LRUCache(maxsize=MAX_LOADED_MEDIA)
+        m = PanMediaInfo.get_or_none(
+            PanMediaInfo.server == server,
+            PanMediaInfo.mxc_server == mxc_server,
+            PanMediaInfo.mxc_path == mxc_path,
+        )
 
-            for i, m in enumerate(server.media):
-                if i > MAX_LOADED_MEDIA:
-                    break
+        if not m:
+            return None
 
-                media = MediaInfo(m.mxc_server, m.mxc_path, m.key, m.iv, m.hashes)
-                media_cache[(m.mxc_server, m.mxc_path)] = media
-
-            return media_cache
-        else:
-            m = PanMediaInfo.get_or_none(
-                PanMediaInfo.server == server,
-                PanMediaInfo.mxc_server == mxc_server,
-                PanMediaInfo.mxc_path == mxc_path,
-            )
-
-            if not m:
-                return None
-
-            return MediaInfo(m.mxc_server, m.mxc_path, m.key, m.iv, m.hashes)
+        return MediaInfo(m.mxc_server, m.mxc_path, m.key, m.iv, m.hashes)
 
     @use_database_atomic
     def replace_fetcher_task(self, server, pan_user, old_task, new_task):
