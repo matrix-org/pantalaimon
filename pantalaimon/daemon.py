@@ -85,6 +85,7 @@ CORS_HEADERS = {
 
 class NotDecryptedAvailableError(Exception):
     """Exception that signals that no decrypted upload is available"""
+
     pass
 
 
@@ -864,8 +865,9 @@ class ProxyDaemon:
         if not upload_info or not media_info:
             raise NotDecryptedAvailableError
 
-        response, decrypted_file = await self._load_decrypted_file(media_info.mxc_server, media_info.mxc_path,
-                                                                   upload_info.filename)
+        response, decrypted_file = await self._load_decrypted_file(
+            media_info.mxc_server, media_info.mxc_path, upload_info.filename
+        )
 
         if response is None and decrypted_file is None:
             raise NotDecryptedAvailableError
@@ -923,10 +925,17 @@ class ProxyDaemon:
         # The room isn't encrypted just forward the message.
         if not encrypt:
             content_msgtype = content.get("msgtype")
-            if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"] or msgtype == "m.room.avatar":
+            if (
+                content_msgtype in ["m.image", "m.video", "m.audio", "m.file"]
+                or msgtype == "m.room.avatar"
+            ):
                 try:
-                    content = await self._map_decrypted_uri("url", content, request, client)
-                    return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
+                    content = await self._map_decrypted_uri(
+                        "url", content, request, client
+                    )
+                    return await self.forward_to_web(
+                        request, data=json.dumps(content), token=client.access_token
+                    )
                 except ClientConnectionError as e:
                     return web.Response(status=500, text=str(e))
                 except (KeyError, NotDecryptedAvailableError):
@@ -939,8 +948,13 @@ class ProxyDaemon:
         async def _send(ignore_unverified=False):
             try:
                 content_msgtype = content.get("msgtype")
-                if content_msgtype in ["m.image", "m.video", "m.audio", "m.file"] or msgtype == "m.room.avatar":
-                    upload_info, media_info = self._get_upload_and_media_info("url", content)
+                if (
+                    content_msgtype in ["m.image", "m.video", "m.audio", "m.file"]
+                    or msgtype == "m.room.avatar"
+                ):
+                    upload_info, media_info = self._get_upload_and_media_info(
+                        "url", content
+                    )
                     if not upload_info or not media_info:
                         response = await client.room_send(
                             room_id, msgtype, content, txnid, ignore_unverified
@@ -1169,14 +1183,22 @@ class ProxyDaemon:
                     body=await response.transport_response.read(),
                 )
 
-            self.store.save_upload(self.name, response.content_uri, file_name, content_type)
+            self.store.save_upload(
+                self.name, response.content_uri, file_name, content_type
+            )
 
             mxc = urlparse(response.content_uri)
             mxc_server = mxc.netloc.strip("/")
             mxc_path = mxc.path.strip("/")
 
             logger.info(f"Adding media info for {mxc_server}/{mxc_path} to the store")
-            media_info = MediaInfo(mxc_server, mxc_path, maybe_keys["key"], maybe_keys["iv"], maybe_keys["hashes"])
+            media_info = MediaInfo(
+                mxc_server,
+                mxc_path,
+                maybe_keys["key"],
+                maybe_keys["iv"],
+                maybe_keys["hashes"],
+            )
             self.store.save_media(self.name, media_info)
 
             return web.Response(
@@ -1250,8 +1272,12 @@ class ProxyDaemon:
             return self._not_json
 
         try:
-            content = await self._map_decrypted_uri("avatar_url", content, request, client)
-            return await self.forward_to_web(request, data=json.dumps(content), token=client.access_token)
+            content = await self._map_decrypted_uri(
+                "avatar_url", content, request, client
+            )
+            return await self.forward_to_web(
+                request, data=json.dumps(content), token=client.access_token
+            )
         except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
         except (KeyError, NotDecryptedAvailableError):
@@ -1263,7 +1289,9 @@ class ProxyDaemon:
         file_name = request.match_info.get("file_name")
 
         try:
-            response, decrypted_file = await self._load_decrypted_file(server_name, media_id, file_name)
+            response, decrypted_file = await self._load_decrypted_file(
+                server_name, media_id, file_name
+            )
 
             if response is None and decrypted_file is None:
                 return await self.forward_to_web(request)

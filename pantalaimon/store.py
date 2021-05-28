@@ -51,14 +51,13 @@ class MediaInfo:
 
     def to_content(self, content: Dict, mime_type: str) -> Dict[Any, Any]:
         content["file"] = {
-                "v": "v2",
-                "key": self.key,
-                "iv": self.iv,
-                "hashes": self.hashes,
-                "url": content["url"],
-                "mimetype": mime_type,
+            "v": "v2",
+            "key": self.key,
+            "iv": self.iv,
+            "hashes": self.hashes,
+            "url": content["url"],
+            "mimetype": mime_type,
         }
-
 
     def to_thumbnail(self, content: Dict, mime_type: str) -> Dict[Any, Any]:
         content["info"]["thumbnail_file"] = {
