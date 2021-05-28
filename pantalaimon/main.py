@@ -29,6 +29,7 @@ from logbook import StderrHandler
 from pantalaimon.config import PanConfig, PanConfigError, parse_log_level
 from pantalaimon.daemon import ProxyDaemon
 from pantalaimon.log import logger
+from pantalaimon.store import KeyDroppingSqliteStore
 from pantalaimon.thread_messages import DaemonResponse
 from pantalaimon.ui import UI_ENABLED
 
@@ -47,6 +48,8 @@ def create_dirs(data_dir, conf_dir):
 
 async def init(data_dir, server_conf, send_queue, recv_queue):
     """Initialize the proxy and the http server."""
+    store_class = KeyDroppingSqliteStore if server_conf.drop_old_keys else None
+
     proxy = ProxyDaemon(
         server_conf.name,
         server_conf.homeserver,
@@ -56,6 +59,7 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
         recv_queue=recv_queue.async_q if recv_queue else None,
         proxy=server_conf.proxy.geturl() if server_conf.proxy else None,
         ssl=None if server_conf.ssl is True else False,
+        client_store_class=store_class,
     )
 
     # 100 MB max POST size
@@ -101,7 +105,6 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
                 r"/_matrix/client/r0/profile/{userId}/avatar_url",
                 proxy.profile,
             ),
-
         ]
     )
     app.router.add_route("*", "/" + "{proxyPath:.*}", proxy.router)

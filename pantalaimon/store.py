@@ -18,17 +18,18 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 import attr
-from nio.crypto import TrustState
+from nio.crypto import TrustState, GroupSessionStore
 from nio.store import (
     Accounts,
+    MegolmInboundSessions,
     DeviceKeys,
+    SqliteStore,
     DeviceTrustState,
     use_database,
     use_database_atomic,
 )
 from peewee import SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase, TextField
 from cachetools import LRUCache
-
 
 MAX_LOADED_MEDIA = 10000
 MAX_LOADED_UPLOAD = 10000
@@ -452,3 +453,47 @@ class PanStore:
             store[account.user_id] = device_store
 
         return store
+
+
+class KeyDroppingSqliteStore(SqliteStore):
+    @use_database
+    def save_inbound_group_session(self, session):
+        """Save the provided Megolm inbound group session to the database.
+
+        Args:
+            session (InboundGroupSession): The session to save.
+        """
+        account = self._get_account()
+        assert account
+
+        MegolmInboundSessions.delete().where(
+            MegolmInboundSessions.sender_key == session.sender_key,
+            MegolmInboundSessions.account == account,
+            MegolmInboundSessions.room_id == session.room_id,
+        ).execute()
+
+        super().save_inbound_group_session(session)
+
+    @use_database
+    def load_inbound_group_sessions(self):
+        store = super().load_inbound_group_sessions()
+
+        return KeyDroppingGroupSessionStore.from_group_session_store(store)
+
+
+class KeyDroppingGroupSessionStore(GroupSessionStore):
+    def from_group_session_store(store):
+        new_store = KeyDroppingGroupSessionStore()
+        new_store._entries = store._entries
+
+        return new_store
+
+    def add(self, session) -> bool:
+        room_id = session.room_id
+        sender_key = session.sender_key
+        if session in self._entries[room_id][sender_key].values():
+            return False
+
+        self._entries[room_id][sender_key].clear()
+        self._entries[room_id][sender_key][session.id] = session
+        return True

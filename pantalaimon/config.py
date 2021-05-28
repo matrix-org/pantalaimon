@@ -39,6 +39,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "IndexingBatchSize": "100",
                 "HistoryFetchDelay": "3000",
                 "DebugEncryption": "False",
+                "DropOldKeys": "False",
             },
             converters={
                 "address": parse_address,
@@ -121,6 +122,8 @@ class ServerConfig:
             the room history.
         history_fetch_delay (int): The delay between room history fetching
             requests in seconds.
+        drop_old_keys (bool): Should Pantalaimon only keep the most recent
+            decryption key around.
     """
 
     name = attr.ib(type=str)
@@ -137,6 +140,7 @@ class ServerConfig:
     index_encrypted_only = attr.ib(type=bool, default=True)
     indexing_batch_size = attr.ib(type=int, default=100)
     history_fetch_delay = attr.ib(type=int, default=3)
+    drop_old_keys = attr.ib(type=bool, default=False)
 
 
 @attr.s
@@ -229,6 +233,7 @@ class PanConfig:
                         f"already defined before."
                     )
                 listen_set.add(listen_tuple)
+                drop_old_keys = section.getboolean("DropOldKeys")
 
                 server_conf = ServerConfig(
                     section_name,
@@ -243,6 +248,7 @@ class PanConfig:
                     index_encrypted_only,
                     indexing_batch_size,
                     history_fetch_delay / 1000,
+                    drop_old_keys,
                 )
 
                 self.servers[section_name] = server_conf

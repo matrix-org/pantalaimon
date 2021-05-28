@@ -51,6 +51,11 @@ This option configures if a proxy instance should use the OS keyring to store
 its own access tokens. The access tokens are required for the daemon to resume
 operation. If this is set to "No", access tokens are stored in the pantalaimon
 database in plaintext. Defaults to "Yes".
+.It Cm DropOldKeys
+This option configures if a proxy instance should only keep the latest version
+of a room key from a certain user around. This effectively means that only newly
+incoming messages will be decryptable, the proxy will be unable to decrypt the
+room history.  Defaults to "No".
 .It Cm SearchRequests
 This option configures if the proxy should make additional HTTP requests to the
 server when clients use the search API endpoint. Some data that is required to
