@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.9.3 2021-05-14
 
+### Added
+
+- [[#98]] Add the ability to remove old room keys
+- [[#95]] Encrypt thumbnails uploaded by a client
+
+### Fixed
+
+- [[#96]] Split out the media cache loading logic to avoid returning the
+  whole LRU cache when it shouldn't
+
+[#98]: https://github.com/matrix-org/pantalaimon/pull/98
+[#96]: https://github.com/matrix-org/pantalaimon/pull/96
+[#95]: https://github.com/matrix-org/pantalaimon/pull/95
+
+## 0.9.3 2021-05-14
+
 ### Changed
 
 - [[#73f68c7]] Bump the allowed nio version
