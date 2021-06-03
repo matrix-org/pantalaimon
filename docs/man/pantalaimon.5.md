@@ -62,6 +62,13 @@ The following keys are optional in the proxy instance sections:
 > operation. If this is set to "No", access tokens are stored in the pantalaimon
 > database in plaintext. Defaults to "Yes".
 
+**DropOldKeys**
+
+> This option configures if a proxy instance should only keep the latest version
+> of a room key from a certain user around. This effectively means that only newly
+> incoming messages will be decryptable, the proxy will be unable to decrypt the
+> room history.  Defaults to "No".
+
 Aditional to the homeserver section a special section with the name
 **Default**
 can be used to configure the following values for all homeservers:
@@ -150,4 +157,4 @@ pantalaimon(8)
 was written by
 Damir Jeli&#263; &lt;[poljar@termina.org.uk](mailto:poljar@termina.org.uk)&gt;.
 
-Linux 5.1.3-arch2-1-ARCH - May 8, 2019
+Linux 5.11.16-arch1-1 - May 8, 2019

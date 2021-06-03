@@ -41,6 +41,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "DebugEncryption": "False",
                 "SyncOnStartup": "False",
                 "StopSyncingTimeout": "600"
+                "DropOldKeys": "False",
             },
             converters={
                 "address": parse_address,
@@ -129,6 +130,8 @@ class ServerConfig:
             client has requested a /sync, before stopping a sync.
         store_forgetful (bool): Enable or disable discarding of previous sessions
             from the store.
+        drop_old_keys (bool): Should Pantalaimon only keep the most recent
+            decryption key around.
     """
 
     name = attr.ib(type=str)
@@ -148,6 +151,8 @@ class ServerConfig:
     sync_on_startup = attr.ib(type=bool, default=False)
     sync_stop_after = attr.ib(type=int, default=600)
     store_forgetful = attr.ib(type=bool, default=True)
+    drop_old_keys = attr.ib(type=bool, default=False)
+
 
 @attr.s
 class PanConfig:
@@ -242,6 +247,7 @@ class PanConfig:
                         f"already defined before."
                     )
                 listen_set.add(listen_tuple)
+                drop_old_keys = section.getboolean("DropOldKeys")
 
                 server_conf = ServerConfig(
                     section_name,
@@ -259,6 +265,7 @@ class PanConfig:
                     sync_on_startup,
                     sync_stop_after,
                     store_forgetful,
+                    drop_old_keys,
                 )
 
                 self.servers[section_name] = server_conf

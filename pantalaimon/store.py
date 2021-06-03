@@ -18,10 +18,12 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 import attr
-from nio.crypto import TrustState
+from nio.crypto import TrustState, GroupSessionStore
 from nio.store import (
     Accounts,
+    MegolmInboundSessions,
     DeviceKeys,
+    SqliteStore,
     DeviceTrustState,
     use_database,
     use_database_atomic,
@@ -31,7 +33,6 @@ from nio.store import (
 )
 from peewee import SQL, DoesNotExist, ForeignKeyField, Model, SqliteDatabase, TextField
 from cachetools import LRUCache
-
 
 MAX_LOADED_MEDIA = 10000
 MAX_LOADED_UPLOAD = 10000
@@ -53,15 +54,23 @@ class MediaInfo:
 
     def to_content(self, content: Dict, mime_type: str) -> Dict[Any, Any]:
         content["file"] = {
-                "v": "v2",
-                "key": self.key,
-                "iv": self.iv,
-                "hashes": self.hashes,
-                "url": content["url"],
-                "mimetype": mime_type,
+            "v": "v2",
+            "key": self.key,
+            "iv": self.iv,
+            "hashes": self.hashes,
+            "url": content["url"],
+            "mimetype": mime_type,
         }
 
-        return content
+    def to_thumbnail(self, content: Dict, mime_type: str) -> Dict[Any, Any]:
+        content["info"]["thumbnail_file"] = {
+            "v": "v2",
+            "key": self.key,
+            "iv": self.iv,
+            "hashes": self.hashes,
+            "url": content["info"]["thumbnail_url"],
+            "mimetype": mime_type,
+        }
 
 
 @attr.s
@@ -249,31 +258,33 @@ class PanStore:
         ).on_conflict_ignore().execute()
 
     @use_database
+    def load_media_cache(self, server):
+        server, _ = Servers.get_or_create(name=server)
+        media_cache = LRUCache(maxsize=MAX_LOADED_MEDIA)
+
+        for i, m in enumerate(server.media):
+            if i > MAX_LOADED_MEDIA:
+                break
+
+            media = MediaInfo(m.mxc_server, m.mxc_path, m.key, m.iv, m.hashes)
+            media_cache[(m.mxc_server, m.mxc_path)] = media
+
+        return media_cache
+
+    @use_database
     def load_media(self, server, mxc_server=None, mxc_path=None):
         server, _ = Servers.get_or_create(name=server)
 
-        if not mxc_path:
-            media_cache = LRUCache(maxsize=MAX_LOADED_MEDIA)
+        m = PanMediaInfo.get_or_none(
+            PanMediaInfo.server == server,
+            PanMediaInfo.mxc_server == mxc_server,
+            PanMediaInfo.mxc_path == mxc_path,
+        )
 
-            for i, m in enumerate(server.media):
-                if i > MAX_LOADED_MEDIA:
-                    break
+        if not m:
+            return None
 
-                media = MediaInfo(m.mxc_server, m.mxc_path, m.key, m.iv, m.hashes)
-                media_cache[(m.mxc_server, m.mxc_path)] = media
-
-            return media_cache
-        else:
-            m = PanMediaInfo.get_or_none(
-                PanMediaInfo.server == server,
-                PanMediaInfo.mxc_server == mxc_server,
-                PanMediaInfo.mxc_path == mxc_path,
-            )
-
-            if not m:
-                return None
-
-            return MediaInfo(m.mxc_server, m.mxc_path, m.key, m.iv, m.hashes)
+        return MediaInfo(m.mxc_server, m.mxc_path, m.key, m.iv, m.hashes)
 
     @use_database_atomic
     def replace_fetcher_task(self, server, pan_user, old_task, new_task):
@@ -463,3 +474,46 @@ class PanSqliteStore(SqliteStore):
                 (MegolmInboundSessions.room_id == session.room_id)
             ).execute()
         super().save_inbound_group_session(session)
+
+class KeyDroppingSqliteStore(SqliteStore):
+    @use_database
+    def save_inbound_group_session(self, session):
+        """Save the provided Megolm inbound group session to the database.
+
+        Args:
+            session (InboundGroupSession): The session to save.
+        """
+        account = self._get_account()
+        assert account
+
+        MegolmInboundSessions.delete().where(
+            MegolmInboundSessions.sender_key == session.sender_key,
+            MegolmInboundSessions.account == account,
+            MegolmInboundSessions.room_id == session.room_id,
+        ).execute()
+
+        super().save_inbound_group_session(session)
+
+    @use_database
+    def load_inbound_group_sessions(self):
+        store = super().load_inbound_group_sessions()
+
+        return KeyDroppingGroupSessionStore.from_group_session_store(store)
+
+
+class KeyDroppingGroupSessionStore(GroupSessionStore):
+    def from_group_session_store(store):
+        new_store = KeyDroppingGroupSessionStore()
+        new_store._entries = store._entries
+
+        return new_store
+
+    def add(self, session) -> bool:
+        room_id = session.room_id
+        sender_key = session.sender_key
+        if session in self._entries[room_id][sender_key].values():
+            return False
+
+        self._entries[room_id][sender_key].clear()
+        self._entries[room_id][sender_key][session.id] = session
+        return True

@@ -153,7 +153,7 @@ class TestClass(object):
 
     def test_media_storage(self, panstore):
         server_name = "test"
-        media_cache = panstore.load_media(server_name)
+        media_cache = panstore.load_media_cache(server_name)
         assert not media_cache
 
         event = self.encrypted_media_event
@@ -171,7 +171,7 @@ class TestClass(object):
 
         panstore.save_media(server_name, media)
 
-        media_cache = panstore.load_media(server_name)
+        media_cache = panstore.load_media_cache(server_name)
 
         assert (mxc_server, mxc_path) in media_cache
         media_info = media_cache[(mxc_server, mxc_path)]
