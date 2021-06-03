@@ -40,7 +40,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "HistoryFetchDelay": "3000",
                 "DebugEncryption": "False",
                 "SyncOnStartup": "False",
-                "StopSyncingTimeout": "600"
+                "StopSyncingTimeout": "600",
                 "DropOldKeys": "False",
             },
             converters={
