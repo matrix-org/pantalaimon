@@ -926,7 +926,8 @@ class ProxyDaemon:
             ):
                 try:
                     content["url"] = await self._decrypt_uri(content["url"], client)
-                    content["info"]["thumbnail_url"] = await self._decrypt_uri(content["info"]["thumbnail_url"], client)
+                    if "info" in content and "thumbnail_url" in content["info"]:
+                        content["info"]["thumbnail_url"] = await self._decrypt_uri(content["info"]["thumbnail_url"], client)
                     return await self.forward_to_web(
                         request, data=json.dumps(content), token=client.access_token
                     )
