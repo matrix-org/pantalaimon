@@ -905,7 +905,7 @@ class PanClient(AsyncClient):
 
         self.handle_to_device_from_sync_body(body)
 
-        for room_id, room_dict in body["rooms"]["join"].items():
+        for room_id, room_dict in body.get("rooms", {}).get("join", {}).items():
             try:
                 if not self.rooms[room_id].encrypted:
                     logger.info(
@@ -920,7 +920,7 @@ class PanClient(AsyncClient):
                 # pan sync stream did. Let's assume that the room is encrypted.
                 pass
 
-            for event in room_dict["timeline"]["events"]:
+            for event in room_dict.get("timeline", {}).get("events", []):
                 if "type" not in event:
                     continue
 
