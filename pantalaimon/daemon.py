@@ -897,12 +897,36 @@ class ProxyDaemon:
 
         room_id = request.match_info["room_id"]
 
-        # The room is not in the joined rooms list, just forward it.
         try:
             room = client.rooms[room_id]
             encrypt = room.encrypted
         except KeyError:
-            return await self.forward_to_web(request, token=client.access_token)
+            # The room is not in the joined rooms list, either the pan client
+            # didn't manage to sync the state or we're not joined, in either
+            # case send an error response.
+            if client.has_been_synced:
+                return web.json_response(
+                    {
+                        "errcode": "M_FORBIDDEN",
+                        "error": "You do not have permission to send the event."
+                    },
+                    headers=CORS_HEADERS,
+                    status=403,
+                )
+            else:
+                logger.error(
+                    "The internal Pantalaimon client did not manage "
+                    "to sync with the server."
+                )
+                return web.json_response(
+                    {
+                        "errcode": "M_UNKNOWN",
+                        "error": "The pantalaimon client did not manage to sync with "
+                        "the server",
+                    },
+                    headers=CORS_HEADERS,
+                    status=500,
+                )
 
         # Don't encrypt reactions for now - they are weird and clients
         # need to support them like this.
@@ -927,7 +951,9 @@ class ProxyDaemon:
                 try:
                     content["url"] = await self._decrypt_uri(content["url"], client)
                     if "info" in content and "thumbnail_url" in content["info"]:
-                        content["info"]["thumbnail_url"] = await self._decrypt_uri(content["info"]["thumbnail_url"], client)
+                        content["info"]["thumbnail_url"] = await self._decrypt_uri(
+                            content["info"]["thumbnail_url"], client
+                        )
                     return await self.forward_to_web(
                         request, data=json.dumps(content), token=client.access_token
                     )
@@ -947,7 +973,9 @@ class ProxyDaemon:
                     content_msgtype in ["m.image", "m.video", "m.audio", "m.file"]
                     or msgtype == "m.room.avatar"
                 ):
-                    upload_info, media_info = self._get_upload_and_media_info(content["url"])
+                    upload_info, media_info = self._get_upload_and_media_info(
+                        content["url"]
+                    )
                     if not upload_info or not media_info:
                         response = await client.room_send(
                             room_id, msgtype, content, txnid, ignore_unverified
@@ -1265,7 +1293,9 @@ class ProxyDaemon:
             return self._not_json
 
         try:
-            content["avatar_url"] = await self._decrypt_uri(content["avatar_url"], client)
+            content["avatar_url"] = await self._decrypt_uri(
+                content["avatar_url"], client
+            )
             return await self.forward_to_web(
                 request, data=json.dumps(content), token=client.access_token
             )
