@@ -410,6 +410,10 @@ class PanClient(AsyncClient):
             except (asyncio.CancelledError, KeyboardInterrupt):
                 return
 
+    @property
+    def has_been_synced(self) -> bool:
+        self.last_sync_token is not None
+
     async def sync_tasks(self, response):
         if self.index:
             await self.index.commit_events()
@@ -540,7 +544,6 @@ class PanClient(AsyncClient):
         timeout = 30000
         sync_filter = {"room": {"state": {"lazy_load_members": True}}}
         next_batch = self.pan_store.load_token(self.server_name, self.user_id)
-        self.last_sync_token = next_batch
 
         # We don't store any room state so initial sync needs to be with the
         # full_state parameter. Subsequent ones are normal.

@@ -902,7 +902,22 @@ class ProxyDaemon:
             room = client.rooms[room_id]
             encrypt = room.encrypted
         except KeyError:
-            return await self.forward_to_web(request, token=client.access_token)
+            if client.has_been_synced:
+                return await self.forward_to_web(request, token=client.access_token)
+            else:
+                logger.error(
+                    "The internal Pantalaimon client did not manage "
+                    "to sync with the server."
+                )
+                return web.json_response(
+                    {
+                        "errcode": "M_UNKNOWN",
+                        "error": "The pantalaimon client did not manage to sync with "
+                        "the server",
+                    },
+                    headers=CORS_HEADERS,
+                    status=500,
+                )
 
         # Don't encrypt reactions for now - they are weird and clients
         # need to support them like this.
