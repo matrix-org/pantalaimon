@@ -942,7 +942,9 @@ class ProxyDaemon:
                 try:
                     content["url"] = await self._decrypt_uri(content["url"], client)
                     if "info" in content and "thumbnail_url" in content["info"]:
-                        content["info"]["thumbnail_url"] = await self._decrypt_uri(content["info"]["thumbnail_url"], client)
+                        content["info"]["thumbnail_url"] = await self._decrypt_uri(
+                            content["info"]["thumbnail_url"], client
+                        )
                     return await self.forward_to_web(
                         request, data=json.dumps(content), token=client.access_token
                     )
@@ -962,7 +964,9 @@ class ProxyDaemon:
                     content_msgtype in ["m.image", "m.video", "m.audio", "m.file"]
                     or msgtype == "m.room.avatar"
                 ):
-                    upload_info, media_info = self._get_upload_and_media_info(content["url"])
+                    upload_info, media_info = self._get_upload_and_media_info(
+                        content["url"]
+                    )
                     if not upload_info or not media_info:
                         response = await client.room_send(
                             room_id, msgtype, content, txnid, ignore_unverified
@@ -1280,7 +1284,9 @@ class ProxyDaemon:
             return self._not_json
 
         try:
-            content["avatar_url"] = await self._decrypt_uri(content["avatar_url"], client)
+            content["avatar_url"] = await self._decrypt_uri(
+                content["avatar_url"], client
+            )
             return await self.forward_to_web(
                 request, data=json.dumps(content), token=client.access_token
             )
