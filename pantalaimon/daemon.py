@@ -897,13 +897,22 @@ class ProxyDaemon:
 
         room_id = request.match_info["room_id"]
 
-        # The room is not in the joined rooms list, just forward it.
         try:
             room = client.rooms[room_id]
             encrypt = room.encrypted
         except KeyError:
+            # The room is not in the joined rooms list, either the pan client
+            # didn't manage to sync the state or we're not joined, in either
+            # case send an error response.
             if client.has_been_synced:
-                return await self.forward_to_web(request, token=client.access_token)
+                return web.json_response(
+                    {
+                        "errcode": "M_FORBIDDEN",
+                        "error": "You do not have permission to send the event."
+                    },
+                    headers=CORS_HEADERS,
+                    status=403,
+                )
             else:
                 logger.error(
                     "The internal Pantalaimon client did not manage "
