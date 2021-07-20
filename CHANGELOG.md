@@ -4,7 +4,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.9.3 2021-05-14
+## 0.10.2 2021-07-14
+
+### Fixed
+
+- [[#103]] Prevent E2EE downgrade on failed syncs
+
+[#103]: https://github.com/matrix-org/pantalaimon/pull/103
+
+
+## 0.10.1 2021-07-06
+
+### Fixed
+
+- [[#100]] Don't require the rooms dicts in the sync response
+- [[#99]] Thumbnails not generating for media uploaded in unencrypted rooms
+  whole LRU cache when it shouldn't
+
+[#100]: https://github.com/matrix-org/pantalaimon/pull/100
+[#99]: https://github.com/matrix-org/pantalaimon/pull/99
+
+
+## 0.10.0 2021-05-14
 
 ### Added
 
