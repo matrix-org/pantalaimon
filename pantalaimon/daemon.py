@@ -482,9 +482,7 @@ class ProxyDaemon:
 
         assert session
 
-        path = urllib.parse.quote(
-            request.path
-        )  # re-encode path stuff like room aliases
+        path = request.raw_path
         method = request.method
 
         headers = CIMultiDict(request.headers)
