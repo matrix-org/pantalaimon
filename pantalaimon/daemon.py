@@ -948,7 +948,10 @@ class ProxyDaemon:
             ):
                 try:
                     content["url"] = await self._decrypt_uri(content["url"], client)
-                    if "info" in content and "thumbnail_url" in content["info"]:
+                    if (
+                        "info" in content and "thumbnail_url" in content["info"]
+                        and not content["info"]["thumbnail_url"] == None
+                    ):
                         content["info"]["thumbnail_url"] = await self._decrypt_uri(
                             content["info"]["thumbnail_url"], client
                         )
