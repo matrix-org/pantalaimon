@@ -4,9 +4,10 @@ RUN mkdir -p /app
 RUN apt-get update && apt-get install -y git gcc clang cmake g++ pkg-config python3-dev wget
 
 WORKDIR /app
-RUN wget https://gitlab.matrix.org/matrix-org/olm/-/archive/master/olm-master.tar.bz2 \
-    && tar -xvf olm-master.tar.bz2 \
-    && cd olm-master && make && make PREFIX="/usr" install
+
+RUN wget https://gitlab.matrix.org/matrix-org/olm/-/archive/3.2.5/olm-3.2.5.tar.bz2 \
+    && tar -xvf olm-3.2.5.tar.bz2 \
+    && cd olm-3.2.5 && make && make PREFIX="/usr" install
 
 RUN pip --no-cache-dir install --upgrade pip setuptools wheel
 
