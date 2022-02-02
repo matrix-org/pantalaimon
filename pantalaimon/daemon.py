@@ -418,7 +418,9 @@ class ProxyDaemon:
         access_token = request.query.get("access_token", "")
 
         if not access_token:
-            access_token = request.headers.get("Authorization", "").strip("Bearer ")
+            access_token = request.headers.get("Authorization", "").replace(
+                "Bearer ", "", 1
+            )
 
         return access_token
 
