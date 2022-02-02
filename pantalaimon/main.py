@@ -63,7 +63,7 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
     )
 
     # 100 MB max POST size
-    app = web.Application(client_max_size=1024 ** 2 * 100)
+    app = web.Application(client_max_size=1024**2 * 100)
 
     app.add_routes(
         [

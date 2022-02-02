@@ -501,6 +501,5 @@ if False:
 
                 return search_result
 
-
 else:
     INDEXING_ENABLED = False

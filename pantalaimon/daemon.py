@@ -915,7 +915,7 @@ class ProxyDaemon:
                 return web.json_response(
                     {
                         "errcode": "M_FORBIDDEN",
-                        "error": "You do not have permission to send the event."
+                        "error": "You do not have permission to send the event.",
                     },
                     headers=CORS_HEADERS,
                     status=403,
@@ -958,8 +958,9 @@ class ProxyDaemon:
                 try:
                     content["url"] = await self._decrypt_uri(content["url"], client)
                     if (
-                        "info" in content and "thumbnail_url" in content["info"]
-                        and not content["info"]["thumbnail_url"] == None
+                        "info" in content
+                        and "thumbnail_url" in content["info"]
+                        and content["info"]["thumbnail_url"] is not None
                     ):
                         content["info"]["thumbnail_url"] = await self._decrypt_uri(
                             content["info"]["thumbnail_url"], client
