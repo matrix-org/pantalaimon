@@ -460,6 +460,7 @@ class ProxyDaemon:
         data=None,  # type: bytes
         session=None,  # type: aiohttp.ClientSession
         token=None,  # type: str
+        use_raw_path=True,  # type: bool
     ):
         # type: (...) -> aiohttp.ClientResponse
         """Forward the given request to our configured homeserver.
@@ -474,6 +475,10 @@ class ProxyDaemon:
                 should be used to forward the request.
             token (str, optional): The access token that should be used for the
                 request.
+            use_raw_path (str, optional): Should the raw path be used from the
+            request or should we use the path and re-encode it. Some may need
+            their filters to be sanitized, this requires the parsed version of
+            the path, otherise we leave the path as is.
         """
         if not session:
             if not self.default_session:
@@ -482,7 +487,7 @@ class ProxyDaemon:
 
         assert session
 
-        path = request.raw_path
+        path = request.raw_path if use_raw_path else urllib.parse.quote(request.path)
         method = request.method
 
         headers = CIMultiDict(request.headers)
@@ -761,7 +766,7 @@ class ProxyDaemon:
 
         try:
             response = await self.forward_request(
-                request, params=query, token=client.access_token
+                request, params=query, token=client.access_token, use_raw_path=False
             )
         except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
@@ -809,7 +814,9 @@ class ProxyDaemon:
             query["filter"] = request_filter
 
         try:
-            response = await self.forward_request(request, params=query)
+            response = await self.forward_request(
+                request, params=query, use_raw_path=False
+            )
         except ClientConnectionError as e:
             return web.Response(status=500, text=str(e))
 
