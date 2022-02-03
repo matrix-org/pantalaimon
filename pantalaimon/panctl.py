@@ -23,7 +23,12 @@ from typing import List
 
 import attr
 import click
-from gi.repository import GLib
+
+try:
+    from gi.repository import GLib
+except ModuleNotFoundError:
+    from pgi.repository import GLib
+
 from prompt_toolkit import __version__ as ptk_version
 from prompt_toolkit import HTML, PromptSession, print_formatted_text
 from prompt_toolkit.completion import Completer, Completion, PathCompleter
