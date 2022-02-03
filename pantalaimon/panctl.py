@@ -697,7 +697,7 @@ class PanCtl:
 )
 @click.version_option(version="0.10.3", prog_name="panctl")
 def main():
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
     glib_loop = GLib.MainLoop()
 
     try:
