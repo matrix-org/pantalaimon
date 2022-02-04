@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.10.4 2022-02-04
+
+### Fixed
+
+- [[#122]] Fix the GLib import for panctl on some distributions
+- [[#120]] Don't use strip to filter Bearer from the auth header
+- [[#118]] Don't use the raw path if we need to sanitize filters, fixing room
+  history fetching for Fractal
+
+[#122]: https://github.com/matrix-org/pantalaimon/pull/122
+[#120]: https://github.com/matrix-org/pantalaimon/pull/120
+[#118]: https://github.com/matrix-org/pantalaimon/pull/118
+
 ## 0.10.3 2021-09-02
 
 ### Fixed
