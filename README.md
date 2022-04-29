@@ -77,6 +77,10 @@ docker build -t pantalaimon .
 # volume below is for where Pantalaimon should dump some data.
 docker run -it --rm -v /path/to/pantalaimon/dir:/data -p 8008:8008 pantalaimon
 ```
+The Docker image in the above example can alternatively be built straight from any branch or tag without the need to clone the repo, just by using this syntax:
+```bash
+docker build -t pantalaimon github.com/matrix-org/pantalaimon#master
+```
 
 An example `pantalaimon.conf` for Docker is:
 ```conf
