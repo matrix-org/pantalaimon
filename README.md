@@ -100,7 +100,7 @@ IgnoreVerification = True
 Usage
 =====
 
-While pantalaimon is a daemon, it is meant to be run as your own user. It won't
+While pantalaimon is a daemon, it is meant to be run as the same user as the app it is proxying for. It won't
 verify devices for you automatically, unless configured to do so, and requires
 user interaction to verify, ignore or blacklist devices. A more complete
 description of Pantalaimon can be found in the [man page](docs/man/pantalaimon.8.md).
