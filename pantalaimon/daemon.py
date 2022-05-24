@@ -125,6 +125,8 @@ class ProxyDaemon:
         self.upload_info = self.store.load_upload(self.name)
 
         for user_id, device_id in accounts:
+            token = None
+
             if self.conf.keyring:
                 try:
                     token = keyring.get_password(
