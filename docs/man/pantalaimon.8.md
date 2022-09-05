@@ -24,7 +24,7 @@ behalf of the client.
 is supposed to run as your own user and listen to connections on a
 non-privileged port. A client needs to log in using the standard Matrix HTTP
 calls to register itself to the daemon, such a registered user is called a pan
-user and will have it's own sync loop to keep up with the server. Multiple matrix
+user and will have its own sync loop to keep up with the server. Multiple matrix
 clients can connect and use the same pan user.
 
 If user interaction is required
