@@ -68,10 +68,17 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
     app.add_routes(
         [
             web.post("/_matrix/client/r0/login", proxy.login),
+            web.post("/_matrix/client/v3/login", proxy.login),
             web.get("/_matrix/client/r0/sync", proxy.sync),
+            web.get("/_matrix/client/v3/sync", proxy.sync),
             web.get("/_matrix/client/r0/rooms/{room_id}/messages", proxy.messages),
+            web.get("/_matrix/client/v3/rooms/{room_id}/messages", proxy.messages),
             web.put(
                 r"/_matrix/client/r0/rooms/{room_id}/send/{event_type}/{txnid}",
+                proxy.send_message,
+            ),
+            web.put(
+                r"/_matrix/client/v3/rooms/{room_id}/send/{event_type}/{txnid}",
                 proxy.send_message,
             ),
             web.post(
@@ -79,15 +86,25 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
                 proxy.send_message,
             ),
             web.post("/_matrix/client/r0/user/{user_id}/filter", proxy.filter),
+            web.post("/_matrix/client/v3/user/{user_id}/filter", proxy.filter),
             web.post("/.well-known/matrix/client", proxy.well_known),
             web.get("/.well-known/matrix/client", proxy.well_known),
             web.post("/_matrix/client/r0/search", proxy.search),
+            web.post("/_matrix/client/v3/search", proxy.search),
             web.options("/_matrix/client/r0/search", proxy.search_opts),
+            web.options("/_matrix/client/v3/search", proxy.search_opts),
             web.get(
                 "/_matrix/media/v1/download/{server_name}/{media_id}", proxy.download
             ),
             web.get(
+                "/_matrix/media/v3/download/{server_name}/{media_id}", proxy.download
+            ),
+            web.get(
                 "/_matrix/media/v1/download/{server_name}/{media_id}/{file_name}",
+                proxy.download,
+            ),
+            web.get(
+                "/_matrix/media/v3/download/{server_name}/{media_id}/{file_name}",
                 proxy.download,
             ),
             web.get(
@@ -101,8 +118,16 @@ async def init(data_dir, server_conf, send_queue, recv_queue):
                 r"/_matrix/media/r0/upload",
                 proxy.upload,
             ),
+            web.post(
+                r"/_matrix/media/v3/upload",
+                proxy.upload,
+            ),
             web.put(
                 r"/_matrix/client/r0/profile/{userId}/avatar_url",
+                proxy.profile,
+            ),
+            web.put(
+                r"/_matrix/client/v3/profile/{userId}/avatar_url",
                 proxy.profile,
             ),
         ]
