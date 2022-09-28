@@ -29,7 +29,7 @@ Pantalaimon can also be found on pypi:
 
     pip install pantalaimon
 
-Pantalaimon contains a dbus based UI that can be used to controll the daemon.
+Pantalaimon contains a dbus based UI that can be used to control the daemon.
 The dbus based UI is completely optional and needs to be installed with the
 daemon:
 

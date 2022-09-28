@@ -464,7 +464,7 @@ class PanCtl:
     def sas_done(self, pan_user, user_id, device_id, _):
         print(
             f"Device {device_id} of user {user_id}"
-            f" succesfully verified for pan user {pan_user}."
+            f" successfully verified for pan user {pan_user}."
         )
 
     def show_sas_invite(self, pan_user, user_id, device_id, _):

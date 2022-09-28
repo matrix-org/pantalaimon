@@ -227,7 +227,7 @@ class ProxyDaemon:
 
         if ret:
             msg = (
-                f"Device {device.id} of user " f"{device.user_id} succesfully verified."
+                f"Device {device.id} of user " f"{device.user_id} successfully verified."
             )
             await client.send_update_device(device)
         else:
@@ -242,7 +242,7 @@ class ProxyDaemon:
         if ret:
             msg = (
                 f"Device {device.id} of user "
-                f"{device.user_id} succesfully unverified."
+                f"{device.user_id} successfully unverified."
             )
             await client.send_update_device(device)
         else:
@@ -257,7 +257,7 @@ class ProxyDaemon:
         if ret:
             msg = (
                 f"Device {device.id} of user "
-                f"{device.user_id} succesfully blacklisted."
+                f"{device.user_id} successfully blacklisted."
             )
             await client.send_update_device(device)
         else:
@@ -274,7 +274,7 @@ class ProxyDaemon:
         if ret:
             msg = (
                 f"Device {device.id} of user "
-                f"{device.user_id} succesfully unblacklisted."
+                f"{device.user_id} successfully unblacklisted."
             )
             await client.send_update_device(device)
         else:
@@ -358,7 +358,7 @@ class ProxyDaemon:
 
             else:
                 info_msg = (
-                    f"Succesfully exported keys for {client.user_id} " f"to {path}"
+                    f"Successfully exported keys for {client.user_id} " f"to {path}"
                 )
                 logger.info(info_msg)
                 await self.send_response(
@@ -381,7 +381,7 @@ class ProxyDaemon:
                 )
             else:
                 info_msg = (
-                    f"Succesfully imported keys for {client.user_id} " f"from {path}"
+                    f"Successfully imported keys for {client.user_id} " f"from {path}"
                 )
                 logger.info(info_msg)
                 await self.send_response(
@@ -482,7 +482,7 @@ class ProxyDaemon:
             use_raw_path (str, optional): Should the raw path be used from the
             request or should we use the path and re-encode it. Some may need
             their filters to be sanitized, this requires the parsed version of
-            the path, otherise we leave the path as is.
+            the path, otherwise we leave the path as is.
         """
         if not session:
             if not self.default_session:
@@ -616,7 +616,7 @@ class ProxyDaemon:
                 await pan_client.close()
                 return
 
-        logger.info(f"Succesfully started new background sync client for " f"{user_id}")
+        logger.info(f"Successfully started new background sync client for " f"{user_id}")
 
         await self.send_ui_message(
             UpdateUsersMessage(self.name, user_id, pan_client.device_id)
@@ -682,7 +682,7 @@ class ProxyDaemon:
 
             if user_id and access_token:
                 logger.info(
-                    f"User: {user} succesfully logged in, starting "
+                    f"User: {user} successfully logged in, starting "
                     f"a background sync client."
                 )
                 await self.start_pan_client(
@@ -1033,7 +1033,7 @@ class ProxyDaemon:
             except SendRetryError as e:
                 return web.Response(status=503, text=str(e))
 
-        # Aquire a semaphore here so we only send out one
+        # Acquire a semaphore here so we only send out one
         # UnverifiedDevicesSignal
         sem = client.send_semaphores[room_id]
 

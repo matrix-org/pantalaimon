@@ -31,7 +31,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "IgnoreVerification": "False",
                 "ListenAddress": "localhost",
                 "ListenPort": "8009",
-                "LogLevel": "warnig",
+                "LogLevel": "warning",
                 "Notifications": "on",
                 "UseKeyring": "yes",
                 "SearchRequests": "off",
@@ -113,7 +113,7 @@ class ServerConfig:
             E2E encrypted messages.
         keyring (bool): Enable or disable the OS keyring for the storage of
             access tokens.
-        search_requests (bool): Enable or disable aditional Homeserver requests
+        search_requests (bool): Enable or disable additional Homeserver requests
             for the search API endpoint.
         index_encrypted_only (bool): Enable or disable message indexing fro
             non-encrypted rooms.

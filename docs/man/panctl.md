@@ -74,7 +74,7 @@ are as follows:
 > In contrast to the
 > **send-anyways**
 > command this command cancels the sending of a message to an encrypted room with
-> unverified devices and gives the user the oportunity to verify or blacklist
+> unverified devices and gives the user the opportunity to verify or blacklist
 > devices as they see fit.
 
 **import-keys** *pan-user* *file* *passphrase*
