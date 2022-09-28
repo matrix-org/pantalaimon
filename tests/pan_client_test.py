@@ -28,7 +28,7 @@ ALICE_ID = "@alice:example.org"
 async def client(tmpdir, loop):
     store = PanStore(tmpdir)
     queue = janus.Queue()
-    conf = ServerConfig("example", "https://exapmle.org")
+    conf = ServerConfig("example", "https://example.org")
     conf.history_fetch_delay = 0.1
 
     store.save_server_user("example", "@example:example.org")
@@ -421,7 +421,7 @@ class TestClass(object):
         tasks = client.pan_store.load_fetcher_tasks(client.server_name, client.user_id)
         assert len(tasks) == 1
 
-        # Check that the task is our prev_batch from the sync resposne
+        # Check that the task is our prev_batch from the sync response
         assert tasks[0].room_id == TEST_ROOM_ID
         assert tasks[0].token == "t392-516_47314_0_7_1_1_1_11444_1"
 
@@ -431,7 +431,7 @@ class TestClass(object):
         tasks = client.pan_store.load_fetcher_tasks(client.server_name, client.user_id)
         assert len(tasks) == 1
 
-        # Check that the task is our end token from the messages resposne
+        # Check that the task is our end token from the messages response
         assert tasks[0].room_id == TEST_ROOM_ID
         assert tasks[0].token == "t47409-4357353_219380_26003_2265"
 
@@ -519,7 +519,7 @@ class TestClass(object):
         )
         assert len(tasks) == 1
 
-        # Check that the task is our end token from the messages resposne
+        # Check that the task is our end token from the messages response
         assert tasks[0].room_id == TEST_ROOM_ID
         assert tasks[0].token == "t47409-4357353_219380_26003_2265"
 

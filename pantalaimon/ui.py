@@ -470,14 +470,14 @@ if UI_ENABLED:
             self.bus.publish("org.pantalaimon1", self.control_if, self.device_if)
 
         def unverified_notification(self, message):
-            notificaton = notify2.Notification(
+            notification = notify2.Notification(
                 "Unverified devices.",
                 message=(
                     f"There are unverified devices in the room "
                     f"{message.room_display_name}."
                 ),
             )
-            notificaton.set_category("im")
+            notification.set_category("im")
 
             def send_cb(notification, action_key, user_data):
                 message = user_data
@@ -488,20 +488,20 @@ if UI_ENABLED:
                 self.control_if.CancelSending(message.pan_user, message.room_id)
 
             if "actions" in notify2.get_server_caps():
-                notificaton.add_action("send", "Send anyways", send_cb, message)
-                notificaton.add_action("cancel", "Cancel sending", cancel_cb, message)
+                notification.add_action("send", "Send anyways", send_cb, message)
+                notification.add_action("cancel", "Cancel sending", cancel_cb, message)
 
-            notificaton.show()
+            notification.show()
 
         def sas_invite_notification(self, message):
-            notificaton = notify2.Notification(
+            notification = notify2.Notification(
                 "Key verification invite",
                 message=(
                     f"{message.user_id} via {message.device_id} has started "
                     f"a key verification process."
                 ),
             )
-            notificaton.set_category("im")
+            notification.set_category("im")
 
             def accept_cb(notification, action_key, user_data):
                 message = user_data
@@ -516,17 +516,17 @@ if UI_ENABLED:
                 )
 
             if "actions" in notify2.get_server_caps():
-                notificaton.add_action("accept", "Accept", accept_cb, message)
-                notificaton.add_action("cancel", "Cancel", cancel_cb, message)
+                notification.add_action("accept", "Accept", accept_cb, message)
+                notification.add_action("cancel", "Cancel", cancel_cb, message)
 
-            notificaton.show()
+            notification.show()
 
         def sas_show_notification(self, message):
             emojis = [x[0] for x in message.emoji]
 
             emoji_str = "   ".join(emojis)
 
-            notificaton = notify2.Notification(
+            notification = notify2.Notification(
                 "Short authentication string",
                 message=(
                     f"Short authentication string for the key verification of"
@@ -534,7 +534,7 @@ if UI_ENABLED:
                     f"{emoji_str}"
                 ),
             )
-            notificaton.set_category("im")
+            notification.set_category("im")
 
             def confirm_cb(notification, action_key, user_data):
                 message = user_data
@@ -549,21 +549,21 @@ if UI_ENABLED:
                 )
 
             if "actions" in notify2.get_server_caps():
-                notificaton.add_action("confirm", "Confirm", confirm_cb, message)
-                notificaton.add_action("cancel", "Cancel", cancel_cb, message)
+                notification.add_action("confirm", "Confirm", confirm_cb, message)
+                notification.add_action("cancel", "Cancel", cancel_cb, message)
 
-            notificaton.show()
+            notification.show()
 
         def sas_done_notification(self, message):
-            notificaton = notify2.Notification(
+            notification = notify2.Notification(
                 "Device successfully verified.",
                 message=(
                     f"Device {message.device_id} of user {message.user_id} "
                     f"successfully verified."
                 ),
             )
-            notificaton.set_category("im")
-            notificaton.show()
+            notification.set_category("im")
+            notification.show()
 
         def message_callback(self):
             try:

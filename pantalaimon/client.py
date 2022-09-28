@@ -735,7 +735,7 @@ class PanClient(AsyncClient):
                     pass
 
                 response = (
-                    f"Succesfully continued the key requests from "
+                    f"Successfully continued the key requests from "
                     f"{message.user_id} via {message.device_id}"
                 )
                 ret = "m.ok"
@@ -760,7 +760,7 @@ class PanClient(AsyncClient):
 
             if cancelled:
                 response = (
-                    f"Succesfully cancelled key requests from "
+                    f"Successfully cancelled key requests from "
                     f"{message.user_id} via {message.device_id}"
                 )
                 ret = "m.ok"
