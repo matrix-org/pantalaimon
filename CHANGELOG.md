@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.10.5 2022-09-28
+
+### Added
+
+- [[#137]] Proxy the v3 endpoints as well
+
+### Fixed
+
+- [[#130]] Make sure the token variable is declared
+
+[#137]: https://github.com/matrix-org/pantalaimon/pull/137
+[#130]: https://github.com/matrix-org/pantalaimon/pull/130
+
 ## 0.10.4 2022-02-04
 
 ### Fixed
