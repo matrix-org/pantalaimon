@@ -135,7 +135,7 @@ class InvalidLimit(Exception):
 class SqliteQStore(SqliteStore):
     def _create_database(self):
         return SqliteQueueDatabase(
-            self.database_path, pragmas=(("foregign_keys", 1), ("secure_delete", 1))
+            self.database_path, pragmas=(("foreign_keys", 1), ("secure_delete", 1))
         )
 
     def close(self):
