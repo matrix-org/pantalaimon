@@ -40,6 +40,7 @@ class PanConfigParser(configparser.ConfigParser):
                 "HistoryFetchDelay": "3000",
                 "DebugEncryption": "False",
                 "DropOldKeys": "False",
+                "ClientMaxSize": "104857600",
             },
             converters={
                 "address": parse_address,
@@ -124,6 +125,7 @@ class ServerConfig:
             requests in seconds.
         drop_old_keys (bool): Should Pantalaimon only keep the most recent
             decryption key around.
+        client_max_size (int): The maximum size of a request, in bytes.
     """
 
     name = attr.ib(type=str)
@@ -141,6 +143,7 @@ class ServerConfig:
     indexing_batch_size = attr.ib(type=int, default=100)
     history_fetch_delay = attr.ib(type=int, default=3)
     drop_old_keys = attr.ib(type=bool, default=False)
+    client_max_size = attr.ib(type=int, default=1024**2 * 100)
 
 
 @attr.s
@@ -235,6 +238,13 @@ class PanConfig:
                 listen_set.add(listen_tuple)
                 drop_old_keys = section.getboolean("DropOldKeys")
 
+                client_max_size = section.getint("ClientMaxSize")
+
+                if not 0 < client_max_size:
+                    raise PanConfigError(
+                        "The client max size must be a positive integer"
+                    )
+
                 server_conf = ServerConfig(
                     section_name,
                     homeserver,
@@ -249,6 +259,7 @@ class PanConfig:
                     indexing_batch_size,
                     history_fetch_delay / 1000,
                     drop_old_keys,
+                    client_max_size,
                 )
 
                 self.servers[section_name] = server_conf
