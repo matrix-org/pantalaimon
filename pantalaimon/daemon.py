@@ -1273,7 +1273,7 @@ class ProxyDaemon:
         client = next(iter(self.pan_clients.values()))
 
         try:
-            response = await client.download(server_name, media_id, file_name)
+            response = await client.download(server_name=server_name, media_id=media_id, filename=file_name)
         except ClientConnectionError as e:
             raise e
 
