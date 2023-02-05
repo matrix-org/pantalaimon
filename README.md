@@ -21,6 +21,13 @@ provide a package building from source is required. Please refer to the Olm
 [readme](https://gitlab.matrix.org/matrix-org/olm/blob/master/README.md)
 to see how to build the C library from source.
 
+On Debian 11, use the following to satisfy dependencies:
+
+    # For the 'pantalaimon' pip:
+    sudo apt-get install libolm3 libolm-dev
+    # For the 'pantalaimon[ui]' pip:
+    sudo apt-get install pkg-config libcairo2-dev python3-dev python3-gi python3-gi-cairo gir1.2-gtk-3.0 libgirepository1.0-dev libdbus-1-dev
+
 Installing pantalaimon works like usually with python packages:
 
     python setup.py install
