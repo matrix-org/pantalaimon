@@ -69,6 +69,10 @@ The following keys are optional in the proxy instance sections:
 > incoming messages will be decryptable, the proxy will be unable to decrypt the
 > room history.  Defaults to "No".
 
+**ClientMaxSize**
+
+> The maximum size of a request, in bytes. Defaults to "104857600".
+
 Additional to the homeserver section a special section with the name
 **Default**
 can be used to configure the following values for all homeservers:
