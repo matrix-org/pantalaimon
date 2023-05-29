@@ -15,6 +15,7 @@
 import asyncio
 import json
 import os
+import time
 import urllib.parse
 import concurrent.futures
 from io import BufferedReader, BytesIO
@@ -22,7 +23,6 @@ from json import JSONDecodeError
 from typing import Any, Dict
 from urllib.parse import urlparse
 from uuid import uuid4
-
 import aiohttp
 import attr
 import keyring
@@ -163,6 +163,7 @@ class ProxyDaemon:
             pan_client.user_id = user_id
             pan_client.access_token = token
             pan_client.load_store()
+            pan_client.store.forgetful = self.conf.store_forgetful
             self.pan_clients[user_id] = pan_client
 
             loop.create_task(
@@ -172,8 +173,8 @@ class ProxyDaemon:
             )
 
             loop.create_task(pan_client.send_update_devices(pan_client.device_store))
-
-            pan_client.start_loop()
+            if self.conf.sync_on_startup:
+                pan_client.start_loop()
 
     async def _find_client(self, access_token):
         client_info = self.client_info.get(access_token, None)
@@ -753,6 +754,8 @@ class ProxyDaemon:
         client = await self._find_client(access_token)
         if not client:
             return self._unknown_token
+
+        client.ensure_sync_running()
 
         sync_filter = request.query.get("filter", None)
         query = CIMultiDict(request.query)
