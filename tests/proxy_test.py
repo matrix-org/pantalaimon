@@ -1,9 +1,7 @@
-import asyncio
 import json
 import re
 from collections import defaultdict
 
-from aiohttp import web
 from nio.crypto import OlmDevice
 
 from conftest import faker

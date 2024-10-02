@@ -15,7 +15,7 @@
 import json
 import os
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict
 
 import attr
 from nio.crypto import TrustState, GroupSessionStore

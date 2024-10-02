@@ -16,7 +16,6 @@ import asyncio
 import os
 from collections import defaultdict
 from pprint import pformat
-from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 from aiohttp.client_exceptions import ClientConnectionError

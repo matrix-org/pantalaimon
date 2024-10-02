@@ -1,12 +1,10 @@
 import asyncio
-import pdb
 import pprint
 import pytest
 
 from nio import RoomMessage, RoomEncryptedMedia
 
 from urllib.parse import urlparse
-from conftest import faker
 from pantalaimon.index import INDEXING_ENABLED
 from pantalaimon.store import FetchTask, MediaInfo, UploadInfo
 
@@ -81,7 +79,6 @@ class TestClass(object):
 
     def test_account_loading(self, panstore):
         accounts = panstore.load_all_users()
-        # pdb.set_trace()
         assert len(accounts) == 10
 
     def test_token_saving(self, panstore, access_token):
@@ -132,7 +129,7 @@ class TestClass(object):
         if not INDEXING_ENABLED:
             pytest.skip("Indexing needs to be enabled to test this")
 
-        from pantalaimon.index import Index, IndexStore
+        from pantalaimon.index import IndexStore
 
         loop = asyncio.get_event_loop()
 
