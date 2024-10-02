@@ -16,7 +16,6 @@ import asyncio
 import os
 from collections import defaultdict
 from pprint import pformat
-from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 from aiohttp.client_exceptions import ClientConnectionError
@@ -709,7 +708,6 @@ class PanClient(AsyncClient):
             for share in self.get_active_key_requests(
                 message.user_id, message.device_id
             ):
-
                 continued = True
 
                 if not self.continue_key_share(share):
@@ -811,8 +809,9 @@ class PanClient(AsyncClient):
 
         if not isinstance(event, MegolmEvent):
             logger.warn(
-                "Encrypted event is not a megolm event:"
-                "\n{}".format(pformat(event_dict))
+                "Encrypted event is not a megolm event:" "\n{}".format(
+                    pformat(event_dict)
+                )
             )
             return False
 
@@ -836,9 +835,9 @@ class PanClient(AsyncClient):
                 decrypted_event.source["content"]["url"] = decrypted_event.url
 
                 if decrypted_event.thumbnail_url:
-                    decrypted_event.source["content"]["info"][
-                        "thumbnail_url"
-                    ] = decrypted_event.thumbnail_url
+                    decrypted_event.source["content"]["info"]["thumbnail_url"] = (
+                        decrypted_event.thumbnail_url
+                    )
 
             event_dict.update(decrypted_event.source)
             event_dict["decrypted"] = True

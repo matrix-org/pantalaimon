@@ -15,7 +15,6 @@
 import asyncio
 import os
 import signal
-from typing import Optional
 
 import click
 import janus

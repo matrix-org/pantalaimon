@@ -227,7 +227,8 @@ class ProxyDaemon:
 
         if ret:
             msg = (
-                f"Device {device.id} of user " f"{device.user_id} successfully verified."
+                f"Device {device.id} of user "
+                f"{device.user_id} successfully verified."
             )
             await client.send_update_device(device)
         else:
@@ -309,7 +310,6 @@ class ProxyDaemon:
                 DeviceUnblacklistMessage,
             ),
         ):
-
             device = client.device_store[message.user_id].get(message.device_id, None)
 
             if not device:
@@ -616,7 +616,9 @@ class ProxyDaemon:
                 await pan_client.close()
                 return
 
-        logger.info(f"Successfully started new background sync client for " f"{user_id}")
+        logger.info(
+            f"Successfully started new background sync client for " f"{user_id}"
+        )
 
         await self.send_ui_message(
             UpdateUsersMessage(self.name, user_id, pan_client.device_id)
@@ -733,7 +735,7 @@ class ProxyDaemon:
                     return decryption_method(body, ignore_failures=False)
                 except EncryptionError:
                     logger.info("Error decrypting sync, waiting for next pan " "sync")
-                    await client.synced.wait(),
+                    (await client.synced.wait(),)
                     logger.info("Pan synced, retrying decryption.")
 
         try:
@@ -1273,7 +1275,9 @@ class ProxyDaemon:
         client = next(iter(self.pan_clients.values()))
 
         try:
-            response = await client.download(server_name=server_name, media_id=media_id, filename=file_name)
+            response = await client.download(
+                server_name=server_name, media_id=media_id, filename=file_name
+            )
         except ClientConnectionError as e:
             raise e
 

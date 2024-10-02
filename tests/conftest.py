@@ -34,11 +34,9 @@ class Provider(BaseProvider):
     def client(self):
         return ClientInfo(faker.mx_id(), faker.access_token())
 
-
     def avatar_url(self):
         return "mxc://{}/{}#auto".format(
-            faker.hostname(),
-            "".join(choices(ascii_letters) for i in range(24))
+            faker.hostname(), "".join(choices(ascii_letters) for i in range(24))
         )
 
     def olm_key_pair(self):
@@ -54,7 +52,6 @@ class Provider(BaseProvider):
             device_id,
             key_pair,
         )
-
 
 
 faker.add_provider(Provider)
@@ -80,13 +77,7 @@ def tempdir():
 @pytest.fixture
 def panstore(tempdir):
     for _ in range(10):
-        store = SqliteStore(
-            faker.mx_id(),
-            faker.device_id(),
-            tempdir,
-            "",
-            "pan.db"
-        )
+        store = SqliteStore(faker.mx_id(), faker.device_id(), tempdir, "", "pan.db")
         account = OlmAccount()
         store.save_account(account)
 
@@ -130,21 +121,23 @@ async def pan_proxy_server(tempdir, aiohttp_server):
         recv_queue=ui_queue.async_q,
         proxy=None,
         ssl=False,
-        client_store_class=SqliteStore
+        client_store_class=SqliteStore,
     )
 
-    app.add_routes([
-        web.post("/_matrix/client/r0/login", proxy.login),
-        web.get("/_matrix/client/r0/sync", proxy.sync),
-        web.get("/_matrix/client/r0/rooms/{room_id}/messages", proxy.messages),
-        web.put(
-            r"/_matrix/client/r0/rooms/{room_id}/send/{event_type}/{txnid}",
-            proxy.send_message
-        ),
-        web.post("/_matrix/client/r0/user/{user_id}/filter", proxy.filter),
-        web.post("/_matrix/client/r0/search", proxy.search),
-        web.options("/_matrix/client/r0/search", proxy.search_opts),
-    ])
+    app.add_routes(
+        [
+            web.post("/_matrix/client/r0/login", proxy.login),
+            web.get("/_matrix/client/r0/sync", proxy.sync),
+            web.get("/_matrix/client/r0/rooms/{room_id}/messages", proxy.messages),
+            web.put(
+                r"/_matrix/client/r0/rooms/{room_id}/send/{event_type}/{txnid}",
+                proxy.send_message,
+            ),
+            web.post("/_matrix/client/r0/user/{user_id}/filter", proxy.filter),
+            web.post("/_matrix/client/r0/search", proxy.search),
+            web.options("/_matrix/client/r0/search", proxy.search_opts),
+        ]
+    )
 
     server = await aiohttp_server(app)
 
@@ -161,7 +154,7 @@ async def running_proxy(pan_proxy_server, aioresponse, aiohttp_client):
         "access_token": "abc123",
         "device_id": "GHTYAJCE",
         "home_server": "example.org",
-        "user_id": "@example:example.org"
+        "user_id": "@example:example.org",
     }
 
     aioclient = await aiohttp_client(server)
@@ -170,7 +163,7 @@ async def running_proxy(pan_proxy_server, aioresponse, aiohttp_client):
         "https://example.org/_matrix/client/r0/login",
         status=200,
         payload=login_response,
-        repeat=True
+        repeat=True,
     )
 
     await aioclient.post(
@@ -179,7 +172,7 @@ async def running_proxy(pan_proxy_server, aioresponse, aiohttp_client):
             "type": "m.login.password",
             "user": "example",
             "password": "wordpass",
-        }
+        },
     )
 
     yield server, aioclient, proxy, queues

@@ -11,8 +11,7 @@ setup(
     url="https://github.com/matrix-org/pantalaimon",
     author="The Matrix.org Team",
     author_email="poljar@termina.org.uk",
-    description=("A Matrix proxy daemon that adds E2E encryption "
-                 "capabilities."),
+    description=("A Matrix proxy daemon that adds E2E encryption " "capabilities."),
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="Apache License, Version 2.0",
@@ -29,7 +28,7 @@ setup(
         "cachetools >= 3.0.0",
         "prompt_toolkit > 2, < 4",
         "typing;python_version<'3.5'",
-        "matrix-nio[e2e] >= 0.20, < 0.21"
+        "matrix-nio[e2e] >= 0.20, < 0.21",
     ],
     extras_require={
         "ui": [
@@ -40,8 +39,10 @@ setup(
         ]
     },
     entry_points={
-        "console_scripts": ["pantalaimon=pantalaimon.main:main",
-                            "panctl=pantalaimon.panctl:main"],
+        "console_scripts": [
+            "pantalaimon=pantalaimon.main:main",
+            "panctl=pantalaimon.panctl:main",
+        ],
     },
-    zip_safe=False
+    zip_safe=False,
 )

@@ -23,7 +23,6 @@ if False:
     import json
     import os
     from functools import partial
-    from typing import Any, Dict, List, Optional, Tuple
 
     import attr
     import tantivy
@@ -230,7 +229,6 @@ if False:
             )
 
             for message in query:
-
                 event = message.event
 
                 event_dict = {
