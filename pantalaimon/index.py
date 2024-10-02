@@ -230,7 +230,6 @@ if False:
             )
 
             for message in query:
-
                 event = message.event
 
                 event_dict = {

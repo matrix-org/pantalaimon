@@ -431,7 +431,6 @@ class PanStore:
             device_store = defaultdict(dict)
 
             for d in account.device_keys:
-
                 if d.deleted:
                     continue
 
