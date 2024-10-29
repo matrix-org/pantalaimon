@@ -28,13 +28,13 @@ setup(
         "cachetools >= 3.0.0",
         "prompt_toolkit > 2, < 4",
         "typing;python_version<'3.5'",
-        "matrix-nio[e2e] >= 0.20, < 0.21",
+        "matrix-nio[e2e] >= 0.24, < 0.25.2",
     ],
     extras_require={
         "ui": [
             "dbus-python >= 1.2, < 1.3",
             "PyGObject >= 3.36, < 3.39",
-            "dasbus == 1.71",
+            "dasbus == 1.7",
             "notify2 >= 0.3, < 0.4",
         ]
     },
