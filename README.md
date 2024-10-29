@@ -30,6 +30,9 @@ or you can use `pip` and install it with:
 pip install .[ui]
 ```
 
+It is recommended that you create a virtual environment first or install dependencies
+via your package manager. They are usually found with `python-<package-name>`.
+
 Pantalaimon can also be found on pypi:
 
     pip install pantalaimon
