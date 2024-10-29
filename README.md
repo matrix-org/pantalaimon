@@ -25,6 +25,11 @@ Installing pantalaimon works like usually with python packages:
 
     python setup.py install
 
+or you can use `pip` and install it with:
+```
+pip install .[ui]
+```
+
 Pantalaimon can also be found on pypi:
 
     pip install pantalaimon
