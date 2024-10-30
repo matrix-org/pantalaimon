@@ -1,9 +1,7 @@
-import asyncio
 import json
 import re
 from collections import defaultdict
 
-from aiohttp import web
 from nio.crypto import OlmDevice
 
 from conftest import faker
@@ -27,7 +25,7 @@ class TestClass(object):
             "access_token": "abc123",
             "device_id": "GHTYAJCE",
             "home_server": "example.org",
-            "user_id": "@example:example.org"
+            "user_id": "@example:example.org",
         }
 
     @property
@@ -36,12 +34,7 @@ class TestClass(object):
 
     @property
     def keys_upload_response(self):
-        return {
-            "one_time_key_counts": {
-                "curve25519": 10,
-                "signed_curve25519": 20
-            }
-        }
+        return {"one_time_key_counts": {"curve25519": 10, "signed_curve25519": 20}}
 
     @property
     def example_devices(self):
@@ -52,10 +45,7 @@ class TestClass(object):
             devices[device.user_id][device.id] = device
 
         bob_device = OlmDevice(
-            BOB_ID,
-            BOB_DEVICE,
-            {"ed25519": BOB_ONETIME,
-             "curve25519": BOB_CURVE}
+            BOB_ID, BOB_DEVICE, {"ed25519": BOB_ONETIME, "curve25519": BOB_CURVE}
         )
 
         devices[BOB_ID][BOB_DEVICE] = bob_device
@@ -71,7 +61,7 @@ class TestClass(object):
             "https://example.org/_matrix/client/r0/login",
             status=200,
             payload=self.login_response,
-            repeat=True
+            repeat=True,
         )
 
         assert not daemon.pan_clients
@@ -82,7 +72,7 @@ class TestClass(object):
                 "type": "m.login.password",
                 "user": "example",
                 "password": "wordpass",
-            }
+            },
         )
 
         assert resp.status == 200
@@ -105,11 +95,11 @@ class TestClass(object):
             "https://example.org/_matrix/client/r0/login",
             status=200,
             payload=self.login_response,
-            repeat=True
+            repeat=True,
         )
 
         sync_url = re.compile(
-            r'^https://example\.org/_matrix/client/r0/sync\?access_token=.*'
+            r"^https://example\.org/_matrix/client/r0/sync\?access_token=.*"
         )
 
         aioresponse.get(
@@ -124,14 +114,16 @@ class TestClass(object):
                 "type": "m.login.password",
                 "user": "example",
                 "password": "wordpass",
-            }
+            },
         )
 
         # Check that the pan client started to sync after logging in.
         pan_client = list(daemon.pan_clients.values())[0]
         assert len(pan_client.rooms) == 1
 
-    async def test_pan_client_keys_upload(self, pan_proxy_server, aiohttp_client, aioresponse):
+    async def test_pan_client_keys_upload(
+        self, pan_proxy_server, aiohttp_client, aioresponse
+    ):
         server, daemon, _ = pan_proxy_server
 
         client = await aiohttp_client(server)
@@ -140,11 +132,11 @@ class TestClass(object):
             "https://example.org/_matrix/client/r0/login",
             status=200,
             payload=self.login_response,
-            repeat=True
+            repeat=True,
         )
 
         sync_url = re.compile(
-            r'^https://example\.org/_matrix/client/r0/sync\?access_token=.*'
+            r"^https://example\.org/_matrix/client/r0/sync\?access_token=.*"
         )
 
         aioresponse.get(
@@ -169,7 +161,7 @@ class TestClass(object):
                 "type": "m.login.password",
                 "user": "example",
                 "password": "wordpass",
-            }
+            },
         )
 
         pan_client = list(daemon.pan_clients.values())[0]

@@ -380,7 +380,9 @@ class TestClass(object):
         )
 
         aioresponse.get(
-            sync_url, status=200, payload=self.initial_sync_response,
+            sync_url,
+            status=200,
+            payload=self.initial_sync_response,
         )
 
         aioresponse.get(sync_url, status=200, payload=self.empty_sync, repeat=True)
@@ -454,7 +456,9 @@ class TestClass(object):
         )
 
         aioresponse.get(
-            sync_url, status=200, payload=self.initial_sync_response,
+            sync_url,
+            status=200,
+            payload=self.initial_sync_response,
         )
 
         aioresponse.get(sync_url, status=200, payload=self.empty_sync, repeat=True)

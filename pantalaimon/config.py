@@ -186,7 +186,6 @@ class PanConfig:
 
         try:
             for section_name, section in config.items():
-
                 if section_name == "Default":
                     continue
 

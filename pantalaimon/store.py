@@ -15,7 +15,7 @@
 import json
 import os
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict
 
 import attr
 from nio.crypto import TrustState, GroupSessionStore
@@ -431,7 +431,6 @@ class PanStore:
             device_store = defaultdict(dict)
 
             for d in account.device_keys:
-
                 if d.deleted:
                     continue
 

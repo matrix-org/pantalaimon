@@ -1,12 +1,10 @@
 import asyncio
-import pdb
 import pprint
 import pytest
 
 from nio import RoomMessage, RoomEncryptedMedia
 
 from urllib.parse import urlparse
-from conftest import faker
 from pantalaimon.index import INDEXING_ENABLED
 from pantalaimon.store import FetchTask, MediaInfo, UploadInfo
 
@@ -27,7 +25,7 @@ class TestClass(object):
                 "type": "m.room.message",
                 "unsigned": {"age": 43289803095},
                 "user_id": "@example2:localhost",
-                "age": 43289803095
+                "age": 43289803095,
             }
         )
 
@@ -43,43 +41,44 @@ class TestClass(object):
                 "type": "m.room.message",
                 "unsigned": {"age": 43289803095},
                 "user_id": "@example2:localhost",
-                "age": 43289803095
+                "age": 43289803095,
             }
         )
 
     @property
     def encrypted_media_event(self):
-        return RoomEncryptedMedia.from_dict({
-            "room_id": "!testroom:localhost",
-            "event_id": "$15163622445EBvZK:localhost",
-            "origin_server_ts": 1516362244030,
-            "sender": "@example2:localhost",
-            "type": "m.room.message",
-            "content": {
-                "body": "orange_cat.jpg",
-                "msgtype": "m.image",
-                "file": {
-                    "v": "v2",
-                    "key": {
-                        "alg": "A256CTR",
-                        "ext": True,
-                        "k": "yx0QvkgYlasdWEsdalkejaHBzCkKEBAp3tB7dGtWgrs",
-                        "key_ops": ["encrypt", "decrypt"],
-                        "kty": "oct"
+        return RoomEncryptedMedia.from_dict(
+            {
+                "room_id": "!testroom:localhost",
+                "event_id": "$15163622445EBvZK:localhost",
+                "origin_server_ts": 1516362244030,
+                "sender": "@example2:localhost",
+                "type": "m.room.message",
+                "content": {
+                    "body": "orange_cat.jpg",
+                    "msgtype": "m.image",
+                    "file": {
+                        "v": "v2",
+                        "key": {
+                            "alg": "A256CTR",
+                            "ext": True,
+                            "k": "yx0QvkgYlasdWEsdalkejaHBzCkKEBAp3tB7dGtWgrs",
+                            "key_ops": ["encrypt", "decrypt"],
+                            "kty": "oct",
+                        },
+                        "iv": "0pglXX7fspIBBBBAEERLFd",
+                        "hashes": {
+                            "sha256": "eXRDFvh+aXsQRj8a+5ZVVWUQ9Y6u9DYiz4tq1NvbLu8"
+                        },
+                        "url": "mxc://localhost/maDtasSiPFjROFMnlwxIhhyW",
+                        "mimetype": "image/jpeg",
                     },
-                    "iv": "0pglXX7fspIBBBBAEERLFd",
-                    "hashes": {
-                        "sha256": "eXRDFvh+aXsQRj8a+5ZVVWUQ9Y6u9DYiz4tq1NvbLu8"
-                    },
-                    "url": "mxc://localhost/maDtasSiPFjROFMnlwxIhhyW",
-                    "mimetype": "image/jpeg"
-                }
+                },
             }
-        })
+        )
 
     def test_account_loading(self, panstore):
         accounts = panstore.load_all_users()
-        # pdb.set_trace()
         assert len(accounts) == 10
 
     def test_token_saving(self, panstore, access_token):
@@ -130,7 +129,8 @@ class TestClass(object):
         if not INDEXING_ENABLED:
             pytest.skip("Indexing needs to be enabled to test this")
 
-        from pantalaimon.index import Index, IndexStore
+        from pantalaimon.index import IndexStore
+
         loop = asyncio.get_event_loop()
 
         store = IndexStore("example", tempdir)
@@ -148,8 +148,10 @@ class TestClass(object):
         assert len(result["results"]) == 1
         assert result["count"] == 1
         assert result["results"][0]["result"] == self.test_event.source
-        assert (result["results"][0]["context"]["events_after"][0]
-                == self.another_event.source)
+        assert (
+            result["results"][0]["context"]["events_after"][0]
+            == self.another_event.source
+        )
 
     def test_media_storage(self, panstore):
         server_name = "test"
