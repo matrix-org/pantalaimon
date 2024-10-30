@@ -114,7 +114,13 @@ class ProxyDaemon:
     upload_info = attr.ib(init=False, default=None)
     database_name = "pan.db"
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
+        """
+        Post init method that sets up the proxy daemon.
+
+        This method sets up the proxy daemon by loading the users from the
+        store and starting the pan clients for each user.
+        """
         loop = asyncio.get_event_loop()
 
         self.homeserver_url = self.homeserver.geturl()
@@ -175,7 +181,20 @@ class ProxyDaemon:
 
             pan_client.start_loop()
 
-    async def _find_client(self, access_token):
+    async def _find_client(self, access_token: str) -> PanClient:
+        """
+        Find a client for the given access token.
+
+        Parameters
+        ----------
+        access_token : str
+            The access token for which we want to find a client.
+
+        Returns
+        -------
+        PanClient
+            The pan client for the given access token.
+        """
         client_info = self.client_info.get(access_token, None)
 
         if not client_info:
@@ -222,7 +241,19 @@ class ProxyDaemon:
 
         return client
 
-    async def _verify_device(self, message_id, client, device):
+    async def _verify_device(self, message_id: str, client: PanClient, device) -> None:
+        """
+        Verify a device for a given client.
+
+        Parameters
+        ----------
+        message_id : str
+            The message id for the verification message.
+        client : PanClient
+            The pan client for which we want to verify the device.
+        device : TODO, Figure out
+            The device that we want to verify.
+        """
         ret = client.verify_device(device)
 
         if ret:
@@ -237,7 +268,21 @@ class ProxyDaemon:
         logger.info(msg)
         await self.send_response(message_id, client.user_id, "m.ok", msg)
 
-    async def _unverify_device(self, message_id, client, device):
+    async def _unverify_device(
+        self, message_id: str, client: PanClient, device
+    ) -> None:
+        """
+        Basically the same as verify_device but for unverifying.
+
+        Parameters
+        ----------
+        message_id : str
+            The message id for the unverification message.
+        client : PanClient
+            The pan client for which we want to unverify the device.
+        device : TODO, Figure out
+            The device that we want to unverify.
+        """
         ret = client.unverify_device(device)
 
         if ret:
@@ -252,7 +297,21 @@ class ProxyDaemon:
         logger.info(msg)
         await self.send_response(message_id, client.user_id, "m.ok", msg)
 
-    async def _blacklist_device(self, message_id, client, device):
+    async def _blacklist_device(
+        self, message_id: str, client: PanClient, device
+    ) -> None:
+        """
+        Blacklist a device for a given client.
+
+        Parameters
+        ----------
+        message_id : str
+            The message id for the blacklist message.
+        client : PanClient
+            The pan client for which we want to blacklist the device.
+        device : TODO, Figure out
+            The device that we want to blacklist.
+        """
         ret = client.blacklist_device(device)
 
         if ret:
@@ -270,6 +329,18 @@ class ProxyDaemon:
         await self.send_response(message_id, client.user_id, "m.ok", msg)
 
     async def _unblacklist_device(self, message_id, client, device):
+        """
+        Basically the same as blacklist_device but for unblacklisting.
+
+        Parameters
+        ----------
+        message_id : str
+            The message id for the unblacklist message.
+        client : PanClient
+            The pan client for which we want to unblacklist the device.
+        device : TODO, Figure out
+            The device that we want to unblacklist.
+        """
         ret = client.unblacklist_device(device)
 
         if ret:
@@ -288,7 +359,20 @@ class ProxyDaemon:
         await self.send_response(message_id, client.user_id, "m.ok", msg)
 
     async def send_response(self, message_id, pan_user, code, message):
-        """Send a thread response message to the UI thread."""
+        """
+        Send a thread response message to the UI thread.
+
+        Parameters
+        ----------
+        message_id : str
+            The message id for the response message.
+        pan_user : str
+            The user for which we want to send the response.
+        code : str
+            The code for the response message.
+        message : str
+            The message for the response message.
+        """
         message = DaemonResponse(message_id, pan_user, code, message)
         await self.send_ui_message(message)
 
