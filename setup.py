@@ -34,7 +34,6 @@ setup(
         "ui": [
             "dbus-python >= 1.2, < 1.3",
             "PyGObject >= 3.36, < 3.39",
-            "dasbus == 1.71",
             "notify2 >= 0.3, < 0.4",
         ]
     },

@@ -25,16 +25,15 @@ import attr
 import click
 
 try:
-    from gi.repository import GLib
+    from gi.repository import GLib, Gio
 except ModuleNotFoundError:
-    from pgi.repository import GLib
+    from pgi.repository import GLib, Gio
 
 from prompt_toolkit import __version__ as ptk_version
 from prompt_toolkit import HTML, PromptSession, print_formatted_text
 from prompt_toolkit.completion import Completer, Completion, PathCompleter
 from prompt_toolkit.document import Document
 from prompt_toolkit.patch_stdout import patch_stdout
-from dasbus.connection import SessionMessageBus
 
 PTK2 = ptk_version.startswith("2.")
 
@@ -404,25 +403,75 @@ class PanCtl:
     commands = list(command_help.keys())
 
     def __attrs_post_init__(self):
-        self.bus = SessionMessageBus()
-        self.pan_bus = self.bus.get_connection("org.pantalaimon1")
+        """
+        Setting up D-Bus proxies and signal connections.
 
-        self.ctl = self.pan_bus["org.pantalaimon1.control"]
-        self.devices = self.pan_bus["org.pantalaimon1.devices"]
+        This is automatically called after the object is initialized and performs the following tasks:
 
-        self.own_message_ids = []
+        1. Establishes a connection to the D-Bus session bus.
+        2. Creates D-Bus proxies for interacting with the `org.pantalaimon1` service.
+        3. Connects various signals to their respective handler methods.
+        4. Initializes a `PanCompleter` instance for command completion.
 
-        self.ctl.Response.connect(self.show_response)
-        self.ctl.UnverifiedDevices.connect(self.unverified_devices)
+        Attributes:
+            bus (Gio.DBusConnection): The D-Bus connection to the session bus.
+            pan_bus (Gio.DBusProxy): Proxy for the main control interface of the `org.pantalaimon1` service.
+            ctl (Gio.DBusProxy): Another proxy for the main control interface of the `org.pantalaimon1` service.
+            devices (Gio.DBusProxy): Proxy for the devices interface of the `org.pantalaimon1` service.
+            completer (PanCompleter): Instance of `PanCompleter` for command completion.
+
+        Signal Handlers:
+            - `show_response`: Handles responses from the control interface.
+            - `unverified_devices`: Handles unverified device signals.
+            - `show_sas_invite`: Handles SAS (Short Authentication String) invite signals.
+            - `show_sas`: Handles SAS display signals.
+            - `sas_done`: Handles SAS completion signals.
+            - `show_key_request`: Handles key request signals.
+            - `show_key_request_cancel`: Handles key request cancellation signals.
+        """
+
+        self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+
+        self.pan_bus = Gio.DBusProxy.new_sync(
+            self.bus,
+            Gio.DBusProxyFlags.NONE,
+            None,
+            "org.pantalaimon1",  # Replace with actual service
+            "/",  # Root object path
+            "org.pantalaimon1.control",  # Main control interface
+            None,
+        )
+
+        self.ctl = Gio.DBusProxy.new_sync(
+            self.bus,
+            Gio.DBusProxyFlags.NONE,
+            None,
+            "org.pantalaimon1",
+            "/",
+            "org.pantalaimon1.control",
+            None,
+        )
+
+        self.devices = Gio.DBusProxy.new_sync(
+            self.bus,
+            Gio.DBusProxyFlags.NONE,
+            None,
+            "org.pantalaimon1",
+            "/",
+            "org.pantalaimon1.devices",
+            None,
+        )
+
+        self.ctl.connect("g-signal", self.show_response)
+        self.ctl.connect("g-signal", self.unverified_devices)
 
         self.completer = PanCompleter(self.commands, self.ctl, self.devices)
 
-        self.devices.VerificationInvite.connect(self.show_sas_invite)
-        self.devices.VerificationString.connect(self.show_sas)
-        self.devices.VerificationDone.connect(self.sas_done)
-
-        self.devices.KeyRequest.connect(self.show_key_request)
-        self.devices.KeyRequestCancel.connect(self.show_key_request_cancel)
+        self.devices.connect("g-signal", self.show_sas_invite)
+        self.devices.connect("g-signal", self.show_sas)
+        self.devices.connect("g-signal", self.sas_done)
+        self.devices.connect("g-signal", self.show_key_request)
+        self.devices.connect("g-signal", self.show_key_request_cancel)
 
     def show_help(self, command):
         print(self.command_help[command])
