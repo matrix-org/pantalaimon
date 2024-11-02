@@ -27,9 +27,7 @@ if UI_ENABLED:
     import attr
     import dbus
     import notify2
-    from gi.repository import GLib
-    from dasbus import SessionMessageBus
-    from dasbus.signal import Signal
+    from gi.repository import GLib, Gio
     from dbus.mainloop.glib import DBusGMainLoop
 
     from nio import RoomKeyRequest, RoomKeyRequestCancellation
@@ -123,14 +121,32 @@ if UI_ENABLED:
         </node>
         """
 
-        Response = Signal()
-        UnverifiedDevices = Signal()
-
-        def __init__(self, queue, server_list, id_counter):
+        def __init__(self, queue, server_list, id_counter, dbus_connection):
             self.queue = queue
             self.server_list = server_list
             self.id_counter = id_counter
+            self.dbus_connection = dbus_connection
             self.users = defaultdict(set)
+
+        def emit_response_signal(self, id, pan_user, message):
+            self.dbus_connection.emit_signal(
+                destination=None,
+                object_path="/org/pantalaimon1/control",
+                interface_name="org.pantalaimon1.control",
+                signal_name="Response",
+                parameters=GLib.Variant("(i, s, a{ss})", (id, pan_user, message)),
+            )
+
+        def emit_unverified_devices_signal(self, pan_user, room_id, room_display_name):
+            self.dbus_connection.emit_signal(
+                destination=None,
+                object_path="/org/pantalaimon1/control",
+                interface_name="org.pantalaimon1.control",
+                signal_name="UnverifiedDevices",
+                parameters=GLib.Variant(
+                    "(s, s, s)", (pan_user, room_id, room_display_name)
+                ),
+            )
 
         def update_users(self, message):
             self.users[message.server].add((message.user_id, message.device_id))
@@ -297,20 +313,89 @@ if UI_ENABLED:
         </node>
         """
 
-        VerificationInvite = Signal()
-        VerificationCancel = Signal()
-        VerificationString = Signal()
-        VerificationDone = Signal()
-
-        KeyRequest = Signal()
-        KeyRequestCancel = Signal()
-
-        def __init__(self, queue, id_counter):
+        def __init__(self, queue, id_counter, dbus_connection):
             self.device_list = dict()
             self.queue = queue
             self.id_counter = id_counter
-
+            self.dbus_connection = dbus_connection
             self.key_requests = dict()
+
+        def emit_verification_invite_signal(
+            self, pan_user, user_id, device_id, transaction_id
+        ):
+            self.dbus_connection.emit_signal(
+                destination=None,
+                object_path="/org/pantalaimon1/devices",
+                interface_name="org.pantalaimon1.devices",
+                signal_name="VerificationInvite",
+                parameters=GLib.Variant(
+                    "(s, s, s, s)", (pan_user, user_id, device_id, transaction_id)
+                ),
+            )
+
+        def emit_verification_cancel_signal(
+            self, pan_user, user_id, device_id, reason, code
+        ):
+            self.dbus_connection.emit_signal(
+                destination=None,
+                object_path="/org/pantalaimon1/devices",
+                interface_name="org.pantalaimon1.devices",
+                signal_name="VerificationCancel",
+                parameters=GLib.Variant(
+                    "(s, s, s, s, s)", (pan_user, user_id, device_id, reason, code)
+                ),
+            )
+
+        def emit_verification_string_signal(
+            self, pan_user, user_id, device_id, transaction_id, emoji
+        ):
+            self.dbus_connection.emit_signal(
+                destination=None,
+                object_path="/org/pantalaimon1/devices",
+                interface_name="org.pantalaimon1.devices",
+                signal_name="VerificationString",
+                parameters=GLib.Variant(
+                    "(s, s, s, s, s)",
+                    (pan_user, user_id, device_id, transaction_id, emoji),
+                ),
+            )
+
+        def emit_verification_done_signal(
+            self, pan_user, user_id, device_id, transaction_id
+        ):
+            self.dbus_connection.emit_signal(
+                destination=None,
+                object_path="/org/pantalaimon1/devices",
+                interface_name="org.pantalaimon1.devices",
+                signal_name="VerificationDone",
+                parameters=GLib.Variant(
+                    "(s, s, s, s)", (pan_user, user_id, device_id, transaction_id)
+                ),
+            )
+
+        def emit_key_request_signal(self, pan_user, user_id, device_id, request_id):
+            self.dbus_connection.emit_signal(
+                destination=None,
+                object_path="/org/pantalaimon1/devices",
+                interface_name="org.pantalaimon1.devices",
+                signal_name="KeyRequest",
+                parameters=GLib.Variant(
+                    "(s, s, s, s)", (pan_user, user_id, device_id, request_id)
+                ),
+            )
+
+        def emit_key_request_cancel_signal(
+            self, pan_user, user_id, device_id, request_id
+        ):
+            self.dbus_connection.emit_signal(
+                destination=None,
+                object_path="/org/pantalaimon1/devices",
+                interface_name="org.pantalaimon1.devices",
+                signal_name="KeyRequestCancel",
+                parameters=GLib.Variant(
+                    "(s, s, s, s)", (pan_user, user_id, device_id, request_id)
+                ),
+            )
 
         @property
         def message_id(self):
@@ -423,7 +508,7 @@ if UI_ENABLED:
 
             if isinstance(event, RoomKeyRequest):
                 self.key_requests[event.request_id] = event
-                self.KeyRequest(
+                self.emit_key_request_signal(
                     message.pan_user,
                     event.sender,
                     event.requesting_device_id,
@@ -432,7 +517,7 @@ if UI_ENABLED:
 
             elif isinstance(event, RoomKeyRequestCancellation):
                 self.key_requests.pop(event.request_id, None)
-                self.KeyRequestCancel(
+                self.emit_key_request_cancel_signal(
                     message.pan_user,
                     event.sender,
                     event.requesting_device_id,
@@ -463,11 +548,109 @@ if UI_ENABLED:
 
             id_counter = IdCounter()
 
-            self.control_if = Control(self.send_queue, self.server_list, id_counter)
+            # Connect to the session bus
+            self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+
+            self.control_if = Control(
+                self.send_queue, self.server_list, id_counter, self.bus
+            )
             self.device_if = Devices(self.send_queue, id_counter)
 
-            self.bus = SessionMessageBus()
-            self.bus.publish_object("org.pantalaimon1", self.control_if, self.device_if)
+            # Define introspection XML for the D-Bus interface
+            introspection_xml = """
+            <node>
+              <interface name="org.pantalaimon1.control">
+                <method name="SomeControlMethod">
+                  <arg direction="in" type="s" name="input_arg"/>
+                  <arg direction="out" type="s" name="output"/>
+                </method>
+              </interface>
+              <interface name="org.pantalaimon1.devices">
+                <method name="SomeDeviceMethod">
+                  <arg direction="in" type="s" name="input_arg"/>
+                  <arg direction="out" type="s" name="output"/>
+                </method>
+              </interface>
+            </node>
+            """
+            self.introspection_data = Gio.DBusNodeInfo.new_for_xml(introspection_xml)
+
+            # Interface vtable to handle method calls
+            self.vtable = Gio.DBusInterfaceVTable(
+                method_call=self.on_method_call, get_property=None, set_property=None
+            )
+
+            # Register the object on the bus
+            self.bus.register_object(
+                "/org/pantalaimon1",
+                self.introspection_data.interfaces[0],  # Register control interface
+                self.vtable,
+                None,
+            )
+
+        def on_method_call(
+            self,
+            connection,
+            sender,
+            object_path,
+            interface_name,
+            method_name,
+            parameters,
+            invocation,
+        ):
+            """
+            Handles incoming D-Bus method calls routed to the registered object.
+
+            Parameters:
+                connection (Gio.DBusConnection): The D-Bus connection on which the call was received.
+                sender (str): The unique name of the caller on the D-Bus.
+                object_path (str): The object path of the method call.
+                interface_name (str): The interface name on which the method was called.
+                method_name (str): The name of the method being called.
+                parameters (GLib.Variant): The parameters passed to the method.
+                invocation (Gio.DBusMethodInvocation): An object for replying to the call.
+
+            Responds to specific methods defined within 'org.pantalaimon1.control' and
+            'org.pantalaimon1.devices' interfaces, routing to the appropriate methods
+            in 'self.control_if' and 'self.device_if' and returning results to the caller.
+            """
+
+            if interface_name == "org.pantalaimon1.control":
+                if method_name == "ListServers":
+                    result = self.control_if.ListServers()
+                    invocation.return_value(GLib.Variant("(a{sa(ss)})", [result]))
+
+                elif method_name == "ExportKeys":
+                    pan_user, filepath, passphrase = parameters.unpack()
+                    result = self.control_if.ExportKeys(pan_user, filepath, passphrase)
+                    invocation.return_value(GLib.Variant("(u)", [result]))
+
+                elif method_name == "ImportKeys":
+                    pan_user, filepath, passphrase = parameters.unpack()
+                    result = self.control_if.ImportKeys(pan_user, filepath, passphrase)
+                    invocation.return_value(GLib.Variant("(u)", [result]))
+
+                elif method_name == "SendAnyways":
+                    pan_user, room_id = parameters.unpack()
+                    result = self.control_if.SendAnyways(pan_user, room_id)
+                    invocation.return_value(GLib.Variant("(u)", [result]))
+
+                elif method_name == "CancelSending":
+                    pan_user, room_id = parameters.unpack()
+                    result = self.control_if.CancelSending(pan_user, room_id)
+                    invocation.return_value(GLib.Variant("(u)", [result]))
+
+        # def __attrs_post_init__(self):
+        #     self.loop = None
+        #     self.dbus_loop = None
+
+        #     id_counter = IdCounter()
+
+        #     self.control_if = Control(self.send_queue, self.server_list, id_counter)
+        #     self.device_if = Devices(self.send_queue, id_counter)
+
+        #     self.bus = SessionMessageBus()
+        #     self.bus.publish_object("org.pantalaimon1", self.control_if, self.device_if)
 
         def unverified_notification(self, message):
             notification = notify2.Notification(
@@ -580,7 +763,7 @@ if UI_ENABLED:
                 self.control_if.update_users(message)
 
             elif isinstance(message, UnverifiedDevicesSignal):
-                self.control_if.UnverifiedDevices(
+                self.control_if.emit_unverified_devices_signal(
                     message.pan_user, message.room_id, message.room_display_name
                 )
 
@@ -588,7 +771,7 @@ if UI_ENABLED:
                     self.unverified_notification(message)
 
             elif isinstance(message, InviteSasSignal):
-                self.device_if.VerificationInvite(
+                self.device_if.emit_verification_invite_signal(
                     message.pan_user,
                     message.user_id,
                     message.device_id,
@@ -599,19 +782,18 @@ if UI_ENABLED:
                     self.sas_invite_notification(message)
 
             elif isinstance(message, ShowSasSignal):
-                self.device_if.VerificationString(
+                self.device_if.emit_verification_string_signal(
                     message.pan_user,
                     message.user_id,
                     message.device_id,
                     message.transaction_id,
                     message.emoji,
                 )
-
                 if self.notifications:
                     self.sas_show_notification(message)
 
             elif isinstance(message, SasDoneSignal):
-                self.device_if.VerificationDone(
+                self.device_if.emit_verification_done_signal(
                     message.pan_user,
                     message.user_id,
                     message.device_id,
@@ -622,11 +804,15 @@ if UI_ENABLED:
                     self.sas_done_notification(message)
 
             elif isinstance(message, DaemonResponse):
-                self.control_if.Response(
-                    message.message_id,
-                    message.pan_user,
-                    {"code": message.code, "message": message.message},
+                # Is message.message correct?
+                self.control_if.emit_response_signal(
+                    message.message_id, message.pan_user, message.message
                 )
+                # self.control_if.Response(
+                #     message.message_id,
+                #     message.pan_user,
+                #     {"code": message.code, "message": message.message},
+                # )
 
             elif isinstance(message, KeyRequestMessage):
                 self.device_if.update_key_requests(message)
