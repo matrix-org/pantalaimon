@@ -17,7 +17,7 @@ from importlib import util
 UI_ENABLED = (
     util.find_spec("gi") is not None
     and util.find_spec("gi.repository") is not None
-    and util.find_spec("dasbus") is not None
+    and util.find_spec("pydbus") is not None
 )
 
 if UI_ENABLED:
@@ -28,8 +28,8 @@ if UI_ENABLED:
     import dbus
     import notify2
     from gi.repository import GLib
-    from dasbus import SessionMessageBus
-    from dasbus.signal import Signal
+    from pydbus import SessionBus
+    from pydbus.generic import signal
     from dbus.mainloop.glib import DBusGMainLoop
 
     from nio import RoomKeyRequest, RoomKeyRequestCancellation
@@ -123,8 +123,8 @@ if UI_ENABLED:
         </node>
         """
 
-        Response = Signal()
-        UnverifiedDevices = Signal()
+        Response = signal()
+        UnverifiedDevices = signal()
 
         def __init__(self, queue, server_list, id_counter):
             self.queue = queue
@@ -297,13 +297,13 @@ if UI_ENABLED:
         </node>
         """
 
-        VerificationInvite = Signal()
-        VerificationCancel = Signal()
-        VerificationString = Signal()
-        VerificationDone = Signal()
+        VerificationInvite = signal()
+        VerificationCancel = signal()
+        VerificationString = signal()
+        VerificationDone = signal()
 
-        KeyRequest = Signal()
-        KeyRequestCancel = Signal()
+        KeyRequest = signal()
+        KeyRequestCancel = signal()
 
         def __init__(self, queue, id_counter):
             self.device_list = dict()
@@ -466,8 +466,8 @@ if UI_ENABLED:
             self.control_if = Control(self.send_queue, self.server_list, id_counter)
             self.device_if = Devices(self.send_queue, id_counter)
 
-            self.bus = SessionMessageBus()
-            self.bus.publish_object("org.pantalaimon1", self.control_if, self.device_if)
+            self.bus = SessionBus()
+            self.bus.publish("org.pantalaimon1", self.control_if, self.device_if)
 
         def unverified_notification(self, message):
             notification = notify2.Notification(
