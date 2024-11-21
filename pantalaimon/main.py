@@ -22,7 +22,7 @@ import keyring
 import logbook
 import nio
 from aiohttp import web
-from appdirs import user_config_dir, user_data_dir
+from platformdirs import user_config_dir, user_data_dir
 from logbook import StderrHandler
 
 from pantalaimon.config import PanConfig, PanConfigError, parse_log_level
