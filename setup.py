@@ -19,7 +19,7 @@ setup(
     install_requires=[
         "attrs >= 19.3.0",
         "aiohttp >= 3.6, < 4.0",
-        "appdirs >= 1.4.4",
+        "platformdirs >= 4.3.6",
         "click >= 7.1.2",
         "keyring >= 21.2.1",
         "logbook >= 1.5.3",
