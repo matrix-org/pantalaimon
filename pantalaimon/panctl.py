@@ -590,7 +590,7 @@ class PanCtl:
             parser = PanctlParser(self.commands)
 
             try:
-                args = parser.parse_args(split(result))
+                args = parser.parse_args(split(result, posix=False))
             except ParseError:
                 continue
 
