@@ -20,6 +20,7 @@ import sys
 from collections import defaultdict
 from itertools import zip_longest
 from typing import List
+from shlex import split
 
 import attr
 import click
@@ -589,7 +590,7 @@ class PanCtl:
             parser = PanctlParser(self.commands)
 
             try:
-                args = parser.parse_args(result.split())
+                args = parser.parse_args(split(result, posix=False))
             except ParseError:
                 continue
 
