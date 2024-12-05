@@ -39,6 +39,8 @@ class PanConfigParser(configparser.ConfigParser):
                 "IndexingBatchSize": "100",
                 "HistoryFetchDelay": "3000",
                 "DebugEncryption": "False",
+                "SyncOnStartup": "False",
+                "StopSyncingTimeout": "600",
                 "DropOldKeys": "False",
             },
             converters={
@@ -122,6 +124,12 @@ class ServerConfig:
             the room history.
         history_fetch_delay (int): The delay between room history fetching
             requests in seconds.
+        sync_on_startup (bool): Begin syncing all accounts registered with
+            pantalaimon on startup.
+        sync_stop_after (int): The number of seconds to wait since the
+            client has requested a /sync, before stopping a sync.
+        store_forgetful (bool): Enable or disable discarding of previous sessions
+            from the store.
         drop_old_keys (bool): Should Pantalaimon only keep the most recent
             decryption key around.
     """
@@ -140,6 +148,9 @@ class ServerConfig:
     index_encrypted_only = attr.ib(type=bool, default=True)
     indexing_batch_size = attr.ib(type=int, default=100)
     history_fetch_delay = attr.ib(type=int, default=3)
+    sync_on_startup = attr.ib(type=bool, default=False)
+    sync_stop_after = attr.ib(type=int, default=600)
+    store_forgetful = attr.ib(type=bool, default=True)
     drop_old_keys = attr.ib(type=bool, default=False)
 
 
@@ -204,8 +215,11 @@ class PanConfig:
                 proxy = section.geturl("Proxy")
                 search_requests = section.getboolean("SearchRequests")
                 index_encrypted_only = section.getboolean("IndexEncryptedOnly")
-
+                store_forgetful = config["Default"].getboolean("StoreForgetful")
                 indexing_batch_size = section.getint("IndexingBatchSize")
+
+                sync_on_startup = False #section.getboolean("SyncOnStartup")
+                sync_stop_after = 600 #section.getint("SyncStopAfter")
 
                 if not 1 < indexing_batch_size <= 1000:
                     raise PanConfigError(
@@ -247,6 +261,9 @@ class PanConfig:
                     index_encrypted_only,
                     indexing_batch_size,
                     history_fetch_delay / 1000,
+                    sync_on_startup,
+                    sync_stop_after,
+                    store_forgetful,
                     drop_old_keys,
                 )
 

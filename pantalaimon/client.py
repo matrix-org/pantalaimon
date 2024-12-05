@@ -14,10 +14,10 @@
 
 import asyncio
 import os
+import time
 from collections import defaultdict
 from pprint import pformat
 from urllib.parse import urlparse
-
 from aiohttp.client_exceptions import ClientConnectionError
 from jsonschema import Draft4Validator, FormatChecker, validators
 from playhouse.sqliteq import SqliteQueueDatabase
@@ -49,10 +49,9 @@ from nio import (
 )
 from nio.crypto import Sas
 from nio.store import SqliteStore
-
 from pantalaimon.index import INDEXING_ENABLED
 from pantalaimon.log import logger
-from pantalaimon.store import FetchTask, MediaInfo
+from pantalaimon.store import FetchTask, MediaInfo, PanSqliteStore
 from pantalaimon.thread_messages import (
     DaemonResponse,
     InviteSasSignal,
@@ -161,7 +160,7 @@ class PanClient(AsyncClient):
         media_info=None,
     ):
         config = config or AsyncClientConfig(
-            store=store_class or SqliteStore, store_name="pan.db"
+            store=store_class or PanSqliteStore, store_name="pan.db"
         )
         super().__init__(homeserver, user_id, device_id, store_path, config, ssl, proxy)
 
@@ -176,6 +175,7 @@ class PanClient(AsyncClient):
         self.pan_store = pan_store
         self.pan_conf = pan_conf
         self.media_info = media_info
+        self.last_sync_request_ts = 0
 
         if INDEXING_ENABLED:
             logger.info("Indexing enabled.")
@@ -198,6 +198,7 @@ class PanClient(AsyncClient):
         self.send_semaphores = defaultdict(asyncio.Semaphore)
         self.send_decision_queues = dict()  # type: asyncio.Queue
         self.last_sync_token = None
+        self.last_sync_task = None
 
         self.history_fetcher_task = None
         self.history_fetch_queue = asyncio.Queue()
@@ -526,6 +527,22 @@ class PanClient(AsyncClient):
                 )
                 await self.send_update_device(device)
 
+    def ensure_sync_running(self, loop_sleep_time=100):
+        self.last_sync_request_ts = int(time.time())
+        if self.task is None:
+            self.start_loop(loop_sleep_time)
+
+    async def can_stop_sync(self):
+        try:
+            while True:
+                await asyncio.sleep(self.pan_conf.sync_stop_after)
+                if time.time() - self.last_sync_request_ts > self.pan_conf.sync_stop_after:
+                    await self.loop_stop()
+                    break
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            return
+
+
     def start_loop(self, loop_sleep_time=100):
         """Start a loop that runs forever and keeps on syncing with the server.
 
@@ -543,6 +560,8 @@ class PanClient(AsyncClient):
         timeout = 30000
         sync_filter = {"room": {"state": {"lazy_load_members": True}}}
         next_batch = self.pan_store.load_token(self.server_name, self.user_id)
+        self.last_sync_token = next_batch
+        self.last_sync_request_ts = int(time.time())
 
         # We don't store any room state so initial sync needs to be with the
         # full_state parameter. Subsequent ones are normal.
@@ -557,6 +576,10 @@ class PanClient(AsyncClient):
             )
         )
         self.task = task
+
+        # if self.pan_conf.sync_stop_after > 0:
+        #     self.last_sync_task = loop.create_task(self.can_stop_sync())
+            
 
         return task
 
@@ -776,7 +799,7 @@ class PanClient(AsyncClient):
 
     async def loop_stop(self):
         """Stop the client loop."""
-        logger.info("Stopping the sync loop")
+        logger.info(f"Stopping the sync loop for {self.user_id}")
 
         if self.task and not self.task.done():
             self.task.cancel()
@@ -787,6 +810,16 @@ class PanClient(AsyncClient):
                 pass
 
             self.task = None
+
+        if self.last_sync_task and not self.last_sync_task.done():
+            self.last_sync_task.cancel()
+
+            try:
+                await self.last_sync_task
+            except KeyboardInterrupt:
+                pass
+
+            self.last_sync_task = None
 
         if self.history_fetcher_task and not self.history_fetcher_task.done():
             self.history_fetcher_task.cancel()
