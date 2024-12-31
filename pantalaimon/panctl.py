@@ -35,7 +35,7 @@ from prompt_toolkit import HTML, PromptSession, print_formatted_text
 from prompt_toolkit.completion import Completer, Completion, PathCompleter
 from prompt_toolkit.document import Document
 from prompt_toolkit.patch_stdout import patch_stdout
-from dasbus.connection import SessionMessageBus
+from pydbus import SessionBus
 
 PTK2 = ptk_version.startswith("2.")
 
@@ -405,8 +405,8 @@ class PanCtl:
     commands = list(command_help.keys())
 
     def __attrs_post_init__(self):
-        self.bus = SessionMessageBus()
-        self.pan_bus = self.bus.get_connection("org.pantalaimon1")
+        self.bus = SessionBus()
+        self.pan_bus = self.bus.get("org.pantalaimon1")
 
         self.ctl = self.pan_bus["org.pantalaimon1.control"]
         self.devices = self.pan_bus["org.pantalaimon1.devices"]
