@@ -25,7 +25,7 @@ ALICE_ID = "@alice:example.org"
 
 
 @pytest.fixture
-async def client(tmpdir, loop):
+async def client(tmpdir):
     store = PanStore(tmpdir)
     queue = janus.Queue()
     conf = ServerConfig("example", "https://example.org")
@@ -371,7 +371,7 @@ class TestClass(object):
 
         await client.loop_stop()
 
-    async def test_history_fetching_tasks(self, client, aioresponse, loop):
+    async def test_history_fetching_tasks(self, client, aioresponse):
         if not INDEXING_ENABLED:
             pytest.skip("Indexing needs to be enabled to test this")
 
@@ -447,7 +447,7 @@ class TestClass(object):
 
         await client.loop_stop()
 
-    async def test_history_fetching_resume(self, client, aioresponse, loop):
+    async def test_history_fetching_resume(self, client, aioresponse):
         if not INDEXING_ENABLED:
             pytest.skip("Indexing needs to be enabled to test this")
 
