@@ -1,9 +1,26 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import find_packages, setup
+import os
 
 with open("README.md", encoding="utf-8") as f:
     long_description = f.read()
+
+
+def get_manpages():
+    """
+    This function goes and gets all the man pages so they can be installed when
+    the package is installed.
+    """
+    man_pages = []
+    for root, _, files in os.walk("docs/man"):
+        for file in files:
+            if file.endswith((".1", ".5", ".8")):
+                man_section = file.split(".")[-1]
+                dest_dir = os.path.join("share", "man", f"man{man_section}")
+                man_pages.append((dest_dir, [os.path.join(root, file)]))
+    return man_pages
+
 
 setup(
     name="pantalaimon",
@@ -11,7 +28,7 @@ setup(
     url="https://github.com/matrix-org/pantalaimon",
     author="The Matrix.org Team",
     author_email="poljar@termina.org.uk",
-    description=("A Matrix proxy daemon that adds E2E encryption " "capabilities."),
+    description=("A Matrix proxy daemon that adds E2E encryption capabilities."),
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="Apache License, Version 2.0",
@@ -45,4 +62,5 @@ setup(
         ],
     },
     zip_safe=False,
+    data_files=get_manpages(),
 )
